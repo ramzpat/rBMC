@@ -12,20 +12,7 @@ Event =		DeclareSort('Event')
 RW = 		DeclareSort('RW')
 ReadOp = 	DeclareSort('ReadOp')			# Read access 	*A kind of memory operation(MemOp)
 WriteOp = 	DeclareSort('WriteOp')			# Write access 	*A kind of memory operation(MemOp) 
-
-idW = Function('idW', WriteOp, IntSort())
-idR = Function('idR', ReadOp, IntSort())
-idLoc = Function('idLoc', Loc, IntSort())
-
-proc = Function('proc', Event, Proc)
-proc.domain = (lambda i: Event)
-
-w1, w2 = Consts('w1 w2', WriteOp)
-r1, r2 = Consts('r1 r2', ReadOp)
-l1, l2 = Consts('l1 l2', Loc)
-global_axioms = [ ForAll([w1, w2], Implies(idW(w1) != idW(w2), w1 != w2 ) ),  
-				  ForAll([r1, r2], Implies(idR(r1) != idR(r2), r1 != r2 ) ),
-				  ForAll([l1, l2], Implies(idLoc(l1) != idLoc(l2), l1 != l2))]
+FenceOp = 	DeclareSort('FenceOp')			# Fence operator 
 
 # Wrap function for subsort 
 def subsort_f(sort1, sort2):
@@ -33,16 +20,20 @@ def subsort_f(sort1, sort2):
 	return f_sort 
 
 E_RW = subsort_f(RW, Event)
+E_F = subsort_f(FenceOp, Event)
+
 unknow_event = Const('unknow_event', Event)
 Event.cast = (lambda val:
 	val if (type(val) != tuple and val.sort() == Event) else
 	E_RW(RW.cast(val)) if (RW.cast(val) != unknow_rw or val.sort() == RW)
+	else E_F(val) if (val.sort() == FenceOp)
 	else val if (val.sort() == Event)
 	else unknow_event
 	)
 
 RW_R = subsort_f(ReadOp, RW)
 RW_W = subsort_f(WriteOp, RW)
+
 unknow_rw = Const('unknow_rw', RW)
 RW.cast = (lambda val:
 	RW.cast(getSymbolic(val)) if (type(val) == tuple)
@@ -61,6 +52,23 @@ WriteOp.cast = (lambda val:
 	val if (val.sort() == WriteOp)
 	else unknow_write
 	)
+
+# Allocate new constant
+
+idW = Function('idW', WriteOp, IntSort())
+idR = Function('idR', ReadOp, IntSort())
+idLoc = Function('idLoc', Loc, IntSort())
+
+proc = Function('proc', Event, Proc)
+proc.domain = (lambda i: Event)
+
+w1, w2 = Consts('w1 w2', WriteOp)
+r1, r2 = Consts('r1 r2', ReadOp)
+l1, l2 = Consts('l1 l2', Loc)
+global_axioms = [ ForAll([w1, w2], Implies(idW(w1) != idW(w2), w1 != w2 ) ),  
+				  ForAll([r1, r2], Implies(idR(r1) != idR(r2), r1 != r2 ) ),
+				  ForAll([l1, l2], Implies(idLoc(l1) != idLoc(l2), l1 != l2))]
+
 
 id_loc = 0
 def new_loc(name):
@@ -101,19 +109,32 @@ def new_write(name, location, val, pid = 0):
 	id_write += 1
 	return (write, loc, v)
 
+
+# Untilized function
 def getSymbolic((rw, loc, proc)):
 	return rw
 
 def getWrites(RW):
 	return [w for w in RW if (getSymbolic(w).sort() if type(w) == tuple else w.sort()) == WriteOp]
+
 def getReads(RW):
 	return [r for r in RW if (getSymbolic(r).sort() if type(r) == tuple else r.sort()) == ReadOp]
 
 def isWrite(rw):
-	return getSymbolic(rw).sort() == WriteOp
+	if type(rw) == tuple:
+		return getSymbolic(rw).sort() == WriteOp
+	return rw.sort() == WriteOp
 def isRead(rw):
-	return getSymbolic(rw).sort() == ReadOp
-# utilities
+	if type(rw) == tuple:
+		return getSymbolic(rw).sort() == ReadOp
+	return rw.sort() == ReadOp
+def isFence(f):
+	if type(f) == tuple:
+		return False
+	return f.sort() == FenceOp
+
+def isRW(rw):
+	return isRead(rw) or isWrite(rw)
 
 def restrict(e, sets = [], Dom = None):
 	return Or([e == Dom.cast(getSymbolic(i)) for i in sets ])
@@ -144,22 +165,6 @@ def transitive(r_name, r, Set = []):
 			[ForAll([x,y], trans_r(x,y) == Or(r(x,y),
 											(Exists([z], And(restrict(z, Set, Event), trans_r(x,z), trans_r(z,y))))
 											))])
-# reflexive-transitive (r*)
-def reflexive_transitive(r_name, r):
-	domX = r.domain(0)
-	domY = r.domain(1)
-
-	ref_r = Function(r_name, domX, domY, BoolSort())
-
-	x = Const('x', domX)
-	y = Const('y', domY)
-	z = Const('z', domY)
-
-	return (ref_r, 
-			[ForAll([x,y], ref_r(x,y) == Or(r(x,y),
-											x == y,
-											Exists([z], And(ref_r(x,z), ref_r(z,y)))
-											))])
 
 def seqRelation(r_name, r1, r2):
 	dom = r1.domain(0)
@@ -178,15 +183,19 @@ def acyclic(name, r, sets = []):
 	return (r_trans, axiom + [Not(Exists([x], r_trans(x,x) ))])
 
 # Relation with trasitive and irreflexive
-def program_order(Set = [], sets = []):
-	(r, axioms1) = relation('po_rel', Event, Set)
-	# r = Function('po_relation', Event, Event, BoolSort())
-	# po = Function('po', Event, Event, BoolSort())
-
-	# x, y = Consts('x y', Event)
-	(po, axioms2) = acyclic('po', r, sets)
+def program_order(PoSet = [], Esets = []):
+	(r, axioms1) = relation('po_rel', Event, PoSet)
+	po = Function('po', Event, Event, BoolSort())
 	po.domain = (lambda i: Event)
-	return (po, axioms1 + axioms2)
+
+	x, y, z = Consts('x y z', Event)
+	axioms = [
+		ForAll([x,y], po(x,y) == Or(r(x,y), 
+									Exists(z, And(restrict(z, Esets, Event),
+													po(x,z), po(z,y)) ) 
+									))
+	]
+	return (po, axioms1 + axioms)
 
 
 # Execution (E, po, rf, co)
@@ -209,7 +218,7 @@ def conflict_order(Set = []):
 
 	conf_w = conflict_writes(Set) 
 	conf_w2 = conf_w + [(y,x) for (x,y) in conf_w]
-	# print conf_w
+	
 	# relation
 	axiom = [ForAll([w1,w2], co_rel(w1, w2) ==  Or([And(w1 == WriteOp.cast(getSymbolic(i)), w2 == WriteOp.cast(getSymbolic(j))) for (i,j) in conf_w2]))]
 	# asymetric : choose one of them
@@ -373,9 +382,9 @@ fences = Function('fence', Event, Event, BoolSort())
 fences.domain = (lambda i: Event)
 
 rfe = Function('rfe', WriteOp, ReadOp, BoolSort())
-def rfe_axiom(RW = []):
-	writes = getWrites(RW)
-	reads = getReads(RW)
+def rfe_axiom(Ev = []):
+	writes = getWrites(Ev)
+	reads = getReads(Ev)
 	return [
 		rfe(w,r) == And(rf(w,r), proc(w) != proc(r))
 		for (w, locW, vW) in writes for (r, locR, vR) in reads 
@@ -383,36 +392,36 @@ def rfe_axiom(RW = []):
 
 hb = Function('hb', Event, Event, BoolSort())
 hb.domain = (lambda i: Event)
-def hb_axiom(RW = []):
+def hb_axiom(Ev = []):
 	global hb
 	return [
 		hb(x,y) == simplify(Or([
-			# ppo(x,y), fences(x,y),
+			ppo(x,y), fences(x,y),
 			( rfe(x,y) if (x.sort() == WriteOp) and (y.sort() == ReadOp) else False )
 			]
 			))
-		for (x, locX, v1) in RW for (y, locY, v2) in RW
+		for (x, locX, v1) in Ev for (y, locY, v2) in Ev
 	]
 
 noThinAir = Function('no_thin_air', Event, Event, BoolSort())
 noThinAir.domain = (lambda i: Event)
-def no_thin_air_axiom(RW = []):
+def no_thin_air_axiom(Ev = []):
 	e = Const('e', Event)
 	axiom = [
 		noThinAir(x,y) == Or(
 				hb(x,y), 
-				Exists(e, And(restrict(e, RW, Event), noThinAir(x, e), noThinAir(e,y)))
+				Exists(e, And(restrict(e, Ev, Event), noThinAir(x, e), noThinAir(e,y)))
 			)
 		# if not(eq(x,y))
 		# else Not(noThinAir(x,y))
-		for (x, locX, v1) in RW for (y, locY, v2) in RW
+		for (x, locX, v1) in Ev for (y, locY, v2) in Ev
 	] 
 	axiom += [ # acyclic
 		ForAll(e, Not(noThinAir(e,e)))
 	]
 	return axiom
 # observ = irreflexive(fre;prop;hb*)
-def observation(RW = []):
+def observation(Ev = []):
 	fre = Function('fre', ReadOp, WriteOp, BoolSort())
 	fre.domain = (lambda i: ReadOp if i == 0 else WriteOp)
 
@@ -430,8 +439,8 @@ def observation(RW = []):
 	frePropHbST = Function('fre;prop;hb*', ReadOp, Event, BoolSort())
 	frePropHbST.domain = (lambda i: ReadOp if i == 0 else Event)
 
-	writes = getWrites(RW)
-	reads = getReads(RW)
+	writes = getWrites(Ev)
+	reads = getReads(Ev)
 
 	e = Const('e', Event)
 	w = Const('w', WriteOp)
@@ -445,18 +454,18 @@ def observation(RW = []):
 		# hb*
 		hbRT(x,y) == Or([
 				hb(x,y), 
-				Exists(e, And(restrict(e, RW, Event), hb(x,e), hb(e,y)))
+				Exists(e, And(restrict(e, Ev, Event), hb(x,e), hb(e,y)))
 			])
-		for (x, locX, v1) in RW for (y, locY, v2) in RW
+		for (x, locX, v1) in Ev for (y, locY, v2) in Ev
 	]
 	axiom += [
 		And(
 		# (fre;prop)
 		freProp(x,y) == Exists(w, And(restrict(w, writes, WriteOp), fre(x,w), prop(w, y))),
 		# (fre;prop;hb*)
-		frePropHbST(x,y) == And( Exists(e, And(restrict(e, RW, Event), freProp(x,e), hbRT(e,y))) )
+		frePropHbST(x,y) == And( Exists(e, And(restrict(e, Ev, Event), freProp(x,e), hbRT(e,y))) )
 		)
-		for (x, locX, v1) in reads for (y, locY, v2) in RW
+		for (x, locX, v1) in reads for (y, locY, v2) in Ev
 	]
 	axiom += [
 		# irreflexive(fre;prop;hb*)
@@ -466,7 +475,7 @@ def observation(RW = []):
 	return axiom
 
 # propagation = acyclic(co U prop)
-def propagation(RW = []):
+def propagation(Ev = []):
 	prop = Function('prop', Event, Event, BoolSort())
 	prop.domain = (lambda i: Event)
 
@@ -482,10 +491,10 @@ def propagation(RW = []):
 		prog(x,y) == simplify(Or([
 			co(x,y) if x.sort() == WriteOp and y.sort() == WriteOp else False,
 			prop(x,y),
-			Exists(e, And(restrict(e, RW, Event), prog(x,e), prog(e,y)))
+			Exists(e, And(restrict(e, Ev, Event), prog(x,e), prog(e,y)))
 			])) 
 		# if not(eq(x,y)) else Not(prog(x,y))
-		for (x, locX, v1) in RW for (y, locY, v2) in RW
+		for (x, locX, v1) in Ev for (y, locY, v2) in Ev
 	]
 	axiom += [
 		# acyclic
@@ -495,7 +504,7 @@ def propagation(RW = []):
 
 
 # arch = (ppo, fences, prop)
-def sc_constraints(RW = []):
+def sc_constraints(RW = [], Fence = []):
 	# ppo : po
 	# ffence : empty
 	# lwfence : empty 
@@ -529,7 +538,7 @@ def sc_constraints(RW = []):
 	]
 	return axiom
 
-def tso_constraints(RW = []):
+def tso_constraints(RW = [], Fence = []):
 	# ppo = po\WR
 	# ffence = mfence
 	# lwfence = empty
@@ -537,7 +546,8 @@ def tso_constraints(RW = []):
 	# prop = ppo U fences U rfe U fr
 
 	ppo = Function('ppo', Event, Event, BoolSort())
-	ffence = Function('ffence', Event, Event, BoolSort())
+	# ffence = Function('ffence', Event, Event, BoolSort())
+	(ffence, axiom_fence) = relation('ffence', Event, Fence)
 	lwfence = Function('lwfence', Event, Event, BoolSort())
 	fences = Function('fence', Event, Event, BoolSort())
 	prop = Function('prop', Event, Event, BoolSort())
@@ -548,15 +558,68 @@ def tso_constraints(RW = []):
 	fences.domain = (lambda i: Event)
 	prop.domain = (lambda i: Event)
 
-	axiom = [
-		And([	ppo(x, y) == po(x,y),
-				Not(ffence(x,y)),
+	axiom = axiom_fence
+	axiom += [
+		And([	
+				# ppo = po\WR
+				# ppo(x, y) == po(x,y),
+				ppo(x, y) == (po(x,y) if x.sort() != WriteOp or y.sort() != ReadOp else False), 
 				Not(lwfence(x,y)),
 				fences(x,y) == Or(ffence(x,y), lwfence(x,y)),
+				# prop = ppo U fences U rfe U fr
 				prop(x,y) == simplify(Or([
 					ppo(x,y), 
 					fences(x,y), 
-					rf(x,y) if x.sort() == WriteOp and y.sort() == ReadOp else False, 
+					rfe(x,y) if x.sort() == WriteOp and y.sort() == ReadOp else False, 
+					fr(x,y) if x.sort() == ReadOp and y.sort() == WriteOp else False
+					]))
+			])
+		for (x, locX, v1) in RW for (y, locY, v2) in RW
+	]
+	return axiom
+
+def power_constraints(Ev = []):
+	# ffence = sync 
+	# lwfence = lwsync \ WR
+
+	# Propogation order for Power
+	# 
+
+	axioms = []
+	return axioms
+
+def pso_constraints(RW = [], Fence = []):
+	# ppo = po\(WR U WW)
+	# ffence = mfence
+	# lwfence = empty
+	# fences = ffence U lwfence
+	# prop = ppo U fences U rfe U fr
+
+	ppo = Function('ppo', Event, Event, BoolSort())
+	# ffence = Function('ffence', Event, Event, BoolSort())
+	(ffence, axiom_fence) = relation('ffence', Event, Fence)
+	lwfence = Function('lwfence', Event, Event, BoolSort())
+	fences = Function('fence', Event, Event, BoolSort())
+	prop = Function('prop', Event, Event, BoolSort())
+
+	ppo.domain = (lambda i: Event)
+	ffence.domain = (lambda i: Event)
+	lwfence.domain = (lambda i: Event)
+	fences.domain = (lambda i: Event)
+	prop.domain = (lambda i: Event)
+
+	axiom = axiom_fence
+	axiom += [
+		And([	
+				# ppo = po\ ( WR U WW ) = po ^ ( RR U RW )
+				ppo(x, y) == (po(x,y) if x.sort() != WriteOp else False), 
+				Not(lwfence(x,y)),
+				fences(x,y) == Or(ffence(x,y), lwfence(x,y)),
+				# prop = ppo U fences U rfe U fr
+				prop(x,y) == simplify(Or([
+					ppo(x,y), 
+					fences(x,y), 
+					rfe(x,y) if x.sort() == WriteOp and y.sort() == ReadOp else False, 
 					fr(x,y) if x.sort() == ReadOp and y.sort() == WriteOp else False
 					]))
 			])
@@ -569,8 +632,6 @@ if __name__ == '__main__':
 	i, j = Consts('i j', Event)
 	# (po_r, axioms1) = relation('po_r',Event, [(x,y), (y,z)])
 	# print acyclic(po_r)
-
-	# print reflexive_transitive('po', po_r)
 
 	# Message passing 
 	# Reads 
@@ -588,10 +649,11 @@ if __name__ == '__main__':
 	x = new_loc('x')
 	y = new_loc('y')
 
+	PoSet = [(Wx0, Wx1),(Wy0, Wx1), (Wx1,Wy1), (Ry1,Rx1)]
 	RW_S = [Ry1, Rx1, Wx1, Wy1, Wx0, Wy0]
 
 	# execution
-	(po, axiom_po) = program_order([(Wx0, Wx1),(Wy0, Wx1), (Wx1,Wy1), (Ry1,Rx1)], RW_S)
+	(po, axiom_po) = program_order(PoSet, RW_S)
 	(co, axiom_co) = conflict_order(RW_S)
 	(rf, axiom_rf) = read_from(RW_S)
 
@@ -646,7 +708,7 @@ if __name__ == '__main__':
 		+ axiom_prog
 		)
 
-	s.add(sc_constraints(RW_S))
+	s.add(pso_constraints(RW_S))
 
 	# print s
 	# s.add((po((Wx1),getSymbolic(Wy1))))
@@ -655,7 +717,7 @@ if __name__ == '__main__':
 	x1 = Int('x1')
 	y1 = Int('y1')
 	s.add(y1 == 1)
-	s.add(x1 == 1)
+	s.add(x1 == 0)
 
 	u = Const('Wx0', WriteOp)
 	v = Const('Wx1', WriteOp)
@@ -681,6 +743,10 @@ if __name__ == '__main__':
 		])
 
 		print 'SC PER LOCATION:'
+		print 'ppo = ' + str([
+			(x,y)
+			for (x, locX, vX) in RW_S for (y, locY, vY) in RW_S if  is_true(m.evaluate(ppo(x,y))) 
+		])
 		print 'po-loc = ' + str([
 			(x,y)
 			for (x, locX, vX) in RW_S for (y, locY, vY) in RW_S if  is_true(m.evaluate(po_loc(x,y))) 
