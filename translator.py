@@ -175,6 +175,15 @@ def translate(P, arch = 'arm', k = 0):
 	U = unroll(cfg, k)
 	return U
 
+def justParse(P, arch = 'arm'):
+	# parsing 
+	result = parse(P, arch)
+	# CFG constructing 
+	if not isinstance(P, list):
+		result = [result]
+	cfg = constructCFG(result, arch)
+	return cfg 
+
 # For test this translator 
 if __name__ == "__main__":
 	arm_prog = '''
@@ -187,8 +196,6 @@ if __name__ == "__main__":
 	assert(r2 = #2)
 	assert(r3 = #1)
 	'''
-
-
 
 	# U = translate(arm_prog)
 	# j = 1
@@ -205,6 +212,38 @@ if __name__ == "__main__":
 	# 		k = k+1
 	# 	j = j + 1
 	
+	print '========== branch test ======'
+	arm_prog = '''
+	L1:
+	mov r1, #1
+	mov r4, #2
+	b L1
+	'''
+	# U = justParse(arm_prog)
+	# k = 0
+	# for p in U:
+	# 	# a program in a set 
+	# 	print '====== Thread #%d'%(k)
+	# 	for i in p:
+	# 		# each instruction
+	# 		print i
+	# 	k = k+1
+	U = translate(arm_prog, k = 2)
+	j = 1
+	for u in U:
+		# possible sets of programs 
+		print '========== [ Test set #%02d ] ==========='%(j)
+		k = 0
+		for p in u:
+			# a program in a set 
+			print '====== Thread #%d'%(k)
+			for i in p:
+				# each instruction
+				print i
+			k = k+1
+		j = j + 1
+
+
 	P1 = '''
 	L1:
 		ldstub	[lock], r0
@@ -224,8 +263,16 @@ if __name__ == "__main__":
 	# if not isinstance(P1, list):
 	# 	result = [result]
 	# cfg = constructCFG(result, 'sparc')
-	# for e in unroll(cfg, 0):
-	# 	print e
+	
+	U = justParse(P1, 'sparc')
+	k = 0
+	for p in U:
+		# a program in a set 
+		print '====== Thread #%d'%(k)
+		for i in p:
+			# each instruction
+			print i
+		k = k+1
 	
 
 	pass

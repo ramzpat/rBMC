@@ -3,7 +3,8 @@
 from arch_object import *
 
 # =========== CFG Definition =========== 
-class node():
+# Represent instructions / operators
+class node(): 
 	pred = [] 
 	def __init__(self, obj, *link):
 		self.obj = obj 

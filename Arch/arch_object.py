@@ -1,9 +1,27 @@
 # architecture object
 # arch_object.py
 
+if __package__ is None:	
+	import sys
+	from os import path
+	sys.path.append((path.dirname( path.dirname( path.abspath(__file__) ) ) ))
+	from HWModel.iSem import *
+else:
+	from HWModel.iSem import *
+
 from abc import ABCMeta, abstractmethod
 
 # ======== ASM Objects 
+
+# enumurator for Instr name
+# http://stackoverflow.com/questions/36932/how-can-i-represent-an-enum-in-python
+# Numbers = enum('ZERO', 'ONE', 'TWO')
+def enum(*sequential, **named):
+    enums = dict(zip(sequential, range(len(sequential))), **named)
+    return type('Enum', (), enums)
+    # return enums
+
+
 
 # Expressions
 EOpr = {
@@ -85,6 +103,10 @@ class Exp: # Value expression
 	def __ge__(self, other):
 		return (self == other) | (self > other)
 
+	def __lshift__(self, other):
+		return Assignment(self, other)
+
+
 def bool_and(e1, e2):
 	return Exp(e1, EOpr['and'], e2)
 def bool_or(e1, e2):
@@ -95,6 +117,8 @@ def bool_not(exp):
 # ======== <arch> ASM Objects 
 # -- Instruction 
 class Instr:
+	def InstrName(self, i):
+		return 'undefined_instr'
 	writeSet = set([])
 	readSet = set([])
 	operands = [] 
@@ -102,7 +126,10 @@ class Instr:
 	def __init__(self, name, *operands):
 		self.instr_name = name
 		self.parent = self
-		self.operands = operands
+		if len(operands):
+			if type(operands[0]) == list:
+				operands = operands[0]
+			self.operands = [o for o in operands]
 
 		# For data dependece
 		self.writeSet = set([])
@@ -110,17 +137,22 @@ class Instr:
 
 		# self.operands = operands
 		# self.cond = cond 
-
+	def is_(self, instr, other):
+		print 'is check'
+		return False
 	# For an instruction that generate multiple instances
 	def parent(self, parent):
 		self.parent = parent
 
 	def __str__(self):
-		# op = ''
-		# for opr in self.operands:
-		# 	op += ',' + str(opr)
-		# return 'instr('+self.instr_name+' '+op+')'
-		return str(self.instr_name)
+		op = ''
+		if len(self.operands):
+			op += str(self.operands[0])
+			# return str(self.operands)
+			for opr in self.operands[1:]:
+				op += ',' + str(opr)
+		return self.InstrName(self.instr_name)+' '+op
+		# return str(self.instr_name)
 
 	def iSemantics(self):
 		return [self]
@@ -234,20 +266,54 @@ class i_if_exp(iSemantics):
 	def __str__(self):
 		return "(" + str(self.cond) + ")? " + str(self.t_exp) + ":" + str(self.f_exp)
 
+# -- ( cond )? True_exp : False_exp;
+# Arithmetic calculation
+class ifExp(Exp):
+	def __init__(self, cond, t_exp, f_exp):
+		self.cond = cond
+		self.t_exp = t_exp
+		self.f_exp = f_exp
+	def __str__(self):
+		return "(" + str(self.cond) + ")? " + str(self.t_exp) + ":" + str(self.f_exp)
+
 class i_special (iSemantics):
 	pass
 
+# class Var(Exp):
+	# pass
+
 # -- Register
 class Register(Exp):
+
+	def RegName(self, i):
+		return 'undefined_reg'
+
 	def __init__(self, name):
 		self.reg_name = name
 
 	def __str__(self):
-		return str(self.reg_name)
+		return self.RegName(self.reg_name)
 
 	def __lshift__(self, other):
-		return i_assignment(self, other)
+		return Assignment(self, other)
 
 	def __hash__(self):
 		return hash(self.reg_name)
 
+class Location(Exp):
+	def __init__(self, address = 0):
+		# self.name = name
+		self.address = address # exp
+
+	def __str__(self):
+		return "[" + str(self.address) + "]"
+	def __lshift__(self, other_address):
+		return Location(self.name, other_address)
+	def __hash__(self):
+		return hash(self.address)
+	def __eq__(self, other):
+		return self.address == other.address
+
+if __name__ == "__main__":
+	i = Instr('ldr', 'r1', '[r2]')
+	# print 
