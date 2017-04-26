@@ -20,22 +20,29 @@ def encode(p):
 		# if type(p) == list:
 		# 	pass
 		# el
-		print p
 		if isinstance(p, iSem):
-			if len(prev):
-				return [(prev[-1], p)]
-			return []	
+			ret = []
+			for i in prev:
+				ret += [(i, p)]
+			return (ret, [p])
 		elif isinstance(p, ParallelSem):
-			ret = ([prev[-1]] if len(prev) else [])
 			poRet = []
-			# for pl in p.list():
-				
+			lastEle = []
+			for pl in p.list():
+				(po,e) = constructPO(pl, prev)
+				lastEle += e 
+				poRet += po
+			return (poRet, lastEle)
 		elif isinstance(p, SeqSem):
-			ret = ([prev[-1]] if len(prev) else [])
 			poRet = []
 			for pl in p.list():
-				poRet += constructPO(pl, ret)
-			return poRet
+				(po,e) = constructPO(pl, prev)
+				poRet += po
+				prev = e 
+				# if len(poSeq):
+				# 	print poSeq[-1][1]
+				# prev = poSeq[-1]
+			return (poRet, prev)
 			
 
 	def constructIICO(p):
@@ -43,10 +50,11 @@ def encode(p):
 
 	# derive the set of events
 	events = [e for e in p]
-	
+	# print p
 	# derive po
-	po = constructPO(p)
-	print po
+	(po,e) = constructPO(p)
+	for (x,y) in po:
+		print str(x) + ', ' + str(y)
 
 	# derive iico
 
