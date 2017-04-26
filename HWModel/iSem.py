@@ -5,6 +5,7 @@ import itertools
 #  P = <N, E, n0, f>
 #  directed graph
 
+
 def printSemantics(sem, indent = 0):
 	if type(sem) == tuple and len(sem):
 		print str(' ' * indent) + '('
@@ -27,6 +28,7 @@ def printSemantics(sem, indent = 0):
 			# print str(' ' * indent) + '!' + str(sem.cond)
 		else:
 			print str(' ' * (indent)) + str(sem)
+
 
 # Operator : assignment, assertion, fence, atomic 
 class iSem:
@@ -74,7 +76,7 @@ class ifSem(iSem):
 	def __init__(self, cond, statement):
 		iSem.__init__(self, 'condition')
 		self.cond = cond
-		self.statement = statement
+		self.statement = (statement)
 	def __str__(self):
 		return '(' + str(self.cond) + ') -> ' + str(self.statement)
 
@@ -92,6 +94,88 @@ class gotoSem(iSem):
 		return 'goto ' + str(self.label)
 
 
+class SeqSem:
+	def __init__(self, *seq):
+		# print type(seq)
+		self.seq = (seq)
+		for i in self.seq:
+			# print i.__class__
+			assert( isinstance(i, iSem) or isinstance(i, SeqSem) )
+
+	def __iter__(self):
+		for i in self.seq:
+			if isinstance(i, SeqSem):
+				for p in i:
+					yield p
+			else: 
+				yield i
+	def list(self):
+		return list(self.seq)
+
+	def strIndent(self, indent = 0):
+		ret = ''
+		ret += (' '* indent) + 'seq[ \n'
+		for i in self.seq:
+			iStr = ''
+			if isinstance(i, SeqSem):
+				iStr = i.strIndent(indent + 1)
+			else:
+				iStr = (' '*(indent+1)) +str(i)
+			ret += (' '* indent) + iStr + ',\n'
+		ret += (' '* indent) + ']'
+		return ret
+
+	def __str__(self):
+		return self.strIndent()
+		
+		
+
+class ParallelSem(SeqSem):
+	def __init__(self, *par):
+		self.par = list(par)
+		for i in self.par:
+			assert( isinstance(i, iSem) or isinstance(i, SeqSem) )
+
+	def __iter__(self):
+		for i in self.par:
+			if isinstance(i, SeqSem):
+				for p in i:
+					yield p
+			else: 
+				yield i
+	def list(self):
+		return list(self.par)
+
+	def strIndent(self, indent = 0):
+		ret = ''
+		ret += (' '* indent) + 'parallel( \n'
+		for i in self.par:
+			iStr = ''
+			if isinstance(i, SeqSem):
+				iStr = i.strIndent(indent + 1)
+			else:
+				iStr = (' '*(indent+1)) +str(i)
+			ret += (' '* (indent)) + iStr + ', \n'
+		ret += (' '* indent) + ')'
+		return ret
+
+	def __str__(self):
+		return self.strIndent()
+
+class InstrSem(SeqSem):
+	def strIndent(self, indent = 0):
+		ret = ''
+		ret += (' '* indent) + 'instr[ \n'
+		for i in self.seq:
+			iStr = ''
+			if isinstance(i, SeqSem):
+				iStr = i.strIndent(indent + 1)
+			else:
+				iStr = (' '*(indent+1)) +str(i)
+			ret += (' '* indent) + iStr + ',\n'
+		ret += (' '* indent) + ']'
+		return ret
+
 if __name__ == "__main__":
 	# symbolic executed programs = partial order = list of list of ....
 	symP = [
@@ -99,5 +183,8 @@ if __name__ == "__main__":
 		ReadAssn('r', '2'),
 	]
 
-	for e in symP:
+	P = SeqSem(ReadAssn('r', '1'), ParallelSem(ReadAssn('r', '2'),ReadAssn('r', '3')))
+	print P
+
+	for e in P:
 		print str(e)

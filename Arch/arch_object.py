@@ -42,6 +42,9 @@ class Exp: # Value expression
 	def __init__(self, *v):
 		self.val = v
 
+	def __hash__(self):
+		return hash(self.val)
+
 	def val(self):
 		return self.val
 
@@ -117,6 +120,12 @@ def bool_not(exp):
 # ======== <arch> ASM Objects 
 # -- Instruction 
 class Instr:
+	
+	is_branch = False 
+
+	def unroll(self):
+		return ([InstrAssume(self.operands[0])], [InstrAssume(Exp(EOpr['not'],(self.operands[0])))])
+
 	def InstrName(self, i):
 		return 'undefined_instr'
 	writeSet = set([])
@@ -168,7 +177,8 @@ class Label:
 	def lname(self):
 		return self.label_name
 	def __str__(self):
-		return 'label(' + self.label_name + ')'
+		# return 'label(' + self.label_name + ')'
+		return str(self.label_name) + ":"
 	def __eq__(self, other):
 		if isinstance(other, str):
 			return self.label_name == other
@@ -300,6 +310,10 @@ class Register(Exp):
 	def __hash__(self):
 		return hash(self.reg_name)
 
+class TempReg(Register):
+	def RegName(self, i):
+		return self.reg_name
+
 class Location(Exp):
 	def __init__(self, address = 0):
 		# self.name = name
@@ -308,7 +322,7 @@ class Location(Exp):
 	def __str__(self):
 		return "[" + str(self.address) + "]"
 	def __lshift__(self, other_address):
-		return Location(self.name, other_address)
+		return WriteAssn(self, other_address)
 	def __hash__(self):
 		return hash(self.address)
 	def __eq__(self, other):

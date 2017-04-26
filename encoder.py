@@ -4,7 +4,12 @@ import ssa as SSA, norm as Norm
 # Abstract Model
 from HWModel.sc_model import *
 # ARM Model
+from Arch.ARM.arm_object import *
+from Arch.ARM.semantics import *
+# from HWModel.iSem import *
+
 import Arch.ARM.Models.models  as arm_models
+
 # SPARC Model
 import Arch.SPARC.Models.models as sparc_models
 
@@ -51,7 +56,95 @@ def archEncode(P, arch = 'arm', model = 'SC'):
 
 import translator
 
+
+def analyzeInstr(p):
+	def isWriteAssn(i):
+		if i:
+			addr = i.var
+			return isinstance(i, Assignment) and isinstance(addr, Location)
+		return False
+	for i in p:
+		if isinstance(i, Assignment):
+			print i
+			# print str(i) + ':' + str(isWriteAssn(i))
+
 if __name__ == '__main__':
+
+	p1 = [
+	ARMInstr(ARMInstr.mov, ARMCond.al, ARMReg.r1, int(0)),	#x
+	ARMInstr(ARMInstr.mov, ARMCond.al, ARMReg.r2, int(1)),	#y
+	ARMInstr(ARMInstr.mov, ARMCond.al, ARMReg.r3, int(1)),
+	ARMInstr(ARMInstr.str, ARMCond.al, ARMReg.r3, Location(ARMReg.r1 + 1)),
+	ARMInstr(ARMInstr.str, ARMCond.al, ARMReg.r3, Location(ARMReg.r2)),
+	]
+
+	p2 = [
+	ARMInstr(ARMInstr.mov, ARMCond.al, ARMReg.r1, int(0)),	#x
+	ARMInstr(ARMInstr.ldr, ARMCond.al, ARMReg.r3, Location(ARMReg.r1 + 1)),
+	ARMInstr(ARMInstr.ldr, ARMCond.al, ARMReg.r4, Location(ARMReg.r1)),
+	]
+
+	sP1 = getARMSemantics(p1)
+	sP2 = getARMSemantics(p2)
+	# printSemantics(sP1)
+	# print sP1
+	# printSemantics(sP2)
+
+	# print SSA.SSASem(sP2).ssa()
+
+	ssaP1 = SeqSem(
+		# mov r1, 0
+		SeqSem(
+			TempReg('result_0') << int(0),
+			TempReg('r1_0') << TempReg('result_0')
+		),
+		# mov r2, 1
+		SeqSem(
+			TempReg('result_1') << int(1),
+			TempReg('r2_0') << TempReg('result_1')
+		),
+		# str r2, [r1]
+		SeqSem(
+			ParallelSem(
+				TempReg('addr_0') << TempReg('r1_0'),
+				TempReg('val_0') << TempReg('r2_0')
+			),
+			Location(TempReg('addr_0')) << TempReg('val_0')
+		),
+		# str r2, [r1+1]
+		SeqSem(
+			ParallelSem(
+				TempReg('addr_1') << TempReg('r1_0') + int(1),
+				TempReg('val_1') << TempReg('r2_0')
+			),
+			Location(TempReg('addr_1')) << TempReg('val_1')
+		)
+	)
+
+	ssaP2 = SeqSem(
+		# mov r1, 0
+		SeqSem(
+			TempReg('result_1') << int(0),
+			TempReg('r1_1') << TempReg('result_1')
+		),
+		# ldr r3, [r1+1]
+		SeqSem(
+			TempReg('addr_2') << TempReg('r1_1') + 1,
+			TempReg('result_2') << Location(TempReg('addr_2')),
+			TempReg('r3_0') << TempReg('result_2')
+		),
+		# ldr r4, [r1]
+		SeqSem(
+			TempReg('addr_3') << TempReg('r1_1'),
+			TempReg('result_3') << Location(TempReg('addr_3')),
+			TempReg('r4_0') << TempReg('result_3')
+		)
+	)
+	ssaP = ParallelSem(ssaP1, ssaP2)
+	print ssaP
+
+
+if __name__ == '__main2__':
 	# Find out counter example of TSO and reasoning the axioms for using in SMT solver 
 	# P1
 	# A = 1

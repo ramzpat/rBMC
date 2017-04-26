@@ -41,10 +41,15 @@ class CFGNode(node):
 
 # Utilities methods for constructing CFG
 def getBranch(instr):
-		if isinstance(instr, InstrBranch):
-			return (instr.condition(), instr.targetLabel())
-		else:
-			return None  
+	if isinstance(instr, Instr) and instr.is_branch:
+
+		cond = instr.operands[0]
+		label = instr.operands[1]
+		return (cond, label)
+	if isinstance(instr, InstrBranch):
+		return (instr.condition(), instr.targetLabel())
+	else:
+		return None  
 def getLabel(l):
 	if isinstance(l, Label):
 		return l

@@ -11,7 +11,8 @@ from Arch.Abstract.semantics import *
 # ARM
 import Arch.ARM.parser as arm_parser
 from Arch.ARM.lexer import lexer as armLexer
-from Arch.ARM.semantics import semanticsARM as arm_cfg
+from Arch.ARM.arm_object import *
+from Arch.ARM.semantics import semanticsARM as arm_cfg, getARMSemantics
 
 # SPARC
 import Arch.SPARC.parser as sparc_parser 
@@ -107,7 +108,7 @@ def unrollSeq(cfg, k = 0):
 		# 	for j in range(i+1,len(e)):
 		# 		if not(e[j].parent in pDom[e[i].parent]):
 		# 			cd += [(e[i], e[j])]
-		info['cd'] = cd
+		# info['cd'] = cd
 		yield (e,info)
 
 def __unroll(cfg, info):
@@ -212,13 +213,13 @@ if __name__ == "__main__":
 	# 		k = k+1
 	# 	j = j + 1
 	
-	print '========== branch test ======'
-	arm_prog = '''
-	L1:
-	mov r1, #1
-	mov r4, #2
-	b L1
-	'''
+	# print '========== branch test ======'
+	# arm_prog = '''
+	# L1:
+	# mov r1, #1
+	# mov r4, #2
+	# b L1
+	# '''
 	# U = justParse(arm_prog)
 	# k = 0
 	# for p in U:
@@ -228,51 +229,69 @@ if __name__ == "__main__":
 	# 		# each instruction
 	# 		print i
 	# 	k = k+1
-	U = translate(arm_prog, k = 2)
-	j = 1
+	# U = translate(arm_prog, k = 2)
+	# j = 1
+	# for u in U:
+	# 	# possible sets of programs 
+	# 	print '========== [ Test set #%02d ] ==========='%(j)
+	# 	k = 0
+	# 	for p in u:
+	# 		# a program in a set 
+	# 		print '====== Thread #%d'%(k)
+	# 		for i in p:
+	# 			# each instruction
+	# 			print i
+	# 		k = k+1
+	# 	j = j + 1
+
+
+	# P1 = '''
+	# L1:
+	# 	ldstub	[lock], r0
+	# 	brnz,pn r0, L2
+	# 	nop
+	# 	ba,a CS ;subsection -> previous
+	# 	nop
+	# L2:
+	# 	ldub [lock], r0
+	# 	brnz,pt r0, L2
+	# 	nop
+	# 	ba,a,pt L1
+	# CS:	
+	# ; critical section
+	# '''
+	# # result = parse(P1, 'sparc')
+	# # if not isinstance(P1, list):
+	# # 	result = [result]
+	# # cfg = constructCFG(result, 'sparc')
+	
+	# U = justParse(P1, 'sparc')
+	# k = 0
+	# for p in U:
+	# 	# a program in a set 
+	# 	print '====== Thread #%d'%(k)
+	# 	for i in p:
+	# 		# each instruction
+	# 		print i
+	# 	k = k+1
+	
+	p = [
+	Label('L'),
+	ARMInstr(ARMInstr.ldr, ARMCond.al, ARMReg.r2, Location(ARMReg.r1)),
+	ARMInstr(ARMInstr.mov, ARMCond.al, ARMReg.r3, Location(ARMReg.r2)), 
+	ARMInstr(ARMInstr.b, ARMCond.eq, Label('L'))
+	]
+	cfg = arm_cfg(p)
+	for n in cfg.nextSeq():
+		print n
+
+
+	U = unroll([cfg], 1)
 	for u in U:
-		# possible sets of programs 
-		print '========== [ Test set #%02d ] ==========='%(j)
-		k = 0
+		print '-----'
 		for p in u:
-			# a program in a set 
-			print '====== Thread #%d'%(k)
 			for i in p:
-				# each instruction
 				print i
-			k = k+1
-		j = j + 1
 
-
-	P1 = '''
-	L1:
-		ldstub	[lock], r0
-		brnz,pn r0, L2
-		nop
-		ba,a CS ;subsection -> previous
-		nop
-	L2:
-		ldub [lock], r0
-		brnz,pt r0, L2
-		nop
-		ba,a,pt L1
-	CS:	
-	; critical section
-	'''
-	# result = parse(P1, 'sparc')
-	# if not isinstance(P1, list):
-	# 	result = [result]
-	# cfg = constructCFG(result, 'sparc')
-	
-	U = justParse(P1, 'sparc')
-	k = 0
-	for p in U:
-		# a program in a set 
-		print '====== Thread #%d'%(k)
-		for i in p:
-			# each instruction
-			print i
-		k = k+1
-	
 
 	pass

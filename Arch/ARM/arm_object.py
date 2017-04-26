@@ -9,7 +9,7 @@ else:
 
 from lexer import lexer as arm_lexer, tokens as arm_tokens, literals as arm_literals
 
-ARMInstrList = ['ldr', 'str', 'mov', 'dsb', 'dmb', 'cmp', 'add', 'sub', 'b']
+ARMInstrList = ['b', 'ldr', 'str', 'mov', 'dsb', 'dmb', 'cmp', 'add', 'sub' ]
 ARMCondList = ['eq', 'ne', 'cs', 'cc', 'mi', 'pl', 'vs', 'vc', 'al']
 ARMRegList = ['r1','r2','r3','r4','r5','r6','r7','r8','r9', 'z', 'n', 'c', 'v']
 ARMLocList = ['res', 'res_addr']
@@ -18,6 +18,14 @@ ARMLocList = ['res', 'res_addr']
 # dynamic instruction
 class ARMInstr(Instr):
 	# paramSet = 0
+
+	def __init__(self, name, *operands):
+		Instr.__init__(self, name, *operands)
+		if name == 0:
+			self.is_branch = True
+		
+		
+
 	def is_( instr, other):
 		print 'is check'
 		return instr.instr_name == other
@@ -57,8 +65,11 @@ k = 0
 for i in ARMInstrList:
 	ARMInstr.__dict__[i] = k
 	k+=1
+# ARMInstr.__dict__['b'] = (lambda label : InstrBranch(label, cond) )
 ARMInstr.__dict__['dsb'] = ARMDSB()
 ARMInstr.__dict__['dmb'] = ARMDMB()
+
+
 # ARMInstr.__dict__ = dict(zip(ARMInstrList, range(len(ARMInstrList))))
 
 class ARMReg(Register):
@@ -81,9 +92,13 @@ for i in ARMCondList:
 	k+=1
 # ARMCond = enum(*ARMCondList)
 
+i1 = ARMInstr(ARMInstr.b, ARMCond.eq, Label('A'))
+# print i1
+# print i1.__class__
+
 
 class ARMLoc(Location):
-	
+	pass
 
 class ARMIf(i_if):
 	def decode(self, e):
