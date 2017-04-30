@@ -49,6 +49,7 @@ class Exp: # Value expression
 		return self.val
 
 	def __len__(self):
+		# print self.val
 		return len(self.val)
 
 	def __getitem__(self,index):
@@ -296,7 +297,8 @@ class i_special (iSemantics):
 class Register(Exp):
 
 	def RegName(self, i):
-		return 'undefined_reg'
+		return self.reg_name
+		# return 'undefined_reg'
 
 	def __init__(self, name):
 		self.reg_name = name
@@ -305,7 +307,11 @@ class Register(Exp):
 		return self.RegName(self.reg_name)
 
 	def __lshift__(self, other):
-		return Assignment(self, other)
+		if isinstance(other, Location):
+			return ReadAssn(self, other)
+		else:
+			return WriteAssn(self, other)
+			# return Assignment(self, other)
 
 	def __hash__(self):
 		return hash(self.reg_name)
@@ -313,6 +319,15 @@ class Register(Exp):
 class TempReg(Register):
 	def RegName(self, i):
 		return self.reg_name
+
+	def __lshift__(self, other):
+		if isinstance(other, Location):
+			return ReadAssn(self, other)
+		elif isinstance(other, Register):
+			return ReadAssn(self, other)
+		else:
+			# return WriteAssn(self, other)
+			return Assignment(self, other)
 
 class Location(Exp):
 	def __init__(self, address = 0):

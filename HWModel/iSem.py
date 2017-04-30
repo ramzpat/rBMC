@@ -46,7 +46,7 @@ class Assignment(iSem):
 		self.exp = exp
 
 	def __str__(self):
-		return str(self.var) + " := " + str(self.exp)
+		return str(self.var) + " := " + str(self.exp) + ' (' + str(self.__class__) + ')' 
 
 # <loc> := <val> {symbolic / concrete}
 class WriteAssn(Assignment):

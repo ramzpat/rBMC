@@ -8,11 +8,16 @@ Loc = 		DeclareSort('Loc')				# Location
 Instr = 	DeclareSort('Instr')			# Instruction 
 Val = 		IntSort()						# Value in the systems
 
+addrLoc = Function('addrLoc', Loc, IntSort())
+
 Event =		DeclareSort('Event')
 RW = 		DeclareSort('RW')
 ReadOp = 	DeclareSort('ReadOp')			# Read access 	*A kind of memory operation(MemOp)
 WriteOp = 	DeclareSort('WriteOp')			# Write access 	*A kind of memory operation(MemOp) 
 FenceOp = 	DeclareSort('FenceOp')			# Fence operator 
+ReadReg = 	DeclareSort('ReadReg')
+WriteReg = 	DeclareSort('WriteReg')
+
 
 # Wrap function for subsort 
 def subsort_f(sort1, sort2):
@@ -53,6 +58,7 @@ WriteOp.cast = (lambda val:
 	else unknow_write
 	)
 
+
 # Allocate new constant
 
 idW = Function('idW', WriteOp, IntSort())
@@ -67,7 +73,9 @@ r1, r2 = Consts('r1 r2', ReadOp)
 l1, l2 = Consts('l1 l2', Loc)
 global_axioms = [ ForAll([w1, w2], Implies(idW(w1) != idW(w2), w1 != w2 ) ),  
 				  ForAll([r1, r2], Implies(idR(r1) != idR(r2), r1 != r2 ) ),
-				  ForAll([l1, l2], Implies(idLoc(l1) != idLoc(l2), l1 != l2))]
+				  ForAll([l1, l2], (idLoc(l1) != idLoc(l2)) == (l1 != l2)),
+				  ForAll([l1, l2], (addrLoc(l1) == addrLoc(l2)) == (l1 == l2))
+				  ]
 
 
 id_loc = 0
@@ -80,13 +88,23 @@ def new_loc(name):
 	id_loc += 1
 	return loc
 
+id_locExp = 0
 id_read = 0
 def new_read(name, location, val, pid = 0):
 	global global_axioms
 	global id_read 
+	global id_locExp
 
 	read = Const(name, ReadOp)
-	loc = Const(location, Loc)
+	if is_const(location):
+		loc = location
+	elif type(location) == str:
+		loc = Const(location, Loc)
+	else:
+		loc = Const('loc_'+str(id_locExp), Loc)
+		# print addrLoc(loc) == Const(str(location), Val)
+		id_locExp += 1
+		global_axioms += [addrLoc(loc) == Const(str(location), Val)]
 	v = Const(val, Val)
 
 	global_axioms += [idR(read) == id_read, proc(read) == pid]
@@ -94,15 +112,25 @@ def new_read(name, location, val, pid = 0):
 
 	return (read, loc, v)
 
-
 id_write = 0
 def new_write(name, location, val, pid = 0):
 
 	global global_axioms
 	global id_write
+	global id_locExp
 
 	write = Const(name, WriteOp)
-	loc = Const(location, Loc)
+	# print location
+	if is_const(location):
+		loc = location
+	elif type(location) == str:
+		loc = Const(location, Loc)
+	else:
+		loc = Const('loc_'+str(id_locExp), Loc)
+		# print addrLoc(loc) == Const(str(location), Val)
+		global_axioms += [addrLoc(loc) == Const(str(location), Val)]
+		id_locExp += 1
+
 	v = val if type(val) == int else Const(val, Val)
 
 	global_axioms += [idW(write) == id_write, proc(write) == pid]
@@ -628,6 +656,23 @@ def pso_constraints(RW = [], Fence = []):
 	return axiom
 
 if __name__ == '__main__':
+	pass
+	# try ARM models
+
+	x = new_loc('x')
+	y = new_loc('y')
+
+	Wx0 = new_write('Wx0', x, 0)
+	Wy0 = new_write('Wy0', y, 0)
+
+	# P1
+	# Wr1 = new_write()
+
+	
+
+
+
+if __name__ == '__main2__':
 	x, y, z = Consts('a b c', Event)
 	i, j = Consts('i j', Event)
 	# (po_r, axioms1) = relation('po_r',Event, [(x,y), (y,z)])
@@ -725,7 +770,7 @@ if __name__ == '__main__':
 	res = s.check()
 	print res
 
-	if res == sat:
+	if res == sat and False:
 		m = s.model()
 
 		print 'Execution:'
