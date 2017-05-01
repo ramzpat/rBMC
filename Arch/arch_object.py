@@ -343,6 +343,9 @@ class Location(Exp):
 	def __eq__(self, other):
 		return self.address == other.address
 
+# def is_reg(reg):
+# 	return isinstance(reg, Register)
+
 if __name__ == "__main__":
 	i = Instr('ldr', 'r1', '[r2]')
 	# print 

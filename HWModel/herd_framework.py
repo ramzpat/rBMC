@@ -4,79 +4,79 @@ from z3 import *
 
 # Abstract model def 
 Proc = 		IntSort()			 			# Processor
-Loc = 		DeclareSort('Loc')				# Location
+# Loc = 		DeclareSort('Loc')				# Location
 Instr = 	DeclareSort('Instr')			# Instruction 
-Val = 		IntSort()						# Value in the systems
+# Val = 		IntSort()						# Value in the systems
+# Reg =		IntSort()						# Registers
 
-addrLoc = Function('addrLoc', Loc, IntSort())
+Val = Datatype('Val')
+Val.declare('undifined')
+Val.declare('temp', ('id', IntSort()))
+Val.declare('int', ('val', IntSort()))
+Val.declare('reg', ('rid', IntSort()))
+Val = Val.create()
+Reg = Val.reg
+Temp = Val.temp
 
-Event =		DeclareSort('Event')
-RW = 		DeclareSort('RW')
-ReadOp = 	DeclareSort('ReadOp')			# Read access 	*A kind of memory operation(MemOp)
-WriteOp = 	DeclareSort('WriteOp')			# Write access 	*A kind of memory operation(MemOp) 
-FenceOp = 	DeclareSort('FenceOp')			# Fence operator 
-ReadReg = 	DeclareSort('ReadReg')
-WriteReg = 	DeclareSort('WriteReg')
+# addrLoc = Function('addrLoc', Loc, IntSort())
 
+Loc = Datatype('Loc')
+Loc.declare('undefined')
+Loc.declare('loc', ('addr', IntSort()))
+Loc = Loc.create()
+InitLoc = Loc.loc
+
+def is_reg(e):
+	return eq(e.decl(), Reg)
+def is_intVal(e):
+	return eq(e.decl(), Val.int)
+
+
+
+# Event =		DeclareSort('Event')
+
+# ReadOp = 	DeclareSort('ReadOp')			# Read access 	*A kind of memory operation(MemOp)
+# WriteOp = 	DeclareSort('WriteOp')			# Write access 	*A kind of memory operation(MemOp) 
+# FenceOp = 	DeclareSort('FenceOp')			# Fence operator 
+# ReadReg = 	DeclareSort('ReadReg')
+# WriteReg = 	DeclareSort('WriteReg')
+
+Event =		Datatype('Event')
+Event.declare('undefined')
+Event.declare('event', 		('eid', IntSort()))
+Event.declare('read',  		('eid', IntSort()), ('loc', Loc), ('dest', IntSort()), ('pid', Proc))
+Event.declare('write', 		('eid', IntSort()), ('loc', Loc), ('val', IntSort()), ('pid', Proc))
+Event.declare('fence', 		('eid', IntSort()), ('ftype', IntSort()))
+Event.declare('read_reg', 	('eid', IntSort()), ('reg', Val), ('dest', IntSort()), ('pid', Proc) )
+Event.declare('write_reg', 	('eid', IntSort()), ('reg', Val), ('val', IntSort()), ('pid', Proc))
+Event = Event.create()
+ConstEvent = Event.event
+ReadOp = Event.read
+WriteOp = Event.write
+WriteReg = Event.write_reg
+ReadReg = Event.read_reg
+
+eidCnt = 0
+
+
+def isWrite(e):
+	return eq(e.decl(), WriteOp)
+def isRead(e):
+	return eq(e.decl(), ReadOp)
+def isFence(e):
+	return eq(e.decl(), Event.fence)
+def isRW(rw):
+	return isRead(rw) or isWrite(rw)
+
+def isReadReg(e):
+	return eq(e.decl(), ReadReg)
+def isWriteReg(e):
+	return eq(e.decl(), WriteReg)
 
 # Wrap function for subsort 
 def subsort_f(sort1, sort2):
 	f_sort = Function('wrap_'+str(sort1)+'_'+str(sort2), sort1, sort2)
 	return f_sort 
-
-E_RW = subsort_f(RW, Event)
-E_F = subsort_f(FenceOp, Event)
-
-unknow_event = Const('unknow_event', Event)
-Event.cast = (lambda val:
-	val if (type(val) != tuple and val.sort() == Event) else
-	E_RW(RW.cast(val)) if (RW.cast(val) != unknow_rw or val.sort() == RW)
-	else E_F(val) if (val.sort() == FenceOp)
-	else val if (val.sort() == Event)
-	else unknow_event
-	)
-
-RW_R = subsort_f(ReadOp, RW)
-RW_W = subsort_f(WriteOp, RW)
-
-unknow_rw = Const('unknow_rw', RW)
-RW.cast = (lambda val:
-	RW.cast(getSymbolic(val)) if (type(val) == tuple)
-	else RW_R(ReadOp.cast(val)) if (val.sort() == ReadOp)
-	else RW_W(val) if (val.sort() == WriteOp)
-	else val if (val.sort() == RW)
-	else unknow_rw
-	)
-unknow_read = Const('unkwown_read', ReadOp)
-ReadOp.cast = (lambda val:
- 	val if (val.sort() == ReadOp)
-	else unknow_read
-	)
-unknow_write = Const('unknow_write', WriteOp)
-WriteOp.cast = (lambda val:
-	val if (val.sort() == WriteOp)
-	else unknow_write
-	)
-
-
-# Allocate new constant
-
-idW = Function('idW', WriteOp, IntSort())
-idR = Function('idR', ReadOp, IntSort())
-idLoc = Function('idLoc', Loc, IntSort())
-
-proc = Function('proc', Event, Proc)
-proc.domain = (lambda i: Event)
-
-w1, w2 = Consts('w1 w2', WriteOp)
-r1, r2 = Consts('r1 r2', ReadOp)
-l1, l2 = Consts('l1 l2', Loc)
-global_axioms = [ ForAll([w1, w2], Implies(idW(w1) != idW(w2), w1 != w2 ) ),  
-				  ForAll([r1, r2], Implies(idR(r1) != idR(r2), r1 != r2 ) ),
-				  ForAll([l1, l2], (idLoc(l1) != idLoc(l2)) == (l1 != l2)),
-				  ForAll([l1, l2], (addrLoc(l1) == addrLoc(l2)) == (l1 == l2))
-				  ]
-
 
 id_loc = 0
 def new_loc(name):
@@ -88,54 +88,36 @@ def new_loc(name):
 	id_loc += 1
 	return loc
 
-id_locExp = 0
-id_read = 0
 def new_read(name, location, val, pid = 0):
-	global global_axioms
-	global id_read 
-	global id_locExp
-
-	read = Const(name, ReadOp)
-	if is_const(location):
-		loc = location
-	elif type(location) == str:
-		loc = Const(location, Loc)
+	global eidCnt
+	if is_reg(location):
+		read = ReadReg(eidCnt, location, val, pid) #Const(name, ReadReg)
 	else:
-		loc = Const('loc_'+str(id_locExp), Loc)
-		# print addrLoc(loc) == Const(str(location), Val)
-		id_locExp += 1
-		global_axioms += [addrLoc(loc) == Const(str(location), Val)]
-	v = Const(val, Val)
+		read = ReadOp(eidCnt, location, val, pid) #Const(name, ReadOp)
+	eidCnt += 1
+	read.target = location
+	read.val = val
+	read.pid = pid
+	return read
+	
 
-	global_axioms += [idR(read) == id_read, proc(read) == pid]
-	id_read += 1
-
-	return (read, loc, v)
-
-id_write = 0
 def new_write(name, location, val, pid = 0):
-
-	global global_axioms
-	global id_write
-	global id_locExp
-
-	write = Const(name, WriteOp)
-	# print location
-	if is_const(location):
-		loc = location
-	elif type(location) == str:
-		loc = Const(location, Loc)
-	else:
-		loc = Const('loc_'+str(id_locExp), Loc)
-		# print addrLoc(loc) == Const(str(location), Val)
-		global_axioms += [addrLoc(loc) == Const(str(location), Val)]
-		id_locExp += 1
-
-	v = val if type(val) == int else Const(val, Val)
-
-	global_axioms += [idW(write) == id_write, proc(write) == pid]
-	id_write += 1
-	return (write, loc, v)
+	global eidCnt
+	# if is_const(val):
+	# 	v = val
+	# else:
+	# v = Val.int(val) if type(val) == int else val
+	v = val
+	if is_reg(location):
+		write = WriteReg(eidCnt, location, v, pid ) #Const(name, WriteReg)	
+		
+	else: 
+		write = WriteOp(eidCnt, location, v, pid) #Const(name, WriteOp)
+	eidCnt += 1	
+	write.target = location
+	write.val = v 
+	write.pid = pid
+	return write
 
 
 # Untilized function
@@ -148,24 +130,9 @@ def getWrites(RW):
 def getReads(RW):
 	return [r for r in RW if (getSymbolic(r).sort() if type(r) == tuple else r.sort()) == ReadOp]
 
-def isWrite(rw):
-	if type(rw) == tuple:
-		return getSymbolic(rw).sort() == WriteOp
-	return rw.sort() == WriteOp
-def isRead(rw):
-	if type(rw) == tuple:
-		return getSymbolic(rw).sort() == ReadOp
-	return rw.sort() == ReadOp
-def isFence(f):
-	if type(f) == tuple:
-		return False
-	return f.sort() == FenceOp
-
-def isRW(rw):
-	return isRead(rw) or isWrite(rw)
 
 def restrict(e, sets = [], Dom = None):
-	return Or([e == Dom.cast(getSymbolic(i)) for i in sets ])
+	return Or([e == i for i in sets ])
 
 # Relation defifnition
 def relation(r_name, Dom, Set = []):
@@ -211,101 +178,126 @@ def acyclic(name, r, sets = []):
 	return (r_trans, axiom + [Not(Exists([x], r_trans(x,x) ))])
 
 # Relation with trasitive and irreflexive
-def program_order(PoSet = [], Esets = []):
-	(r, axioms1) = relation('po_rel', Event, PoSet)
+def program_order(s, PoSet = []):
 	po = Function('po', Event, Event, BoolSort())
-	po.domain = (lambda i: Event)
+	s.register_relation(po)
 
 	x, y, z = Consts('x y z', Event)
-	axioms = [
-		ForAll([x,y], po(x,y) == Or(r(x,y), 
-									Exists(z, And(restrict(z, Esets, Event),
-													po(x,z), po(z,y)) ) 
-									))
-	]
-	return (po, axioms1 + axioms)
+	s.declare_var(x, y, z)	
+	for (i,j) in poS:
+		s.add(po(i, j)) 
+	s.rule(po(x,z), [po(x,y), po(y,z)])
+	s.add(Not(po(x,x)))
+	s.add(Implies(po(x,y), Not(po(y,x))))
+
+	return (s, po)
 
 
 # Execution (E, po, rf, co)
 # co - coherrence 
-def conflict_order(Set = []):
-	def conflict_def((x,locA,pA), (y,locB,pB)):
-		return (x.sort() == WriteOp or y.sort() == WriteOp) and (eq(locA,locB))
+def conflict_order(s, Ev = []):
+	co = Function('co', Event, Event, BoolSort())
+	s.register_relation(co)
 
-	def conflict_writes(Set = []):
-		return [ (x,y) for x in Set for y in Set if not(eq(getSymbolic(x),getSymbolic(y))) and 
-						getSymbolic(x).sort() == WriteOp and getSymbolic(y).sort() == WriteOp 
-					 and conflict_def(x,y)]
-
-	co_rel = Function('co_rel', WriteOp, WriteOp, BoolSort())
-	co = Function('co', WriteOp, WriteOp, BoolSort())
-	co.domain = (lambda i: WriteOp)
-
-	w1 = Const('temp_w1', WriteOp)
-	w2 = Const('temp_w2', WriteOp)
-
-	conf_w = conflict_writes(Set) 
-	conf_w2 = conf_w + [(y,x) for (x,y) in conf_w]
-	
-	# relation
-	axiom = [ForAll([w1,w2], co_rel(w1, w2) ==  Or([And(w1 == WriteOp.cast(getSymbolic(i)), w2 == WriteOp.cast(getSymbolic(j))) for (i,j) in conf_w2]))]
-	# asymetric : choose one of them
-	u = Const('Wx1', WriteOp)
-	v = Const('Wx0', WriteOp)
-	# axiom += [ ForAll([w1,w2], Xor( co_rel(w1, w2), co_rel(w2,w1) )) ]
-	# axiom += [ co(u, v) ]
-
-	axiom += [ForAll([w1, w2], co(w1, w2) == And(co_rel(w1, w2), 
-												# asymetric
-												Not(co(w2, w1))) )]
-	# axiom += [co(w1, w2) == And(co_rel(w1, w2), Not(co(w2, w1)))  for ((w1, loc, x1), (w2, loc, x2)) in conf_w2]
-	return (co, axiom)
+	for e1 in Ev:
+		for e2 in Ev:
+			# if eq(e1.target, e2.target) and not(eq(e1.arg(0),e2.arg(0))):
+			# 	print str((e1,e2)) + ': ' + str(eq(e1.target, e2.target))
+			s.add(
+				co(e1, e2) == (
+					And(Distinct(e1, e2),
+						Not(co(e2, e1),
+						e1.target == e2.target
+						)
+					if not(eq(e1.arg(0),e2.arg(0))) and isWrite(e1) and isWrite(e2) else False
+					)
+				),
+			)
+	return (s, co)
 
 # rf - one to many
-def read_from(Set = []):
-
-	def conflict_rf(Set = []):
-		read = [r for r in Set if getSymbolic(r).sort() == ReadOp]
-		write =[w for w in Set if getSymbolic(w).sort() == WriteOp]
-		candidate_rf = [ ((w,locA,pA), (r,locB,pB)) for (w,locA, pA) in write for (r,locB,pB) in read if (eq(locA, locB))]
-		return candidate_rf
-	def candidate_writes((r, locB, pB), Set = []):
-		write =[w for w in Set if getSymbolic(w).sort() == WriteOp]
+def read_from(s, Ev = []):
+	def candidate_writes(r, Ev = []):
+		write =[w for w in Ev if isWrite(w) and eq(w.target, r.target) ]
 		# print locB
-		candidate_w = [ (w,locA,pA) for (w,locA,pA) in write if (eq(locA, locB))]
-		return candidate_w
+		# candidate_w = [ (w,locA,pA) for (w,locA,pA) in write if (eq(locA, locB))]
+		return write
 
-	# rf_rel = Function('rf_rel', WriteOp, ReadOp, BoolSort()))
-	rf = Function('rf', WriteOp, ReadOp, BoolSort())
-	# one to many (read can read from only one write)
-	x = Const('x', WriteOp)
-	y = Const('y', ReadOp)
-
-	read = [r for r in Set if getSymbolic(r).sort() == ReadOp]
-	write = [w for w in Set if getSymbolic(w).sort() == WriteOp]
-	candidate_rf = conflict_rf(Set)
-	
-
-	axiom = [
-		# relation
-		# ForAll([x,y], rf(x,y) == Or([ And(x == getSymbolic(w), y == getSymbolic(r)) for (w,r) in candidate_rf ])),
-		# one to many ?
-		And( [ Or([rf(getSymbolic(w), getSymbolic(r)) for w in candidate_writes(r, Set)]) for r in read  ] ), 
-		# rf-val
-		And( [ 
-			Implies( rf(w,r), (vA == vB) )
-			for ((w, locA, vA), (r, locB, vB)) in candidate_rf]
-			),
-		# rf-loc
-		# rf-val
-		And( [ 
-			Implies( rf(w,r), (locA == locB) )
-			for (w, locA, vA) in write for (r, locB, vB) in read ]
+	# rf : W x R relation
+	e = Const('e', Event)
+	rf = Function('rf', Event, Event, BoolSort())
+	s.register_relation(rf)
+	for e1 in Ev:
+		if isRead(e1):
+			# print e1
+			# print candidate_writes(e1, Ev)
+			cWrite = candidate_writes(e1, Ev)
+			s.add(Or([rf(w, e1) for w in cWrite ]))
+			# rf-val
+			s.add(And([
+				Implies(rf(w, e1), w.val == e1.val)
+				for w in cWrite
+				])
 			)
-	]
-	# print axiom
-	return (rf, axiom)
+			# rf-loc
+		else:
+			s.add(ForAll(e, Not(rf(e,e1))))
+	return (s, rf)
 
+def iico_relation(s, S = []):
+	# iico = Function('iico', Event, Event, BoolSort())
+	# s.register_relation(iico)
+
+	# e1, e2 = Consts('e1 e2', Event)
+	# s.add(
+	# 	iico(e1, e2) == And(
+
+	# 		)
+	# 	)
+	(iico, axiom) = relation('iico', Event, S)
+	s.register_relation(iico)
+	s.add(axiom)
+	return (s, iico)
+
+def rf_reg_relation(s, Ev = []):
+	def candidate_writes(r, Ev = []):
+		write =[w for w in Ev if isWriteReg(w) and eq(w.target, r.target) ]
+		return write
+
+	# rf : W-reg x R-reg relation
+	e = Const('e', Event)
+	rf_reg = Function('rf-reg', Event, Event, BoolSort())
+	s.register_relation(rf_reg)
+	for e1 in Ev:
+		if isReadReg(e1):
+			cWrite = candidate_writes(e1, Ev)
+			s.add(Or([rf_reg(w, e1) for w in cWrite ]))
+			# rf-val
+			s.add(And([
+				Implies(rf_reg(w, e1), w.val == e1.val)
+				for w in cWrite
+				])
+			)
+			# rf-loc
+		else:
+			s.add(ForAll(e, Not(rf_reg(e,e1))))
+	return (s, rf_reg)
+
+# dd-reg = (rf-reg U iico)+
+def dd_reg_relation(s, rf_reg, iico):
+	dd_reg = Function('dd_reg', Event, Event, BoolSort())
+	s.register_relation(dd_reg)
+	e1, e2, e3 = Consts('e1 e2 e3', Event)
+	s.declare_var(e1, e2, e3)
+	s.rule(dd_reg(e1, e2), rf_reg(e1, e2)) 
+	s.rule(dd_reg(e1, e2), iico(e1, e2))
+	s.rule(dd_reg(e1, e3), [dd_reg(e1, e2), dd_reg(e2, e3)])
+	return (s, dd_reg)
+
+# addr dependency = dd-reg ^ RM
+def addr_dependency(s, dd_reg, Ev = []):
+	# addr_dep = Function('addr_dep',)
+	pass 
 
 # fr - fromread
 def from_read(RW = []):
@@ -409,7 +401,7 @@ ppo.domain = (lambda i: Event)
 fences = Function('fence', Event, Event, BoolSort())
 fences.domain = (lambda i: Event)
 
-rfe = Function('rfe', WriteOp, ReadOp, BoolSort())
+# rfe = Function('rfe', WriteOp, ReadOp, BoolSort())
 def rfe_axiom(Ev = []):
 	writes = getWrites(Ev)
 	reads = getReads(Ev)
@@ -656,19 +648,157 @@ def pso_constraints(RW = [], Fence = []):
 	return axiom
 
 if __name__ == '__main__':
-	pass
 	# try ARM models
 
-	x = new_loc('x')
-	y = new_loc('y')
+	# s = Solver()
+	s = Fixedpoint()
+	s.set(engine='pdr')
 
+	# x, y = Consts('x y', Loc)
+
+	addrX, addrY = Ints('addrX addrY')
+	x = InitLoc(addrX)
+	y = InitLoc(addrY)
+	s.add(Distinct(x,y))
+	# s.add(ForAll([x,y], (addrLoc(x) == addrLoc(y)) == (x == y) ))
+
+	
+	# s.add(addrLoc(x) == addrX, addrLoc(y) == addrY)
+	
+	# print x
+	# inital value
 	Wx0 = new_write('Wx0', x, 0)
 	Wy0 = new_write('Wy0', y, 0)
 
-	# P1
-	# Wr1 = new_write()
-
+	pid1, pid2 = Consts('pid1 pid2', Proc)
+	s.add(Distinct(pid1, pid2))
 	
+	# P1
+	# r1, r2, r3 = Consts('r1 r2 r3', Reg)
+	r1 = Reg(0)
+	r2 = Reg(1)
+	r3 = Reg(2)
+
+	# mov r1, #1
+	Wr1 = new_write('Wr1_0', r1, 1, 1)
+	# mov r2, x
+	Wr2 = new_write('Wr2_0', r2, addrX, 1)
+	# mov r3, y
+	Wr3 = new_write('Wr3_0', r3, addrY, 1)
+
+	# str r1, [r2/x]
+	tempAddr1 = Int('tempAddr1')
+	Rr2 = new_read('Rr2_0', r2, tempAddr1, 1)
+	loc1 = InitLoc(addrX)
+	# loc1 = Const('loc1', Loc)
+	# s.add(addrLoc(loc1) == TempAddr)
+
+	Vr1_0 = Int('Temp1')
+	Rr1_0 = new_read('Rr1_0', r1, Vr1_0, 1)
+	
+	Wx1 = new_write('Wx1_0', loc1, Vr1_0, 1)
+
+	# str r1, [r3/y]
+	TempAddr2 = Int('Temp3')
+	Rr3 = new_read('Rr3_0', r3, TempAddr2, 1)
+	loc2 = InitLoc(addrY)
+	# loc2 = Const('loc2', Loc)
+	Vr1_1 = Int('Temp4')
+	Rr1_1 = new_read('Rr1_1', r1, Vr1_1, 1)
+	
+	# s.add(addrLoc(loc2) == TempAddr2)
+	Wy1 = new_write('Wy1_0', loc2, Vr1_1, 1)
+
+	Ev1 = [Wx0, Wy0, Wr1, Wr2, Wr3, Rr1_0, Rr2, Rr3, Rr1_1, Wx1, Wy1]
+	# print [ev.sort() for ev in Ev1 if isWriteReg(ev) ]
+
+	# P2 
+	r4, r5, r6, r7 = Reg(3), Reg(4), Reg(5), Reg(6)
+
+
+	# mov r4, x
+	Wr4 = new_write('Wr4', r4, addrX, 2)
+	# mov r5, y
+	Wr5 = new_write('Wr5', r5, addrY, 2)
+	# ldr r6, [r5]
+	Vr5 = Int('Temp5')
+	Rr5 = new_read('Rr5', r5, Vr5, 2)
+	loc3 = InitLoc(addrY)
+	# loc3 = Const('loc3', Loc)
+	# s.add(addrLoc(loc3) == Int('Vr5'))
+	Vloc3 = Int('Temp6')
+	Rvr5 = new_read('Rvr5', loc3, Vloc3, 2) 
+	Wr6 = new_write('Wr6', r6, Vloc3, 2)
+	# ldr r7, [r4]
+	Vr4 = Int('Temp7')
+	Rr4 = new_read('Rr4', r4, Vr4, 2)
+	# loc4 = Const('loc4', Loc)
+	# s.add(addrLoc(loc4) == Int('Vr4'))
+	loc4 = InitLoc(addrX)
+	Vloc4 = Int('Temp8')
+	Rvr4 = new_read('Rvr4', loc4, Vloc4, 2) 
+	Wr7 = new_write('Wr7', r7, (Vloc4), 2)
+	
+	Ev2 = [Wr4, Wr5, Rr5, Rvr5, Wr6, Rr4, Rvr4, Wr7]
+	# print [ev[0] for ev in Ev2 if ev[0].sort() == ReadOp or ev[0].sort() == WriteOp ]
+
+	# manual po
+	poS = []
+	# po for P1
+	poS += [(Wx0, Wy0), (Wy0, Wr1), (Wr1, Wr2), (Wr2, Wr3)]
+	poS += [(Wr3, Rr2), (Wr3, Rr1_0), (Rr2, Wx1), (Rr1_0, Wx1)]
+	poS += [(Wx1, Rr3), (Wx1, Rr1_1), (Rr3, Wy1), (Rr1_1, Wy1)]
+	# po for P2 
+	poS += [(Wy0, Wr4), (Wr4, Wr5), (Wr5, Rr5), (Rr5, Rvr5) ,(Rvr5, Wr6), (Wr6, Rr4), (Rr4, Rvr4), (Rvr4, Wr7)]
+
+	# manual iico
+	iicoS = []
+	# iico for P1 
+	iicoS += [(Rr2, Wx1), (Rr1_0, Wx1), (Rr3, Wy1), (Rr1_1, Wy1)]
+	# iico for P2
+	iicoS += [(Rr5, Rvr5), (Rvr5, Wr6), (Rr4, Rvr4), (Rvr4, Wr7)]
+	
+	# distinct events
+	s.add(Distinct([ e for e in Ev1 + Ev2 ]))
+
+	# generate axioms for:
+	#  - po : E x E relation
+	(s, po) = program_order(s, poS)
+	#  - co : W x W relation
+	(s, co) = conflict_order(s, Ev1 + Ev2)
+	#  - rf : W x R relation
+	(s, rf) = read_from(s, Ev1 + Ev2)
+	
+
+	# Instruction semantics level
+	#  - iico : E x E relation
+	(s, iico) = iico_relation(s, iicoS)
+	#  - rf-reg : W-reg x R-reg relation
+	(s, rf_reg) = rf_reg_relation(s, Ev1 + Ev2)
+
+	#  -- dependency relation
+	#  - dd_reg
+	(s, dd_reg) = dd_reg_relation(s, rf_reg, iico)
+
+
+	# (rf, axiom_rf) = read_from(Ev1 + Ev2)
+	
+
+
+
+	#  - rf-reg : W-reg x R-reg relation
+
+	# check prob
+	# print Wx0
+	# print Wx1
+	# s.add(rf(Wx0, Rvr4))
+	# s.add(rf(Wx1, Rvr4))
+	# s.add(Rvr4.val == 2)
+	# print Wx0.val
+	# s.add(co(Wx1, Wx0))
+
+
+	print s.query()
 
 
 
