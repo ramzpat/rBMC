@@ -119,11 +119,11 @@ def seqRelation(r_name, r1, r2):
 
 
 # acyclic / irreflexive
-def acyclic(name, r, PoSet = []):
-	dom = r.domain(0)
-	x, y = Consts('x y', dom)
-	(r_trans,axiom) = transitive(name, r, sets)
-	return (r_trans, axiom + [Not(Exists([x], r_trans(x,x) ))])
+# def acyclic(name, r, PoSet = []):
+# 	dom = r.domain(0)
+# 	x, y = Consts('x y', dom)
+# 	(r_trans,axiom) = transitive(name, r, sets)
+# 	return (r_trans, axiom + [Not(Exists([x], r_trans(x,x) ))])
 
 # Execution (E, po, rf, co)
 # Relation with trasitive and irreflexive
