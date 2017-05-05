@@ -136,7 +136,7 @@ def getReads(RW):
 	return [r for r in RW if (getSymbolic(r).sort() if type(r) == tuple else r.sort()) == ReadOp]
 
 
-def restrict(e, sets = [], Dom = None):
+def restrict(e, sets = []):
 	return Or([e == i for i in sets ])
 
 # Relation defifnition
@@ -183,18 +183,17 @@ def seqRelation(r_name, r1, r2):
 # 	return (r_trans, axiom + [Not(Exists([x], r_trans(x,x) ))])
 
 # Relation with trasitive and irreflexive
-def program_order(s, PoSet = []):
+def program_order(s, PoSet = [], Ev = []):
 	po = Function('po', Event, Event, BoolSort())
-	s.register_relation(po)
+	# s.register_relation(po)
 
 	x, y, z = Consts('x y z', Event)
-	s.declare_var(x, y, z)	
 	for (i,j) in poS:
 		s.add(po(i, j)) 
-	s.rule(po(x,z), [po(x,y), po(y,z)])
-	s.add(Not(po(x,x)))
-	s.add(Implies(po(x,y), Not(po(y,x))))
-
+	s.add(ForAll([x,y,z], Implies(And(po(x,y), po(y,z)), po(x,z))))
+	
+	s.add(ForAll(x,Not(po(x,x))))
+	s.add(ForAll([x,y],Implies(And(po(x,y)), Not(po(y,x)))))
 	return (s, po)
 
 
@@ -202,7 +201,6 @@ def program_order(s, PoSet = []):
 # co - coherrence 
 def conflict_order(s, Ev = []):
 	co = Function('co', Event, Event, BoolSort())
-	s.register_relation(co)
 
 	for e1 in Ev:
 		for e2 in Ev:
@@ -211,13 +209,23 @@ def conflict_order(s, Ev = []):
 			s.add(
 				co(e1, e2) == (
 					And(Distinct(e1, e2),
-						Not(co(e2, e1),
+						Not(co(e2, e1)),
 						e1.target == e2.target
 						)
 					if not(eq(e1.arg(0),e2.arg(0))) and isWrite(e1) and isWrite(e2) else False
 					)
-				),
-			)
+				)
+			# if not(eq(e1.arg(0),e2.arg(0))) and isWrite(e1) and isWrite(e2):
+			# 	print e1.target
+			# 	print e2.target
+			# 	print co(e1, e2) == (
+			# 		And(Distinct(e1, e2),
+			# 			Not(co(e2, e1),
+			# 			e1.target == e2.target
+			# 			)
+			# 		if not(eq(e1.arg(0),e2.arg(0))) and isWrite(e1) and isWrite(e2) else False
+			# 		)
+			# 	)
 	return (s, co)
 
 # rf - one to many
@@ -231,7 +239,7 @@ def read_from(s, Ev = []):
 	# rf : W x R relation
 	e = Const('e', Event)
 	rf = Function('rf', Event, Event, BoolSort())
-	s.register_relation(rf)
+	# s.register_relation(rf)
 	for e1 in Ev:
 		if isRead(e1):
 			# print e1
@@ -245,22 +253,18 @@ def read_from(s, Ev = []):
 				])
 			)
 			# rf-loc
+			# print Or([rf(w, e1) for w in cWrite ])
+			# print And([
+			# 	Implies(rf(w, e1), w.val == e1.val)
+			# 	for w in cWrite
+			# 	])
 		else:
 			s.add(ForAll(e, Not(rf(e,e1))))
+
 	return (s, rf)
 
 def iico_relation(s, S = []):
-	# iico = Function('iico', Event, Event, BoolSort())
-	# s.register_relation(iico)
-
-	# e1, e2 = Consts('e1 e2', Event)
-	# s.add(
-	# 	iico(e1, e2) == And(
-
-	# 		)
-	# 	)
 	(iico, axiom) = relation('iico', Event, S)
-	s.register_relation(iico)
 	s.add(axiom)
 	return (s, iico)
 
@@ -272,7 +276,6 @@ def rf_reg_relation(s, Ev = []):
 	# rf : W-reg x R-reg relation
 	e = Const('e', Event)
 	rf_reg = Function('rf-reg', Event, Event, BoolSort())
-	s.register_relation(rf_reg)
 	for e1 in Ev:
 		if isReadReg(e1):
 			cWrite = candidate_writes(e1, Ev)
@@ -291,19 +294,25 @@ def rf_reg_relation(s, Ev = []):
 # dd-reg = (rf-reg U iico)+
 def dd_reg_relation(s, rf_reg, iico):
 	dd_reg = Function('dd_reg', Event, Event, BoolSort())
-	s.register_relation(dd_reg)
+	# s.register_relation(dd_reg)
 	e1, e2, e3 = Consts('e1 e2 e3', Event)
-	s.declare_var(e1, e2, e3)
-	s.rule(dd_reg(e1, e2), rf_reg(e1, e2)) 
-	s.rule(dd_reg(e1, e2), iico(e1, e2))
-	s.rule(dd_reg(e1, e3), [dd_reg(e1, e2), dd_reg(e2, e3)])
-	s.vars = []
+	# s.declare_var(e1, e2, e3)
+	# s.rule(dd_reg(e1, e2), rf_reg(e1, e2)) 
+	# s.rule(dd_reg(e1, e2), iico(e1, e2))
+	# s.rule(dd_reg(e1, e3), [dd_reg(e1, e2), dd_reg(e2, e3)])
+	# s.vars = []
+	s.add(
+		ForAll([e1, e2], Implies(rf_reg(e1, e2), dd_reg(e1, e2))),
+		ForAll([e1, e2], Implies(iico(e1, e2), dd_reg(e1, e2))),
+		ForAll([e1, e2, e3], Implies(And(dd_reg(e1, e2), dd_reg(e2, e3)), dd_reg(e1, e3)))
+		)
+
 	return (s, dd_reg)
 
 # addr dependency = dd-reg ^ RM
 def addr_dependency(s, dd_reg, Ev = []):
 	addr_dep = Function('addr_dep',Event, Event, BoolSort())
-	s.register_relation(addr_dep)
+	# s.register_relation(addr_dep)
 
 	# e1, e2, e3 = Consts('e1 e2 e3', Event)
 	# s.declare_var(e1, e2, e3)
@@ -319,7 +328,7 @@ def addr_dependency(s, dd_reg, Ev = []):
 # data dep = dd-reg ^ RW
 def data_dependency(s, dd_reg, Ev = []):
 	data_dep = Function('data_dep', Event, Event, BoolSort())
-	s.register_relation(data_dep)
+	# s.register_relation(data_dep)
 
 	for e1 in Ev:
 		for e2 in Ev:
@@ -329,39 +338,51 @@ def data_dependency(s, dd_reg, Ev = []):
 				s.add(Not(data_dep(e1, e2)))
 	return (s, data_dep)
 
+# RB
+def ReadBranchRelation(s, Ev = []):
+	RB = Function('RB', Event, Event, BoolSort())
+	for r in Ev:
+		for b in Ev:
+			s.add( RB(r, b) if isRead(r) and isBranch(b) else Not(RB(r, b)) )
+	return (s, RB)
+
 # ctrl = (dd_reg ^ RB);po
-def ctrl_dependency(s, dd_reg, po, Ev = []):
+def ctrl_dependency(s, dd_reg, RB, po):
 	ctrl = Function('ctrl', Event, Event, BoolSort())
-	s.register_relation(ctrl)	
+	# s.register_relation(ctrl)	
 
 	e1, e2, b = Consts('e1 e2 b', Event)
-	s.declare_var(e1, e2, b)
-	s.rule(ctrl(e1, e2), [ isRead(e1), isBranch(b), dd_reg(e1,b), po(b, e2) ])
-	s.vars = []
+	# s.declare_var(e1, e2, b)
+	# s.rule(ctrl(e1, e2), [ isRead(e1), isBranch(b), dd_reg(e1,b), po(b, e2) ])
+	# s.vars = []
+	s.add(ForAll([e1, e2, b], Implies( And(dd_reg(e1, b), RB(e1, b), po(b, e2)), ctrl(e1, e2) ) ))
 	return (s, ctrl)
 
 # ctrl+cfence = (dd_reg ^ RB);cfence
-def ctrl_cfence_dependency(s, dd_reg, cfence, Ev = []):
-	ctrl_cfence = Function('ctrl_cfence', Event, Event, BoolSort())
-	s.register_relation(ctrl)	
+# def ctrl_cfence_dependency(s, dd_reg, RB, cfence):
+# 	ctrl_cfence = Function('ctrl_cfence', Event, Event, BoolSort())
+# 	# s.register_relation(ctrl)	
 
-	e1, e2, b = Consts('e1 e2 b', Event)
-	s.declare_var(e1, e2, b)
-	s.rule(ctrl(e1, e2), [ isRead(e1), isBranch(b), dd_reg(e1,b), cfence(b, e2) ])
-	s.vars = []
-	return (s, ctrl_cfence)
+# 	e1, e2, b = Consts('e1 e2 b', Event)
+# 	# s.declare_var(e1, e2, b)
+# 	# s.rule(ctrl_cfence(e1, e2), [ isRead(e1), isBranch(b), dd_reg(e1,b), cfence(b, e2) ])
+# 	# s.vars = []
+# 	s.add(ForAll([e1, e2, b], Implies( And(dd_reg(e1, b), RB(e1, b), cfence()) )))
+
+# 	return (s, ctrl_cfence)
 
 # fr - fromread (fixed point) 
 def from_read(s, rf, co):
 	fr = Function('fr', Event, Event, BoolSort())
-	s.register_relation(fr)
+	# s.register_relation(fr)
 
 	e1, e2, e3 = Consts('e1 e2 e3', Event)
-	s.declare_var(e1,e2,e3)
+	# s.declare_var(e1,e2,e3)
 	# invrf = rf^-1
 	# fr = (invrf ; co) \ id
-	s.rule(fr(e1,e3), [rf(e2, e1), co(e2, e3), e1 != e3])
-	s.vars = []
+	# s.rule(fr(e1,e3), [rf(e2, e1), co(e2, e3), e1 != e3])
+	# s.vars = []
+	s.add( ForAll([e1, e2, e3], Implies( And(rf(e2, e1), co(e2, e3), Distinct(e1, e3)), fr(e1, e3) ) ) )
 	return (s, fr)
 
 # # fr - fromread
@@ -715,22 +736,24 @@ def pso_constraints(RW = [], Fence = []):
 def acyclic(s, *rel):
 	print str(rel)
 	trans = Function('acyclic' + str(rel), Event, Event, BoolSort())
-	s.register_relation(trans)
+	# s.register_relation(trans)
 	e1, e2, e3 = Consts('e1 e2 e3', Event)
-	s.declare_var(e1, e2, e3)
+	# s.declare_var(e1, e2, e3)
 	for r in rel:
-		s.rule(trans(e1, e2), r(e1, e2))
-	s.rule(trans(e1, e2), [trans(e1, e3), trans(e3, e2)])
-	s.add(Not(trans(e1,e1)))
-	s.vars = []
-	return trans
+		# s.rule(trans(e1, e2), r(e1, e2))
+		s.add( ForAll([e1, e2], Implies(r(e1, e2), trans(e1, e2)) ))
+	# s.rule(trans(e1, e2), [trans(e1, e3), trans(e3, e2)])
+	s.add(ForAll([e1, e2, e3], Implies(And(trans(e1, e2), trans(e2, e3)), trans(e1, e3)) ))
+	s.add(ForAll(e1, Not(trans(e1, e1))))
+	# s.vars = []
+	return (s,trans)
 
 if __name__ == '__main__':
 	# try ARM models
 
-	# s = Solver()
-	s = Fixedpoint()
-	s.set(engine='pdr')
+	s = Solver()
+	# s = Fixedpoint()
+	# s.set(engine='pdr')
 
 	# x, y = Consts('x y', Loc)
 
@@ -841,7 +864,7 @@ if __name__ == '__main__':
 
 	# generate axioms for:
 	#  - po : E x E relation
-	(s, po) = program_order(s, poS)
+	(s, po) = program_order(s, poS, Ev1 + Ev2)
 	#  - co : W x W relation
 	(s, co) = conflict_order(s, Ev1 + Ev2)
 	#  - rf : W x R relation
@@ -855,21 +878,22 @@ if __name__ == '__main__':
 	(s, rf_reg) = rf_reg_relation(s, Ev1 + Ev2)
 
 	cfence = Function('cfence', Event, Event, BoolSort())
-	s.register_relation(cfence)
+	# s.register_relation(cfence)
 
 	#  -- dependency relation
 	#  - dd_reg
 	(s, dd_reg) = dd_reg_relation(s, rf_reg, iico)
 	(s, addr_dep) = addr_dependency(s, dd_reg, Ev1 + Ev2)
 	(s, data_dep) = data_dependency(s, dd_reg, Ev1 + Ev2)
-	(s, ctrl) = ctrl_dependency(s, dd_reg, po, Ev1 + Ev2)
-	(s, ctrl_cfence) = ctrl_cfence_dependency(s, dd_reg, cfence, Ev1 + Ev2)
+	(s, RB) = ReadBranchRelation(s, Ev1 + Ev2)
+	(s, ctrl) = ctrl_dependency(s, dd_reg, RB, po)
+	(s, ctrl_cfence) = ctrl_dependency(s, dd_reg, RB, cfence)
 	
 	(s, fr) = from_read(s, rf, co)
 
 	fre = Function('fre', Event, Event, BoolSort())
 	fri = Function('fri', Event, Event, BoolSort())
-	s.register_relation(fre, fri)
+	# s.register_relation(fre, fri)
 
 	for e1 in Ev1 + Ev2:
 		for e2 in Ev1 + Ev2:
@@ -882,7 +906,8 @@ if __name__ == '__main__':
 	# s.add(Not( ) )
 	# (* Sequential consistency *)
 	# acyclic po | fr | rf | co as sc
-	print (acyclic(s, po, fr, rf, co))
+	(s, trans) = (acyclic(s, po, fr, rf, co))
+
 
 
 	# check prob
@@ -891,19 +916,20 @@ if __name__ == '__main__':
 	# s.add(rf(Wx0, Rvr4))
 	# s.add(rf(Wx1, Rvr4))
 	
-	# s.add(Rvr5.val == 1)
-	# s.add(Rvr4.val == 0)
+	# s.add(Rr1_1.val == 1)
+	s.add(Rvr5.val == 1)
+	s.add(Rvr4.val == 0)
 	# print Wx0.val
 	# s.add(co(Wx0, Wx1))
 	# s.add(co(Wy0, Wy1))
 	# s.add(rf(Wy1))
 
 	# s.add(po(Rvr5, Rvr4))
-	s.add(po(Rvr4, Rvr5))
-	print poS
-	print Rvr5
-	print Rvr4 
-	print s.query()
+	# s.add(po(Rvr4, Rvr5))
+	# print poS
+	# print Rvr5
+	# print Wy1 
+	print s.check()
 
 
 
