@@ -1,6 +1,7 @@
 # herd_framework
 
 from z3 import *
+from relation_util import *
 
 # Abstract model def 
 Proc = 		IntSort()			 			# Processor
@@ -8,6 +9,8 @@ Proc = 		IntSort()			 			# Processor
 Instr = 	DeclareSort('Instr')			# Instruction 
 # Val = 		IntSort()						# Value in the systems
 # Reg =		IntSort()						# Registers
+
+
 
 Val = Datatype('Val')
 Val.declare('undifined')
@@ -61,6 +64,7 @@ Branch = Event.branch
 eidCnt = 0
 
 
+
 def isWrite(e):
 	return eq(e.decl(), WriteOp)
 def isRead(e):
@@ -99,10 +103,12 @@ def new_read(name, location, val, pid = 0):
 		read = ReadReg(eidCnt, location, val, pid) #Const(name, ReadReg)
 	else:
 		read = ReadOp(eidCnt, location, val, pid) #Const(name, ReadOp)
-	eidCnt += 1
+	
+	read.eid = eidCnt
 	read.target = location
 	read.val = val
 	read.pid = pid
+	eidCnt += 1
 	return read
 	
 
@@ -118,6 +124,7 @@ def new_write(name, location, val, pid = 0):
 		
 	else: 
 		write = WriteOp(eidCnt, location, v, pid) #Const(name, WriteOp)
+	write.eid = eidCnt
 	eidCnt += 1	
 	write.target = location
 	write.val = v 
@@ -147,6 +154,10 @@ def relation(r_name, Dom, Set = []):
 	y = Const('y', Dom)
 
 	return (r, [ForAll([x,y], r(x,y) ==  Or([And(x == Dom.cast(i), y == Dom.cast(j)) for (i,j) in Set]))])
+
+	# r = Function(r_name, Dom, Dom, BoolSort())
+	# x, y = Consts('x y', Dom)
+	# ax = 
 
 # transitive (r+)
 # input a relation r
@@ -194,14 +205,27 @@ def program_order(s, PoSet = [], Ev = []):
 	# 								Exists(z, And(po(x,z), po(z,y)))
 	# 								)))
 
-	for (i,j) in poS:
-		s.add(po(i, j)) 
-	s.add(ForAll([x,y,z], Implies(And(po(x,y), po(y,z)), po(x,z))))
+	# for (i,j) in poS:
+	# 	s.add(po(i, j)) 
+	# s.add(ForAll([x,y,z], Implies(And(po(x,y), po(y,z)), po(x,z))))
 	
-	s.add(ForAll(x,Not(po(x,x))))
-	s.add(ForAll([x,y],Implies(And(po(x,y)), Not(po(y,x)))))
+	# s.add(ForAll(x,Not(po(x,x))))
+	# s.add(ForAll([x,y],Implies(And(po(x,y)), Not(po(y,x)))))
 
-	return (s, po)
+	# po_rel = transitive_closure(poS)
+	# prepare po transitivity
+	newPo = []
+	EvID = [0 for i in range(0, eidCnt)]
+	for (i,j) in PoSet:
+		newPo += [(i.eid, j.eid)]
+		EvID[i.eid] = i
+		EvID[j.eid] = j
+	newPo = transitive_closure(newPo)
+
+	for x in Ev:
+		for y in Ev:
+			s.add(po(x,y) if (x.eid,y.eid) in newPo else Not(po(x,y)) )
+	return (s, po, newPo)
 
 
 # Execution (E, po, rf, co)
@@ -270,10 +294,30 @@ def read_from(s, Ev = []):
 
 	return (s, rf)
 
-def iico_relation(s, S = []):
-	(iico, axiom) = relation('iico', Event, S)
-	s.add(axiom)
-	return (s, iico)
+def iico_relation(s, S = [], Ev = []):
+	# (iico, axiom) = relation('iico', Event, S)
+	# s.add(axiom)
+
+	# prepare for transitivity
+	idS = []
+	EvID = [0 for i in range(0, len(Ev))]
+	for (i, j) in S:
+		idS += [(i.eid, j.eid)]
+		EvID[i.eid] = i 
+		EvID[j.eid] = j
+	idS = transitive_closure(idS)
+
+	iico = Function('iico', Event, Event, BoolSort())
+	iicoSet = []
+	for e1 in Ev:
+		for e2 in Ev:
+			if (e1.eid, e2.eid) in idS:
+				s.add( iico(e1, e2) )	
+				iicoSet += [(e1.eid, e2.eid)]
+			else:
+				s.add(Not(iico(e1, e2)))
+
+	return (s, iico, iicoSet)
 
 def rf_reg_relation(s, Ev = []):
 	def candidate_writes(r, Ev = []):
@@ -283,87 +327,108 @@ def rf_reg_relation(s, Ev = []):
 	# rf : W-reg x R-reg relation
 	e = Const('e', Event)
 	rf_reg = Function('rf-reg', Event, Event, BoolSort())
+	rf_regSet = []
 	for e1 in Ev:
 		if isReadReg(e1):
 			cWrite = candidate_writes(e1, Ev)
-			s.add(Or([rf_reg(w, e1) for w in cWrite ]))
+			assert(len(cWrite) == 1)
+			# there are only one correspond write in ssa form
+			s.add(rf_reg(cWrite[0], e1))
 			# rf-val
-			s.add(And([
-				Implies(rf_reg(w, e1), w.val == e1.val)
-				for w in cWrite
-				])
-			)
+			s.add(cWrite[0].val == e1.val)
+			rf_regSet += [(cWrite[0].eid, e1.eid)]
 			# rf-loc
 		else:
 			s.add(ForAll(e, Not(rf_reg(e,e1))))
-	return (s, rf_reg)
+	return (s, rf_reg, rf_regSet)
 
 # dd-reg = (rf-reg U iico)+
-def dd_reg_relation(s, rf_reg, iico):
+def dd_reg_relation(s, rf_regSet, iicoSet, Ev):
 	dd_reg = Function('dd_reg', Event, Event, BoolSort())
-	# s.register_relation(dd_reg)
 	e1, e2, e3 = Consts('e1 e2 e3', Event)
-	# s.declare_var(e1, e2, e3)
-	# s.rule(dd_reg(e1, e2), rf_reg(e1, e2)) 
-	# s.rule(dd_reg(e1, e2), iico(e1, e2))
-	# s.rule(dd_reg(e1, e3), [dd_reg(e1, e2), dd_reg(e2, e3)])
-	# s.vars = []
-	s.add(
-		ForAll([e1, e2], Implies(rf_reg(e1, e2), dd_reg(e1, e2))),
-		ForAll([e1, e2], Implies(iico(e1, e2), dd_reg(e1, e2))),
-		ForAll([e1, e2, e3], Implies(And(dd_reg(e1, e2), dd_reg(e2, e3)), dd_reg(e1, e3)))
-		)
+	union = set(rf_regSet) | set(iicoSet)
+	union = transitive_closure(union)
+	# s.add(
+	# 	ForAll([e1, e2], Implies(rf_reg(e1, e2), dd_reg(e1, e2))),
+	# 	ForAll([e1, e2], Implies(iico(e1, e2), dd_reg(e1, e2))),
+	# 	ForAll([e1, e2, e3], Implies(And(dd_reg(e1, e2), dd_reg(e2, e3)), dd_reg(e1, e3)))
+	# 	)
 
-	return (s, dd_reg)
+	# s.add([dd_reg(e1, e2) == Or(
+	# 								rf_reg(e1, e2), iico(e1, e2),
+	# 								Exists(e3, And(restrict(e3, Ev), dd_reg(e1, e3), dd_reg(e3, e2)))
+	# 							) for e1 in Ev for e2 in Ev] )
+	# print set(rf_regSet)
+	# print set(iicoSet)
+	# print union
+	s.add([ dd_reg(e1, e2) if (e1.eid, e2.eid) in union else Not(dd_reg(e1, e2)) for e1 in Ev for e2 in Ev])
+	return (s, dd_reg, union)
 
 # addr dependency = dd-reg ^ RM
-def addr_dependency(s, dd_reg, Ev = []):
+def addr_dependency(s, dd_regSet, Ev = []):
 	addr_dep = Function('addr_dep',Event, Event, BoolSort())
 	# s.register_relation(addr_dep)
 
 	# e1, e2, e3 = Consts('e1 e2 e3', Event)
 	# s.declare_var(e1, e2, e3)
+	addrSet = []
 	for e1 in Ev:
 		for e2 in Ev:
-			if isRead(e1) and isRW(e2):
-				s.add(addr_dep(e1, e2) == And(dd_reg(e1, e2)) )
+			if isRead(e1) and isRW(e2) and (e1.eid, e2.eid) in dd_regSet:
+				s.add(addr_dep(e1, e2))
+				addrSet += (e1.eid, e2.eid)
 			else:
 				s.add(Not(addr_dep(e1, e2)))
 	# s.vars = []
-	return (s, addr_dep)
+	return (s, addr_dep, addrSet)
 
 # data dep = dd-reg ^ RW
-def data_dependency(s, dd_reg, Ev = []):
+def data_dependency(s, dd_regSet, Ev = []):
 	data_dep = Function('data_dep', Event, Event, BoolSort())
 	# s.register_relation(data_dep)
-
+	dataSet = []
 	for e1 in Ev:
 		for e2 in Ev:
-			if isRead(e1) and isWrite(e2):
-				s.add(data_dep(e1, e2) == And(dd_reg(e1, e2)))
+			if isRead(e1) and isWrite(e2) and (e1.eid, e2.eid) in dd_regSet:
+				s.add(data_dep(e1, e2))
+				dataSet += (e1.eid, e2.eid)
 			else:
 				s.add(Not(data_dep(e1, e2)))
-	return (s, data_dep)
+	return (s, data_dep, dataSet)
 
 # RB
 def ReadBranchRelation(s, Ev = []):
 	RB = Function('RB', Event, Event, BoolSort())
+	rbSet = []
 	for r in Ev:
 		for b in Ev:
-			s.add( RB(r, b) if isRead(r) and isBranch(b) else Not(RB(r, b)) )
-	return (s, RB)
+			if isRead(r) and isBranch(b):
+				s.add( RB(r, b) )
+				rbSet += [(r.eid, b.eid)]
+			else:
+				s.add( Not(RB(r, b)))
+	return (s, RB, rbSet)
 
 # ctrl = (dd_reg ^ RB);po
-def ctrl_dependency(s, dd_reg, RB, po):
+def ctrl_dependency(s, dd_regSet, rbSet, poSet, Ev):
 	ctrl = Function('ctrl', Event, Event, BoolSort())
-	# s.register_relation(ctrl)	
+	
+	andSet = set(dd_regSet) & set(rbSet)
+	concat = concat_relation(andSet, poSet)
 
-	e1, e2, b = Consts('e1 e2 b', Event)
 	# s.declare_var(e1, e2, b)
 	# s.rule(ctrl(e1, e2), [ isRead(e1), isBranch(b), dd_reg(e1,b), po(b, e2) ])
 	# s.vars = []
-	s.add(ForAll([e1, e2, b], Implies( And(dd_reg(e1, b), RB(e1, b), po(b, e2)), ctrl(e1, e2) ) ))
-	return (s, ctrl)
+	# s.add(ForAll([e1, e2, b], Implies( And(dd_reg(e1, b), RB(e1, b), po(b, e2)), ctrl(e1, e2) ) ))
+
+	for e1 in Ev:
+		for e2 in Ev:
+			if (e1.eid, e2.eid) in concat:
+				s.add( ctrl(e1, e2) )
+			else:
+				s.add( Not(ctrl(e1, e2)))
+
+	return (s, ctrl, concat)
 
 # fr - fromread (fixed point) 
 def from_read(s, rf, co):
@@ -379,13 +444,33 @@ def from_read(s, rf, co):
 	s.add( ForAll([e1, e2, e3], Implies( And(rf(e2, e1), co(e2, e3), Distinct(e1, e3)), fr(e1, e3) ) ) )
 	return (s, fr)
 
+# constraining 
+def acyclic(s, *rel):
+	trans = Function('acyclic' + str(rel), Event, Event, BoolSort())
+	# s.register_relation(trans)
+	e1, e2, e3 = Consts('e1 e2 e3', Event)
+	# s.declare_var(e1, e2, e3)
+	for r in rel:
+		# s.rule(trans(e1, e2), r(e1, e2))
+		s.add( ForAll([e1, e2], Implies(r(e1, e2), trans(e1, e2)) ))
+	# s.rule(trans(e1, e2), [trans(e1, e3), trans(e3, e2)])
+	s.add(ForAll([e1, e2, e3], Implies(And(trans(e1, e2), trans(e2, e3)), trans(e1, e3)) ))
+	s.add(ForAll(e1, Not(trans(e1, e1))))
+	# s.vars = []
+	return (s,trans)
+
 def irreflexive(s, r):
 	e = Const('e', Event)
 	s.add(ForAll(e, Not(r(e,e))))
+	return s
+
+def empty(s, r):
+	empty = Function('empty_' + str(r), Event, Event, BoolSort())
+	e1, e2 = Consts('e1 e2', Event)
+	s.add(ForAll([e1, e2], Not(e1, e2)))
 	return (s, r)
 
-
-def sc_constraints(s, po, fr, rf, co):
+def sc_constraints(s, po, rf, fr, co, Ev = []):
 	# sc.cat
 	# SC ----------
 	# (* Atomic *)
@@ -456,7 +541,44 @@ def pso_constraints(s, po, rf, fr, co, Ev):
 
 	return s
 
-def arm_constraints(s, po_loc, rf, fr, co, addr, data, ctrl, Ev):
+def arm_constraints(s, po, rf, fr, co, iico, rf_reg, poSet, iicoSet, rf_regSet, Ev):
+
+	po_loc = Function('po-loc', Event, Event, BoolSort())
+	po_locSet = [ (e1.eid, e2.eid) for e1 in Ev for e2 in Ev if (e1.eid, e2.eid) in poSet and (eq(e1.target, e2.target) if e1.target.sort() == e2.target.sort() else False) ]
+	s.add([po_loc(e1, e2) == And(po(e1, e2), (e1.target == e2.target) if e1.target.sort() == e2.target.sort() else False )  for e1 in Ev for e2 in Ev])
+	# for e1 in Ev:
+	# 	for e2 in Ev:
+	# 		if (e1.eid, e2.eid) in po_locSet:
+	# 			print (e1, e2)
+	# cfence = emptySet		
+	cfence = Function('cfence', Event, Event, BoolSort())
+	s.add([Not(cfence(e1, e2)) for e1 in Ev for e2 in Ev])
+	
+	rmw = Function('rmw', Event, Event, BoolSort())			
+	s.add([Not(rmw(e1, e2)) for e1 in Ev for e2 in Ev])
+
+
+	rfe = Function('rfe', Event, Event, BoolSort())
+	rfi = Function('rfi', Event, Event, BoolSort())
+	fre = Function('fre', Event, Event, BoolSort())
+	coe = Function('coe', Event, Event, BoolSort())
+
+	for e1 in Ev:
+		for e2 in Ev:
+			s.add(rfe(e1, e2) == And(rf(e1,e2), Not(e1.pid == e2.pid)))
+			s.add(rfi(e1, e2) == And(rf(e1,e2), (e1.pid == e2.pid)))
+			s.add(fre(e1, e2) == And(fr(e1,e2), Not(e1.pid == e2.pid)))
+			s.add(coe(e1, e2) == And(co(e1,e2), Not(e1.pid == e2.pid)))
+
+	#  -- dependency relation
+	#  - dd_reg
+	(s, dd_reg, dd_regSet) = dd_reg_relation(s, rf_regSet, iicoSet, Ev)
+	(s, addr, addrSet) = addr_dependency(s, dd_regSet, Ev)
+	(s, data, dataSet) = data_dependency(s, dd_regSet, Ev)
+	(s, RB, rbSet) = ReadBranchRelation(s, Ev)
+	(s, ctrl, ctrlSet) = ctrl_dependency(s, dd_regSet, rbSet, poSet, Ev)
+	(s, ctrl_cfence, ctrl_cfenceSet) = ctrl_dependency(s, dd_regSet, rbSet, [], Ev)
+
 	# (* Uniproc *)
 	# acyclic po-loc | rf | fr | co as uniproc
 	(s, uniproc) = acyclic(s, po_loc, rf, fr, co)
@@ -474,23 +596,19 @@ def arm_constraints(s, po_loc, rf, fr, co, addr, data, ctrl, Ev):
 	detour = Function('detour', Event, Event, BoolSort())
 	addrpo = Function('addrpo', Event, Event, BoolSort())
 
-	rfe = Function('rfe', Event, Event, BoolSort())
-	rfi = Function('rfi', Event, Event, BoolSort())
-	fre = Function('fre', Event, Event, BoolSort())
-	coe = Function('coe', Event, Event, BoolSort())
-
-	for e1 in Ev:
-		for e2 in Ev:
-			s.add(rfe(e1, e2) == And(rf(e1,e2), Not(e1.pid == e2.pid)))
-			s.add(rfi(e1, e2) == And(rf(e1,e2), (e1.pid == e2.pid)))
-			s.add(fre(e1, e2) == And(fr(e1,e2), Not(e1.pid == e2.pid)))
-			s.add(coe(e1, e2) == And(co(e1,e2), Not(e1.pid == e2.pid)))
-
+	
 	e1, e2, e3, e4 = Consts('e1 e2 e3 e4', Event)
-	s.add(ForAll([e1, e2], dd(e1, e2) == Or(addr(e1, e2), data(e1, e2))))
-	s.add(ForAll([e1, e2, e3],Implies(And(po_loc(e1, e2), fre(e1, e3), rfe(e3, e2) ), rdw(e1, e2)) ))
-	s.add(ForAll([e1, e2, e3],Implies(And(po_loc(e1, e2), coe(e1, e3), rfe(e3, e2) ), detour(e1, e2)) ))
-	s.add(ForAll([e1, e2, e3], Implies( And(addr(e1, e3), po(e3, e2)), addrpo(e1, e2) ) ))
+	# s.add(ForAll([e1, e2], dd(e1, e2) == Or(addr(e1, e2), data(e1, e2))))
+	# s.add(ForAll([e1, e2, e3],Implies(And(po_loc(e1, e2), fre(e1, e3), rfe(e3, e2) ), rdw(e1, e2)) ))
+	# s.add(ForAll([e1, e2, e3],Implies(And(po_loc(e1, e2), coe(e1, e3), rfe(e3, e2) ), detour(e1, e2)) ))
+	# s.add(ForAll([e1, e2, e3], Implies( And(addr(e1, e3), po(e3, e2)), addrpo(e1, e2) ) ))
+	ddSet = set(addrSet) | set(dataSet)
+	# rdwSet = set(po_locSet & concat_relation(fre))
+	s.add([ rdw(e1, e2) == 		(And(po_loc(e1, e2), Exists(e3, And(restrict(e3, Ev), fre(e1,e3), rfe(e3,e2)) ) ))  for e1 in Ev for e2 in Ev])
+	s.add([ detour(e1, e2) == 	(And(po_loc(e1, e2), Exists(e3, And(restrict(e3, Ev), coe(e1,e3), rfe(e3,e2)) ) ))  for e1 in Ev for e2 in Ev])
+	# s.add([ addrpo(e1, e2) == 	(Exists(e3, And(restrict(e3, Ev), addr(e1,e3), po(e3,e2)) ) )  for e1 in Ev for e2 in Ev])
+	addrpoS = concat_relation(addrSet, poSet)
+	s.add([ addrpo(e1, e2) if (e1.eid, e2.eid) in addrpoS else Not(addrpo(e1,e2)) for e1 in Ev for e2 in Ev ])
 
 	# (*******)
 	# (* ppo *)
@@ -504,15 +622,23 @@ def arm_constraints(s, po_loc, rf, fr, co, addr, data, ctrl, Ev):
 	# let cc0 = dd | ctrl | addrpo (* po-loc deleted *)
 	# let ic0 = 0
 	ctrlisb = Function('ctrlisb', Event, Event, BoolSort())
-	s.add(ForAll([e1, e2], Not(ctrlisb(e1, e2))))
+	s.add([ Not(ctrlisb(e1, e2)) for e1 in Ev for e2 in Ev])
+
+	
+
 	ci0 = Function('ci0', Event, Event, BoolSort())
 	ii0 = Function('ii0', Event, Event, BoolSort())
 	cc0 = Function('cc0', Event, Event, BoolSort())
 	ic0 = Function('ic0', Event, Event, BoolSort())
-	s.add(ForAll([e1, e2], ci0(e1, e2) == Or(ctrlisb(e1, e2), detour(e1, e2))))
-	s.add(ForAll([e1, e2], ii0(e1, e2) == Or(dd(e1, e2), rfi(e1, e2), rdw(e1, e2))))
-	s.add(ForAll([e1, e2], cc0(e1, e2) == Or(dd(e1, e2), ctrl(e1, e2), addrpo(e1, e2))))
-	s.add(ForAll([e1, e2], Not(ic0(e1, e2))))
+	# s.add(ForAll([e1, e2], ci0(e1, e2) == Or(ctrlisb(e1, e2), detour(e1, e2))))
+	# s.add(ForAll([e1, e2], ii0(e1, e2) == Or(dd(e1, e2), rfi(e1, e2), rdw(e1, e2))))
+	# s.add(ForAll([e1, e2], cc0(e1, e2) == Or(dd(e1, e2), ctrl(e1, e2), addrpo(e1, e2))))
+	# s.add(ForAll([e1, e2], Not(ic0(e1, e2))))
+	# s.add([(ci0(e1, e2) == Or(ctrlisb(e1, e2), detour(e1, e2))) for e1 in Ev for e2 in Ev])
+	s.add([ ci0(e1, e2) == Or(ctrlisb(e1, e2), detour(e1, e2)) for e1 in Ev for e2 in Ev])
+	s.add([ ii0(e1, e2) == Or(dd(e1, e2), rfi(e1, e2), rdw(e1, e2)) for e1 in Ev for e2 in Ev])
+	s.add([ cc0(e1, e2) == Or(dd(e1, e2), ctrl(e1, e2), addrpo(e1, e2)) for e1 in Ev for e2 in Ev])
+	s.add([ Not(ic0(e1, e2)) for e1 in Ev for e2 in Ev])
 
 	# (* Computes ppo the ARM and PPC way *)
 
@@ -527,6 +653,8 @@ def arm_constraints(s, po_loc, rf, fr, co, addr, data, ctrl, Ev):
 	ii = Function('ii', Event, Event, BoolSort())
 	cc = Function('cc', Event, Event, BoolSort())
 	ic = Function('ic', Event, Event, BoolSort())
+	
+	e1, e2, e3, e4 = Consts('e1 e2 e3 e4', Event)
 
 	s.add(	ForAll([e1, e2], Implies( ci0(e1, e2), ci(e1, e2) ) ),
 			ForAll([e1, e2, e3], Implies( And(ci(e1,e2), ii(e2, e3)), ci(e1, e3) )),
@@ -561,7 +689,7 @@ def arm_constraints(s, po_loc, rf, fr, co, addr, data, ctrl, Ev):
 			s.add(ppoW(x,y) == And( ic(x,y), (isRead(x) and isWrite(y)) ))
 
 	ppo = Function('ppo', Event, Event, BoolSort())
-	s.add(ForAll([e1,e2], ppo(e1, e2) == Or(ppoR(e1, e2), ppoW(e1, e2))))
+	s.add([ppo(e1, e2) == Or(ppoR(e1, e2), ppoW(e1, e2)) for e1 in Ev for e2 in Ev])
 
 	# (**********)
 	# (* fences *)
@@ -622,7 +750,7 @@ def arm_constraints(s, po_loc, rf, fr, co, addr, data, ctrl, Ev):
 	# acyclic co | xx as scXX
 
 
-
+	print 'hey'
 	return s
 
 def power_constraints(Ev = []):
@@ -635,20 +763,7 @@ def power_constraints(Ev = []):
 	axioms = []
 	return axioms
 
-# constraining 
-def acyclic(s, *rel):
-	trans = Function('acyclic' + str(rel), Event, Event, BoolSort())
-	# s.register_relation(trans)
-	e1, e2, e3 = Consts('e1 e2 e3', Event)
-	# s.declare_var(e1, e2, e3)
-	for r in rel:
-		# s.rule(trans(e1, e2), r(e1, e2))
-		s.add( ForAll([e1, e2], Implies(r(e1, e2), trans(e1, e2)) ))
-	# s.rule(trans(e1, e2), [trans(e1, e3), trans(e3, e2)])
-	s.add(ForAll([e1, e2, e3], Implies(And(trans(e1, e2), trans(e2, e3)), trans(e1, e3)) ))
-	s.add(ForAll(e1, Not(trans(e1, e1))))
-	# s.vars = []
-	return (s,trans)
+
 
 if __name__ == '__main__':
 	# try ARM models
@@ -762,63 +877,37 @@ if __name__ == '__main__':
 	iicoS += [(Rr5, Rvr5), (Rvr5, Wr6), (Rr4, Rvr4), (Rvr4, Wr7)]
 	
 	# distinct events
-	s.add(Distinct([ e for e in Ev1 + Ev2 ]))
+	s.add(Distinct(Ev1 + Ev2 ))
 
-	# generate axioms for:
-	#  - po : E x E relation
-	(s, po) = program_order(s, poS, Ev1 + Ev2)
+	(s, po, poS) = program_order(s, poS, Ev1 + Ev2)
 	#  - co : W x W relation
 	(s, co) = conflict_order(s, Ev1 + Ev2)
 	#  - rf : W x R relation
 	(s, rf) = read_from(s, Ev1 + Ev2)
+	#  - fr : E x E relation
+	(s, fr) = from_read(s, rf, co)
 	
-	po_loc = Function('po-loc', Event, Event, BoolSort())
-	e1, e2 = Consts('e1 e2', Event)
-	for e1 in Ev1 + Ev2:
-		for e2 in Ev1 + Ev2:
-			s.add(po_loc(e1, e2) == And(po(e1, e2), (e1.target == e2.target) if e1.target.sort() == e2.target.sort() else False ))
-			# print (po_loc(e1, e2) == And(po(e1, e2), (e1.target == e2.target) if e1.target.sort() == e2.target.sort() else False ))
+	# s = sc_constraints(s, po, rf, fr, co, Ev1 + Ev2)
+	# s = tso_constraints(s, po, rf, fr, co, Ev1 + Ev2)
+	# s = pso_constraints(s, po, rf, fr, co, Ev1 + Ev2)
+
+	EvID = [0 for e in Ev1 + Ev2 ]
+	for e in Ev1 + Ev2:
+		EvID[e.eid] = e
+
 
 	# Instruction semantics level
 	#  - iico : E x E relation
-	(s, iico) = iico_relation(s, iicoS)
+	(s, iico, iicoSet) = iico_relation(s, iicoS, Ev1 + Ev2)
 	#  - rf-reg : W-reg x R-reg relation
-	(s, rf_reg) = rf_reg_relation(s, Ev1 + Ev2)
-
-	cfence = Function('cfence', Event, Event, BoolSort())
-	# s.register_relation(cfence)
-
-	#  -- dependency relation
-	#  - dd_reg
-	(s, dd_reg) = dd_reg_relation(s, rf_reg, iico)
-	(s, addr_dep) = addr_dependency(s, dd_reg, Ev1 + Ev2)
-	(s, data_dep) = data_dependency(s, dd_reg, Ev1 + Ev2)
-	(s, RB) = ReadBranchRelation(s, Ev1 + Ev2)
-	(s, ctrl) = ctrl_dependency(s, dd_reg, RB, po)
-	(s, ctrl_cfence) = ctrl_dependency(s, dd_reg, RB, cfence)
-	
-	(s, fr) = from_read(s, rf, co)
-
-	fre = Function('fre', Event, Event, BoolSort())
-	fri = Function('fri', Event, Event, BoolSort())
-	# s.register_relation(fre, fri)
-
-	for e1 in Ev1 + Ev2:
-		for e2 in Ev1 + Ev2:
-			s.add(fre(e1, e2) == And(fr(e1,e2), Not(e1.pid == e2.pid)))
-			s.add(fri(e1, e2) == And(fr(e1,e2), (e1.pid == e2.pid)))
-
-	
-	# s = sc_constraints(s, po, fr, rf, co)
-	# s = tso_constraints(s, po, rf, fr, co, Ev1 + Ev2)
-	# s = pso_constraints(s, po, rf, fr, co, Ev1 + Ev2)
-	s = arm_constraints(s, po_loc, rf, fr, co, addr_dep, data_dep, ctrl, Ev1 + Ev2)
+	(s, rf_reg, rf_regSet) = rf_reg_relation(s, Ev1 + Ev2)
+	s = arm_constraints(s, po, rf, fr, co, iico, rf_reg, poS, iicoSet, rf_regSet, Ev1 + Ev2)
 
 	# check prob
-	# s.add(po(Wy0, Wx0))
+	# s.add(po(Wx0, Wy0))
 	# s.add(Rr1_1.val == 1)
-	# s.add(Rvr5.val == 1)
-	# s.add(Rvr4.val == 0)
+	s.add(Rvr5.val == 1)
+	s.add(Rvr4.val == 0)
 	print s.check()
 
 
