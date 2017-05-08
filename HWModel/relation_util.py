@@ -10,18 +10,17 @@ class EventS():
 # http://stackoverflow.com/questions/8673482/transitive-closure-python-tuples
 # transitive-closure-python-tuples
 def transitive_closure(a):
-    closure = set(a)
-    while True:
-        new_relations = set((x,w) for x,y in closure for q,w in closure if q == y)
+	closure = set(a)
+	while True:
+		new_relations = set((x,w) for x,y in closure for q,w in closure if q == y)
 
-        closure_until_now = closure | new_relations
+		closure_until_now = closure | new_relations
 
-        if closure_until_now == closure:
-            break
+		if closure_until_now == closure:
+			break
 
-        closure = closure_until_now
-
-    return closure
+		closure = closure_until_now
+	return closure
 
 def concat_relation(a, b):
 	a = set(a)

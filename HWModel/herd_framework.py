@@ -542,21 +542,16 @@ def pso_constraints(s, po, rf, fr, co, Ev):
 	return s
 
 def arm_constraints(s, po, rf, fr, co, iico, rf_reg, poSet, iicoSet, rf_regSet, Ev):
-
+	
 	po_loc = Function('po-loc', Event, Event, BoolSort())
 	po_locSet = [ (e1.eid, e2.eid) for e1 in Ev for e2 in Ev if (e1.eid, e2.eid) in poSet and (eq(e1.target, e2.target) if e1.target.sort() == e2.target.sort() else False) ]
 	s.add([po_loc(e1, e2) == And(po(e1, e2), (e1.target == e2.target) if e1.target.sort() == e2.target.sort() else False )  for e1 in Ev for e2 in Ev])
-	# for e1 in Ev:
-	# 	for e2 in Ev:
-	# 		if (e1.eid, e2.eid) in po_locSet:
-	# 			print (e1, e2)
-	# cfence = emptySet		
+	
 	cfence = Function('cfence', Event, Event, BoolSort())
 	s.add([Not(cfence(e1, e2)) for e1 in Ev for e2 in Ev])
 	
 	rmw = Function('rmw', Event, Event, BoolSort())			
 	s.add([Not(rmw(e1, e2)) for e1 in Ev for e2 in Ev])
-
 
 	rfe = Function('rfe', Event, Event, BoolSort())
 	rfi = Function('rfi', Event, Event, BoolSort())
@@ -585,6 +580,11 @@ def arm_constraints(s, po, rf, fr, co, iico, rf_reg, poSet, iicoSet, rf_regSet, 
 
 	# (* Atomic *)
 	# empty rmw & (fre;coe) as atomic
+	e1, e2, e3 = Consts('e1 e2 e3', Event)
+	frecoe = Function('fre;coe', Event, Event, BoolSort())
+	s.add( ForAll([e1, e2, e3], Implies( And(fre(e1, e3), coe(e3, e2)), frecoe(e1, e2) )) )
+	s.add( ForAll([e1, e2], Not( And( rmw(e1,e2), frecoe(e1, e2) ) )))
+
 
 	# (* Utilities *)
 	# let dd = addr | data
@@ -595,7 +595,6 @@ def arm_constraints(s, po, rf, fr, co, iico, rf_reg, poSet, iicoSet, rf_regSet, 
 	rdw = Function('rdw', Event, Event, BoolSort())
 	detour = Function('detour', Event, Event, BoolSort())
 	addrpo = Function('addrpo', Event, Event, BoolSort())
-
 	
 	e1, e2, e3, e4 = Consts('e1 e2 e3 e4', Event)
 	# s.add(ForAll([e1, e2], dd(e1, e2) == Or(addr(e1, e2), data(e1, e2))))
@@ -603,6 +602,7 @@ def arm_constraints(s, po, rf, fr, co, iico, rf_reg, poSet, iicoSet, rf_regSet, 
 	# s.add(ForAll([e1, e2, e3],Implies(And(po_loc(e1, e2), coe(e1, e3), rfe(e3, e2) ), detour(e1, e2)) ))
 	# s.add(ForAll([e1, e2, e3], Implies( And(addr(e1, e3), po(e3, e2)), addrpo(e1, e2) ) ))
 	ddSet = set(addrSet) | set(dataSet)
+	s.add([ dd(e1, e2) if (e1.eid, e2.eid) in ddSet else Not(dd(e1, e2)) for e1 in Ev for e2 in Ev ])
 	# rdwSet = set(po_locSet & concat_relation(fre))
 	s.add([ rdw(e1, e2) == 		(And(po_loc(e1, e2), Exists(e3, And(restrict(e3, Ev), fre(e1,e3), rfe(e3,e2)) ) ))  for e1 in Ev for e2 in Ev])
 	s.add([ detour(e1, e2) == 	(And(po_loc(e1, e2), Exists(e3, And(restrict(e3, Ev), coe(e1,e3), rfe(e3,e2)) ) ))  for e1 in Ev for e2 in Ev])
@@ -624,21 +624,20 @@ def arm_constraints(s, po, rf, fr, co, iico, rf_reg, poSet, iicoSet, rf_regSet, 
 	ctrlisb = Function('ctrlisb', Event, Event, BoolSort())
 	s.add([ Not(ctrlisb(e1, e2)) for e1 in Ev for e2 in Ev])
 
-	
-
 	ci0 = Function('ci0', Event, Event, BoolSort())
 	ii0 = Function('ii0', Event, Event, BoolSort())
 	cc0 = Function('cc0', Event, Event, BoolSort())
 	ic0 = Function('ic0', Event, Event, BoolSort())
-	# s.add(ForAll([e1, e2], ci0(e1, e2) == Or(ctrlisb(e1, e2), detour(e1, e2))))
-	# s.add(ForAll([e1, e2], ii0(e1, e2) == Or(dd(e1, e2), rfi(e1, e2), rdw(e1, e2))))
-	# s.add(ForAll([e1, e2], cc0(e1, e2) == Or(dd(e1, e2), ctrl(e1, e2), addrpo(e1, e2))))
-	# s.add(ForAll([e1, e2], Not(ic0(e1, e2))))
+	e1, e2 = Consts('e1 e2', Event)
+	s.add(ForAll([e1, e2], ci0(e1, e2) == Or(ctrlisb(e1, e2), detour(e1, e2))))
+	s.add(ForAll([e1, e2], ii0(e1, e2) == Or(dd(e1, e2), rfi(e1, e2), rdw(e1, e2))))
+	s.add(ForAll([e1, e2], cc0(e1, e2) == Or(dd(e1, e2), ctrl(e1, e2), addrpo(e1, e2))))
+	s.add(ForAll([e1, e2], Not(ic0(e1, e2))))
 	# s.add([(ci0(e1, e2) == Or(ctrlisb(e1, e2), detour(e1, e2))) for e1 in Ev for e2 in Ev])
-	s.add([ ci0(e1, e2) == Or(ctrlisb(e1, e2), detour(e1, e2)) for e1 in Ev for e2 in Ev])
-	s.add([ ii0(e1, e2) == Or(dd(e1, e2), rfi(e1, e2), rdw(e1, e2)) for e1 in Ev for e2 in Ev])
-	s.add([ cc0(e1, e2) == Or(dd(e1, e2), ctrl(e1, e2), addrpo(e1, e2)) for e1 in Ev for e2 in Ev])
-	s.add([ Not(ic0(e1, e2)) for e1 in Ev for e2 in Ev])
+	# s.add([ ci0(e1, e2) == Or(ctrlisb(e1, e2), detour(e1, e2)) for e1 in Ev for e2 in Ev])
+	# s.add([ ii0(e1, e2) == Or(dd(e1, e2), rfi(e1, e2), rdw(e1, e2)) for e1 in Ev for e2 in Ev])
+	# s.add([ cc0(e1, e2) == Or(dd(e1, e2), ctrl(e1, e2), addrpo(e1, e2)) for e1 in Ev for e2 in Ev])
+	# s.add([ Not(ic0(e1, e2)) for e1 in Ev for e2 in Ev])
 
 	# (* Computes ppo the ARM and PPC way *)
 
@@ -700,38 +699,47 @@ def arm_constraints(s, po, rf, fr, co, iico, rf_reg, poSet, iicoSet, rf_regSet, 
 	# let dmb.st=dmb.st & WW
 	# let dsb.st=dsb.st & WW
 
-
 	# (* Common, all arm barriers are strong *)
 	# let strong = dmb|dsb|dmb.st|dsb.st
 	# let light = 0
+	e1, e2, e3, e4 = Consts('e1 e2 e3 e4', Event)
+	strong = Function('strong', Event, Event, BoolSort())
+	light = Function('light', Event, Event, BoolSort())
+	s.add(ForAll([e1, e2], Not(strong(e1, e2))))
+	s.add(ForAll([e1, e2], Not(light(e1, e2))))
 
 	# PCChecks
 
 	# let fence = strong|light
 
 	fence = Function('fence', Event, Event, BoolSort())
-	s.add(ForAll([e1, e2], Not(fence(e1, e2))))
+	s.add([ Not(fence(e1, e2)) for e1 in Ev for e2 in Ev])
 
 	# (* happens before *)
 	# let hb = ppo | fence | rfe
 	# acyclic hb as thinair
 	hb = Function('hb', Event, Event, BoolSort())
-	s.add(ForAll([e1, e2], hb(e1, e2) == Or( ppo(e1, e2), fence(e1, e2), rfe(e1, e2) )))
-
-	(s, thinair) = acyclic(s, ppo, fence, rfe)
+	s.add([ hb(e1, e2) == Or( ppo(e1, e2), fence(e1, e2), rfe(e1, e2) ) for e1 in Ev for e2 in Ev])
+	(s, thinair) = acyclic(s, hb)
 
 	# (* prop *)
 	# let hbstar = hb*
 	# let propbase = (fence|(rfe;fence));hbstar
 	hbstar = Function('hb*', Event, Event, BoolSort())
-	s.add( ForAll([e1, e2], Implies(hb(e1, e2), hbstar(e1, e2)) ) )
+	e1, e2 = Consts('e1 e2', Event)
+	s.add( ForAll([e1], hbstar(e1, e1)))
+	s.add( ForAll([e1, e2], Implies(hb(e1, e2), hbstar(e1, e2))) )
 	s.add( ForAll([e1, e2, e3], Implies( And(hbstar(e1,e2), hbstar(e2,e3)), hbstar(e1,e3) )))
-	# s.add(  )
+	# s.add([ hbstar(e1, e2) if eq(e1, e2) else ( Or(hb(e1, e2), 
+	# 											Exists(e3, And(restrict(e3, Ev), hbstar(e1,e3), hbstar(e3,e2)))) ) 
+	# 		for e1 in Ev for e2 in Ev ])
 
 	propbase = Function('propbase', Event, Event, BoolSort())
 	rfefence = Function('rfe;fence', Event, Event, BoolSort())
 	s.add(ForAll([e1, e2, e3], Implies( And(rfe(e1, e2), fence(e2,e3)), rfefence(e1, e3) ) ))
 	s.add(ForAll([e1, e2, e3], Implies( And( Or(fence(e1, e2), rfefence(e1,e2)), hbstar(e2,e3) ), propbase(e1,e3) ) ))
+	# s.add([ rfefence(e1, e2) == Exists(e3, And(restrict(e3, Ev), rfe(e1, e3), fence(e3, e2))) for e1 in Ev for e2 in Ev ])
+	# s.add([ propbase(e1,e2) == Exists(e3, And(restrict(e3, Ev), Or(fence(e1, e3), rfefence(e1,e3)), hbstar(e3, e2))) for e1 in Ev for e2 in Ev ])
 
 	# let chapo = rfe|fre|coe|(fre;rfe)|(coe;rfe)
 	chapo = Function('chapo', Event, Event, BoolSort())
@@ -740,15 +748,36 @@ def arm_constraints(s, po, rf, fr, co, iico, rf_reg, poSet, iicoSet, rf_regSet, 
 	s.add(ForAll([e1, e2], Implies(coe(e1,e2), chapo(e1,e2))))
 	s.add(ForAll([e1, e2, e3], Implies( And( fre(e1,e2), rfe(e2,e3) ), chapo(e1,e3) )))
 	s.add(ForAll([e1, e2, e3], Implies( And( coe(e1,e2), rfe(e2,e3) ), chapo(e1,e3) )))
+	# s.add([chapo(e1, e2) == Or(rfe(e1, e2), fre(e1, e2), coe(e1, e2), 
+	# 						Exists(e3, And(restrict(e3, Ev), Or(
+	# 														And(fre(e1, e3), rfe(e3, e2)),
+	# 														And(coe(e1, e3), rfe(e3, e2))
+	# 														)))
+	# 					) for e1 in Ev for e2 in Ev] )
 
 	# let prop = propbase & (W * W) | (chapo? ; propbase*; strong; hbstar)
+	prop = Function('prob', Event, Event, BoolSort())
+	chapoIden = Function('chapo?', Event, Event, BoolSort())
+	propbaseStar = Function('propbase*', Event, Event, BoolSort())
+	s.add(ForAll([e1, e2], chapoIden(e1,e2) == Or(e1 == e2, chapo(e1, e2)) ))
+	s.add(ForAll([e1], propbaseStar(e1, e1)))
+	s.add(ForAll([e1,e2], Implies(propbase(e1,e2), propbaseStar(e1, e2))))
+	s.add(ForAll([e1,e2,e3], Implies( And(propbaseStar(e1,e3), propbaseStar(e3,e2)), propbaseStar(e1,e2) )))
+
+	prop2 = Function('prop2',Event, Event, BoolSort())
+	e1, e2, e3, e4, e5 = Consts('e1 e2 e3 e4 e5', Event)
+	s.add(ForAll([e1, e2, e3, e4, e5], Implies( And(chapoIden(e1,e2), propbaseStar(e2, e3), strong(e3, e4), hbstar(e4, e5)) , prop2(e1, e5) )))
+	s.add([prop(x, y) == Or( ( propbase(x,y) if isWrite(x) and isWrite(y) else False ), (prop2(x,y)) ) for x in Ev for y in Ev])
 
 	# acyclic co|prop as propagation
 	# irreflexive fre;prop;hbstar as observation
+	(s, propagation) = acyclic(s, co, prop)
+	freprophbstar = Function('fre;prop;hbstar', Event, Event, BoolSort())
+	s.add(ForAll([e1, e2, e3,e4], Implies(And(fre(e1,e2), prop(e2,e3), hbstar(e3, e4)), freprophbstar(e1,e4))))
+	s = irreflexive(s, freprophbstar)
 
 	# let xx = po & (X * X)
 	# acyclic co | xx as scXX
-
 
 	print 'hey'
 	return s
