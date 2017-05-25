@@ -175,57 +175,57 @@ def translate(P, arch = 'arm', k = 0):
 	U = unroll(cfg, k)
 	return U
 
-# For test this translator 
-if __name__ == "__main__":
-	arm_prog = '''
-	mov r1, #1
-	mov r4, #2
-	str r1, [X]
-	str r4, [C]
-	ldr r2, [C]
-	ldr r3, [A]
-	assert(r2 = #2)
-	assert(r3 = #1)
-	'''
+# # For test this translator 
+# if __name__ == "__main__":
+# 	arm_prog = '''
+# 	mov r1, #1
+# 	mov r4, #2
+# 	str r1, [X]
+# 	str r4, [C]
+# 	ldr r2, [C]
+# 	ldr r3, [A]
+# 	assert(r2 = #2)
+# 	assert(r3 = #1)
+# 	'''
 
 
 
-	# U = translate(arm_prog)
-	# j = 1
-	# for u in U:
-	# 	# possible sets of programs 
-	# 	print '========== [ Test set #%02d ] ==========='%(j)
-	# 	k = 0
-	# 	for p in u:
-	# 		# a program in a set 
-	# 		print '====== Thread #%d'%(k)
-	# 		for i in p:
-	# 			# each instruction
-	# 			print i
-	# 		k = k+1
-	# 	j = j + 1
+# 	# U = translate(arm_prog)
+# 	# j = 1
+# 	# for u in U:
+# 	# 	# possible sets of programs 
+# 	# 	print '========== [ Test set #%02d ] ==========='%(j)
+# 	# 	k = 0
+# 	# 	for p in u:
+# 	# 		# a program in a set 
+# 	# 		print '====== Thread #%d'%(k)
+# 	# 		for i in p:
+# 	# 			# each instruction
+# 	# 			print i
+# 	# 		k = k+1
+# 	# 	j = j + 1
 	
-	P1 = '''
-	L1:
-		ldstub	[lock], r0
-		brnz,pn r0, L2
-		nop
-		ba,a CS ;subsection -> previous
-		nop
-	L2:
-		ldub [lock], r0
-		brnz,pt r0, L2
-		nop
-		ba,a,pt L1
-	CS:	
-	; critical section
-	'''
-	# result = parse(P1, 'sparc')
-	# if not isinstance(P1, list):
-	# 	result = [result]
-	# cfg = constructCFG(result, 'sparc')
-	# for e in unroll(cfg, 0):
-	# 	print e
+# 	P1 = '''
+# 	L1:
+# 		ldstub	[lock], r0
+# 		brnz,pn r0, L2
+# 		nop
+# 		ba,a CS ;subsection -> previous
+# 		nop
+# 	L2:
+# 		ldub [lock], r0
+# 		brnz,pt r0, L2
+# 		nop
+# 		ba,a,pt L1
+# 	CS:	
+# 	; critical section
+# 	'''
+# 	# result = parse(P1, 'sparc')
+# 	# if not isinstance(P1, list):
+# 	# 	result = [result]
+# 	# cfg = constructCFG(result, 'sparc')
+# 	# for e in unroll(cfg, 0):
+# 	# 	print e
 	
 
-	pass
+# 	pass

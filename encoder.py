@@ -87,7 +87,6 @@ if __name__ == '__main__':
 		# Encoder ---------------- 
 		(info,axioms) = archEncode(u)
 
-
 		# Verifier 
 		s = Solver()
 		s.add(axioms)

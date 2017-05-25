@@ -4,16 +4,12 @@ import encoder
 from z3 import *
 from HWModel.hw_z3 import *
 
-
-import time
-
 def verify(P, arch = 'arm', model = 'SC', k = 0, debug = False):
 	U = translator.translate(P, arch, k)
 	j = 1
 	result = unsat
 	cModel = None
 	cPrograms = None
-	start = time.clock()
 	for u in U:
 		# possible sets of programs 
 		norm = encoder.normalize(u)
@@ -33,30 +29,17 @@ def verify(P, arch = 'arm', model = 'SC', k = 0, debug = False):
 		# Encoder ---------------- 
 		(info,axioms) = encoder.archEncode(u,arch, model)
 
-
-
 		# Verifier 
 		s = Solver()
 		s.add(axioms)
-		print len(s.assertions())
-		print len((s.assertions()[0]).children())
 
-		continue;
-	  	# start = time.clock()
 	  	result = s.check()
-	  	# end = time.clock()
 
-	 #  	print "%d %s"%((len(info['counterExample']['write']) + len(info['counterExample']['rmw']) * 2) +
-		# len(info['counterExample']['read']) + len(info['counterExample']['rmw']),
-		# str((end-start)*1000))
-	  	# print str((end-start)*1000) + ' ms.'
 	  	if result == sat:
 	  		cModel = s.model()
 	  		cPrograms = norm
 	  		break
 	  	j = j + 1
-	end = time.clock()
-	print str((end-start)) + ' s.'
 	return (result, info, cPrograms, cModel)
 
 
@@ -400,10 +383,6 @@ def dekker():
 		if result == sat:
 			counter_example(programs, info, model)
 	pass 
-def bakery():
-	# https://en.wikipedia.org/wiki/Lamport%27s_bakery_algorithm
-
-	pass 
 def peterson():
 	# https://en.wikipedia.org/wiki/Peterson%27s_algorithm
 	# 	bool flag[2] = {false, false};
@@ -471,41 +450,32 @@ def peterson():
 
 	for cmodel in ["SC","TSO+", "PSO+"]:
 		print 'process '+ str(cmodel)
-		# print cmodel
-		# start = time.clock()
 		(result, info, programs, model) = verify([P0,P1], 'arm', cmodel, 0)
-		# end = time.clock()
-		# print str((end-start)*1000) + ' ms.'
 		print "%s under %s"%("OK" if (result != sat) else "Not OK",cmodel)
 		if result == sat:
 			counter_example(programs, info, model)
 	pass 
 
-def stackUnsafe():
-	# https://github.com/nidhugg/benchmarks_tacas2015/blob/master/benchmarks/stack_unsafe.c
-	pass 
 
-def seqLock():
-	pass
-if __name__ == '__main__':	
-	dekker()
-	# peterson()
+# if __name__ == '__main__':	
+# 	dekker()
+# 	# peterson()
 
-	# counterTSO()
-	# MessagePassing()
-	# spinlock_sparc()
-	# JavaPSOerror()
-	# print "\033[13m"
+# 	# counterTSO()
+# 	# MessagePassing()
+# 	# spinlock_sparc()
+# 	# JavaPSOerror()
+# 	# print "\033[13m"
 
-	# x = Int('x')
-	# y = Int('y')
+# 	# x = Int('x')
+# 	# y = Int('y')
 
-	# s = Solver()
+# 	# s = Solver()
 	
 
-	# s.add(x > 10, y == x + 2)
-	# s.check()
-	# print len(s.assertions())
+# 	# s.add(x > 10, y == x + 2)
+# 	# s.check()
+# 	# print len(s.assertions())
 
 
 

@@ -1,0 +1,3 @@
+mov r1, #1
+str r1, [X]
+str r1, [Y]

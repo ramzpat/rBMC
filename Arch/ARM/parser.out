@@ -1,0 +1,1421 @@
+Created by PLY version 3.8 (http://www.dabeaz.com/ply)
+
+Unused terminals:
+
+    COMMENT
+
+Grammar
+
+Rule 0     S' -> program
+Rule 1     program -> statements
+Rule 2     statements -> statement
+Rule 3     statements -> statement statements
+Rule 4     statement -> ID :
+Rule 5     statement -> ID : instruction
+Rule 6     statement -> instruction
+Rule 7     instruction -> instr_processing
+Rule 8     instruction -> instr_memory
+Rule 9     instruction -> instr_swp
+Rule 10    instruction -> instr_branch
+Rule 11    instruction -> ASSERT ( bexp )
+Rule 12    instr_processing -> INSTR1 COND REGISTER , operand
+Rule 13    instr_processing -> INSTR1 REGISTER , operand
+Rule 14    instruction -> ASSUME ( bexp )
+Rule 15    exp -> texp + texp
+Rule 16    exp -> texp - texp
+Rule 17    exp -> texp
+Rule 18    instr_memory -> INSTR2 COND REGISTER , [ ID ]
+Rule 19    instr_memory -> INSTR2 REGISTER , [ ID ]
+Rule 20    instr_swp -> INSTR_SWP COND REGISTER , REGISTER , [ ID ]
+Rule 21    instr_swp -> INSTR_SWP REGISTER , REGISTER , [ ID ]
+Rule 22    texp -> factor * factor
+Rule 23    texp -> factor / factor
+Rule 24    texp -> factor
+Rule 25    instr_branch -> INSTR_BRANCH COND ID
+Rule 26    instr_branch -> INSTR_BRANCH ID
+Rule 27    factor -> ( exp )
+Rule 28    operands -> # NUMBER
+Rule 29    operands -> REGISTER
+Rule 30    factor -> operand
+Rule 31    operands -> operand , operands
+Rule 32    bexp -> bterm
+Rule 33    bexp -> bexp OR bterm
+Rule 34    operand -> # NUMBER
+Rule 35    operand -> REGISTER
+Rule 36    bterm -> nfactor
+Rule 37    bterm -> nfactor AND bterm
+Rule 38    nfactor -> NOT bfactor
+Rule 39    nfactor -> bfactor
+Rule 40    bfactor -> brelation
+Rule 41    bfactor -> BLIT
+Rule 42    bfactor -> ( bexp )
+Rule 43    brelation -> exp RELOP exp
+
+Terminals, with rules where they appear
+
+#                    : 28 34
+(                    : 11 14 27 42
+)                    : 11 14 27 42
+*                    : 22
++                    : 15
+,                    : 12 13 18 19 20 20 21 21 31
+-                    : 16
+/                    : 23
+:                    : 4 5
+AND                  : 37
+ASSERT               : 11
+ASSUME               : 14
+BLIT                 : 41
+COMMENT              : 
+COND                 : 12 18 20 25
+ID                   : 4 5 18 19 20 21 25 26
+INSTR1               : 12 13
+INSTR2               : 18 19
+INSTR_BRANCH         : 25 26
+INSTR_SWP            : 20 21
+NOT                  : 38
+NUMBER               : 28 34
+OR                   : 33
+REGISTER             : 12 13 18 19 20 20 21 21 29 35
+RELOP                : 43
+[                    : 18 19 20 21
+]                    : 18 19 20 21
+error                : 
+
+Nonterminals, with rules where they appear
+
+bexp                 : 11 14 33 42
+bfactor              : 38 39
+brelation            : 40
+bterm                : 32 33 37
+exp                  : 27 43 43
+factor               : 22 22 23 23 24
+instr_branch         : 10
+instr_memory         : 8
+instr_processing     : 7
+instr_swp            : 9
+instruction          : 5 6
+nfactor              : 36 37
+operand              : 12 13 30 31
+operands             : 31
+program              : 0
+statement            : 2 3
+statements           : 1 3
+texp                 : 15 15 16 16 17
+
+Parsing method: LALR
+
+state 0
+
+    (0) S' -> . program
+    (1) program -> . statements
+    (2) statements -> . statement
+    (3) statements -> . statement statements
+    (4) statement -> . ID :
+    (5) statement -> . ID : instruction
+    (6) statement -> . instruction
+    (7) instruction -> . instr_processing
+    (8) instruction -> . instr_memory
+    (9) instruction -> . instr_swp
+    (10) instruction -> . instr_branch
+    (11) instruction -> . ASSERT ( bexp )
+    (14) instruction -> . ASSUME ( bexp )
+    (12) instr_processing -> . INSTR1 COND REGISTER , operand
+    (13) instr_processing -> . INSTR1 REGISTER , operand
+    (18) instr_memory -> . INSTR2 COND REGISTER , [ ID ]
+    (19) instr_memory -> . INSTR2 REGISTER , [ ID ]
+    (20) instr_swp -> . INSTR_SWP COND REGISTER , REGISTER , [ ID ]
+    (21) instr_swp -> . INSTR_SWP REGISTER , REGISTER , [ ID ]
+    (25) instr_branch -> . INSTR_BRANCH COND ID
+    (26) instr_branch -> . INSTR_BRANCH ID
+
+    ID              shift and go to state 11
+    ASSERT          shift and go to state 3
+    ASSUME          shift and go to state 15
+    INSTR1          shift and go to state 4
+    INSTR2          shift and go to state 5
+    INSTR_SWP       shift and go to state 10
+    INSTR_BRANCH    shift and go to state 14
+
+    statements                     shift and go to state 1
+    instr_processing               shift and go to state 7
+    instruction                    shift and go to state 13
+    instr_branch                   shift and go to state 2
+    instr_memory                   shift and go to state 12
+    program                        shift and go to state 8
+    statement                      shift and go to state 9
+    instr_swp                      shift and go to state 6
+
+state 1
+
+    (1) program -> statements .
+
+    $end            reduce using rule 1 (program -> statements .)
+
+
+state 2
+
+    (10) instruction -> instr_branch .
+
+    ID              reduce using rule 10 (instruction -> instr_branch .)
+    ASSERT          reduce using rule 10 (instruction -> instr_branch .)
+    ASSUME          reduce using rule 10 (instruction -> instr_branch .)
+    INSTR1          reduce using rule 10 (instruction -> instr_branch .)
+    INSTR2          reduce using rule 10 (instruction -> instr_branch .)
+    INSTR_SWP       reduce using rule 10 (instruction -> instr_branch .)
+    INSTR_BRANCH    reduce using rule 10 (instruction -> instr_branch .)
+    $end            reduce using rule 10 (instruction -> instr_branch .)
+
+
+state 3
+
+    (11) instruction -> ASSERT . ( bexp )
+
+    (               shift and go to state 16
+
+
+state 4
+
+    (12) instr_processing -> INSTR1 . COND REGISTER , operand
+    (13) instr_processing -> INSTR1 . REGISTER , operand
+
+    COND            shift and go to state 18
+    REGISTER        shift and go to state 17
+
+
+state 5
+
+    (18) instr_memory -> INSTR2 . COND REGISTER , [ ID ]
+    (19) instr_memory -> INSTR2 . REGISTER , [ ID ]
+
+    COND            shift and go to state 20
+    REGISTER        shift and go to state 19
+
+
+state 6
+
+    (9) instruction -> instr_swp .
+
+    ID              reduce using rule 9 (instruction -> instr_swp .)
+    ASSERT          reduce using rule 9 (instruction -> instr_swp .)
+    ASSUME          reduce using rule 9 (instruction -> instr_swp .)
+    INSTR1          reduce using rule 9 (instruction -> instr_swp .)
+    INSTR2          reduce using rule 9 (instruction -> instr_swp .)
+    INSTR_SWP       reduce using rule 9 (instruction -> instr_swp .)
+    INSTR_BRANCH    reduce using rule 9 (instruction -> instr_swp .)
+    $end            reduce using rule 9 (instruction -> instr_swp .)
+
+
+state 7
+
+    (7) instruction -> instr_processing .
+
+    ID              reduce using rule 7 (instruction -> instr_processing .)
+    ASSERT          reduce using rule 7 (instruction -> instr_processing .)
+    ASSUME          reduce using rule 7 (instruction -> instr_processing .)
+    INSTR1          reduce using rule 7 (instruction -> instr_processing .)
+    INSTR2          reduce using rule 7 (instruction -> instr_processing .)
+    INSTR_SWP       reduce using rule 7 (instruction -> instr_processing .)
+    INSTR_BRANCH    reduce using rule 7 (instruction -> instr_processing .)
+    $end            reduce using rule 7 (instruction -> instr_processing .)
+
+
+state 8
+
+    (0) S' -> program .
+
+
+
+state 9
+
+    (2) statements -> statement .
+    (3) statements -> statement . statements
+    (2) statements -> . statement
+    (3) statements -> . statement statements
+    (4) statement -> . ID :
+    (5) statement -> . ID : instruction
+    (6) statement -> . instruction
+    (7) instruction -> . instr_processing
+    (8) instruction -> . instr_memory
+    (9) instruction -> . instr_swp
+    (10) instruction -> . instr_branch
+    (11) instruction -> . ASSERT ( bexp )
+    (14) instruction -> . ASSUME ( bexp )
+    (12) instr_processing -> . INSTR1 COND REGISTER , operand
+    (13) instr_processing -> . INSTR1 REGISTER , operand
+    (18) instr_memory -> . INSTR2 COND REGISTER , [ ID ]
+    (19) instr_memory -> . INSTR2 REGISTER , [ ID ]
+    (20) instr_swp -> . INSTR_SWP COND REGISTER , REGISTER , [ ID ]
+    (21) instr_swp -> . INSTR_SWP REGISTER , REGISTER , [ ID ]
+    (25) instr_branch -> . INSTR_BRANCH COND ID
+    (26) instr_branch -> . INSTR_BRANCH ID
+
+    $end            reduce using rule 2 (statements -> statement .)
+    ID              shift and go to state 11
+    ASSERT          shift and go to state 3
+    ASSUME          shift and go to state 15
+    INSTR1          shift and go to state 4
+    INSTR2          shift and go to state 5
+    INSTR_SWP       shift and go to state 10
+    INSTR_BRANCH    shift and go to state 14
+
+    instr_swp                      shift and go to state 6
+    instr_processing               shift and go to state 7
+    instruction                    shift and go to state 13
+    instr_branch                   shift and go to state 2
+    instr_memory                   shift and go to state 12
+    statement                      shift and go to state 9
+    statements                     shift and go to state 21
+
+state 10
+
+    (20) instr_swp -> INSTR_SWP . COND REGISTER , REGISTER , [ ID ]
+    (21) instr_swp -> INSTR_SWP . REGISTER , REGISTER , [ ID ]
+
+    COND            shift and go to state 23
+    REGISTER        shift and go to state 22
+
+
+state 11
+
+    (4) statement -> ID . :
+    (5) statement -> ID . : instruction
+
+    :               shift and go to state 24
+
+
+state 12
+
+    (8) instruction -> instr_memory .
+
+    ID              reduce using rule 8 (instruction -> instr_memory .)
+    ASSERT          reduce using rule 8 (instruction -> instr_memory .)
+    ASSUME          reduce using rule 8 (instruction -> instr_memory .)
+    INSTR1          reduce using rule 8 (instruction -> instr_memory .)
+    INSTR2          reduce using rule 8 (instruction -> instr_memory .)
+    INSTR_SWP       reduce using rule 8 (instruction -> instr_memory .)
+    INSTR_BRANCH    reduce using rule 8 (instruction -> instr_memory .)
+    $end            reduce using rule 8 (instruction -> instr_memory .)
+
+
+state 13
+
+    (6) statement -> instruction .
+
+    ID              reduce using rule 6 (statement -> instruction .)
+    ASSERT          reduce using rule 6 (statement -> instruction .)
+    ASSUME          reduce using rule 6 (statement -> instruction .)
+    INSTR1          reduce using rule 6 (statement -> instruction .)
+    INSTR2          reduce using rule 6 (statement -> instruction .)
+    INSTR_SWP       reduce using rule 6 (statement -> instruction .)
+    INSTR_BRANCH    reduce using rule 6 (statement -> instruction .)
+    $end            reduce using rule 6 (statement -> instruction .)
+
+
+state 14
+
+    (25) instr_branch -> INSTR_BRANCH . COND ID
+    (26) instr_branch -> INSTR_BRANCH . ID
+
+    COND            shift and go to state 25
+    ID              shift and go to state 26
+
+
+state 15
+
+    (14) instruction -> ASSUME . ( bexp )
+
+    (               shift and go to state 27
+
+
+state 16
+
+    (11) instruction -> ASSERT ( . bexp )
+    (32) bexp -> . bterm
+    (33) bexp -> . bexp OR bterm
+    (36) bterm -> . nfactor
+    (37) bterm -> . nfactor AND bterm
+    (38) nfactor -> . NOT bfactor
+    (39) nfactor -> . bfactor
+    (40) bfactor -> . brelation
+    (41) bfactor -> . BLIT
+    (42) bfactor -> . ( bexp )
+    (43) brelation -> . exp RELOP exp
+    (15) exp -> . texp + texp
+    (16) exp -> . texp - texp
+    (17) exp -> . texp
+    (22) texp -> . factor * factor
+    (23) texp -> . factor / factor
+    (24) texp -> . factor
+    (27) factor -> . ( exp )
+    (30) factor -> . operand
+    (34) operand -> . # NUMBER
+    (35) operand -> . REGISTER
+
+    NOT             shift and go to state 41
+    BLIT            shift and go to state 31
+    (               shift and go to state 34
+    #               shift and go to state 33
+    REGISTER        shift and go to state 28
+
+    bexp                           shift and go to state 37
+    nfactor                        shift and go to state 38
+    bterm                          shift and go to state 29
+    bfactor                        shift and go to state 39
+    texp                           shift and go to state 30
+    brelation                      shift and go to state 36
+    exp                            shift and go to state 40
+    factor                         shift and go to state 35
+    operand                        shift and go to state 32
+
+state 17
+
+    (13) instr_processing -> INSTR1 REGISTER . , operand
+
+    ,               shift and go to state 42
+
+
+state 18
+
+    (12) instr_processing -> INSTR1 COND . REGISTER , operand
+
+    REGISTER        shift and go to state 43
+
+
+state 19
+
+    (19) instr_memory -> INSTR2 REGISTER . , [ ID ]
+
+    ,               shift and go to state 44
+
+
+state 20
+
+    (18) instr_memory -> INSTR2 COND . REGISTER , [ ID ]
+
+    REGISTER        shift and go to state 45
+
+
+state 21
+
+    (3) statements -> statement statements .
+
+    $end            reduce using rule 3 (statements -> statement statements .)
+
+
+state 22
+
+    (21) instr_swp -> INSTR_SWP REGISTER . , REGISTER , [ ID ]
+
+    ,               shift and go to state 46
+
+
+state 23
+
+    (20) instr_swp -> INSTR_SWP COND . REGISTER , REGISTER , [ ID ]
+
+    REGISTER        shift and go to state 47
+
+
+state 24
+
+    (4) statement -> ID : .
+    (5) statement -> ID : . instruction
+    (7) instruction -> . instr_processing
+    (8) instruction -> . instr_memory
+    (9) instruction -> . instr_swp
+    (10) instruction -> . instr_branch
+    (11) instruction -> . ASSERT ( bexp )
+    (14) instruction -> . ASSUME ( bexp )
+    (12) instr_processing -> . INSTR1 COND REGISTER , operand
+    (13) instr_processing -> . INSTR1 REGISTER , operand
+    (18) instr_memory -> . INSTR2 COND REGISTER , [ ID ]
+    (19) instr_memory -> . INSTR2 REGISTER , [ ID ]
+    (20) instr_swp -> . INSTR_SWP COND REGISTER , REGISTER , [ ID ]
+    (21) instr_swp -> . INSTR_SWP REGISTER , REGISTER , [ ID ]
+    (25) instr_branch -> . INSTR_BRANCH COND ID
+    (26) instr_branch -> . INSTR_BRANCH ID
+
+  ! shift/reduce conflict for ASSERT resolved as shift
+  ! shift/reduce conflict for ASSUME resolved as shift
+  ! shift/reduce conflict for INSTR1 resolved as shift
+  ! shift/reduce conflict for INSTR2 resolved as shift
+  ! shift/reduce conflict for INSTR_SWP resolved as shift
+  ! shift/reduce conflict for INSTR_BRANCH resolved as shift
+    ID              reduce using rule 4 (statement -> ID : .)
+    $end            reduce using rule 4 (statement -> ID : .)
+    ASSERT          shift and go to state 3
+    ASSUME          shift and go to state 15
+    INSTR1          shift and go to state 4
+    INSTR2          shift and go to state 5
+    INSTR_SWP       shift and go to state 10
+    INSTR_BRANCH    shift and go to state 14
+
+  ! ASSERT          [ reduce using rule 4 (statement -> ID : .) ]
+  ! ASSUME          [ reduce using rule 4 (statement -> ID : .) ]
+  ! INSTR1          [ reduce using rule 4 (statement -> ID : .) ]
+  ! INSTR2          [ reduce using rule 4 (statement -> ID : .) ]
+  ! INSTR_SWP       [ reduce using rule 4 (statement -> ID : .) ]
+  ! INSTR_BRANCH    [ reduce using rule 4 (statement -> ID : .) ]
+
+    instr_swp                      shift and go to state 6
+    instr_processing               shift and go to state 7
+    instruction                    shift and go to state 48
+    instr_branch                   shift and go to state 2
+    instr_memory                   shift and go to state 12
+
+state 25
+
+    (25) instr_branch -> INSTR_BRANCH COND . ID
+
+    ID              shift and go to state 49
+
+
+state 26
+
+    (26) instr_branch -> INSTR_BRANCH ID .
+
+    ID              reduce using rule 26 (instr_branch -> INSTR_BRANCH ID .)
+    ASSERT          reduce using rule 26 (instr_branch -> INSTR_BRANCH ID .)
+    ASSUME          reduce using rule 26 (instr_branch -> INSTR_BRANCH ID .)
+    INSTR1          reduce using rule 26 (instr_branch -> INSTR_BRANCH ID .)
+    INSTR2          reduce using rule 26 (instr_branch -> INSTR_BRANCH ID .)
+    INSTR_SWP       reduce using rule 26 (instr_branch -> INSTR_BRANCH ID .)
+    INSTR_BRANCH    reduce using rule 26 (instr_branch -> INSTR_BRANCH ID .)
+    $end            reduce using rule 26 (instr_branch -> INSTR_BRANCH ID .)
+
+
+state 27
+
+    (14) instruction -> ASSUME ( . bexp )
+    (32) bexp -> . bterm
+    (33) bexp -> . bexp OR bterm
+    (36) bterm -> . nfactor
+    (37) bterm -> . nfactor AND bterm
+    (38) nfactor -> . NOT bfactor
+    (39) nfactor -> . bfactor
+    (40) bfactor -> . brelation
+    (41) bfactor -> . BLIT
+    (42) bfactor -> . ( bexp )
+    (43) brelation -> . exp RELOP exp
+    (15) exp -> . texp + texp
+    (16) exp -> . texp - texp
+    (17) exp -> . texp
+    (22) texp -> . factor * factor
+    (23) texp -> . factor / factor
+    (24) texp -> . factor
+    (27) factor -> . ( exp )
+    (30) factor -> . operand
+    (34) operand -> . # NUMBER
+    (35) operand -> . REGISTER
+
+    NOT             shift and go to state 41
+    BLIT            shift and go to state 31
+    (               shift and go to state 34
+    #               shift and go to state 33
+    REGISTER        shift and go to state 28
+
+    bexp                           shift and go to state 50
+    nfactor                        shift and go to state 38
+    bterm                          shift and go to state 29
+    bfactor                        shift and go to state 39
+    texp                           shift and go to state 30
+    brelation                      shift and go to state 36
+    exp                            shift and go to state 40
+    factor                         shift and go to state 35
+    operand                        shift and go to state 32
+
+state 28
+
+    (35) operand -> REGISTER .
+
+    *               reduce using rule 35 (operand -> REGISTER .)
+    /               reduce using rule 35 (operand -> REGISTER .)
+    RELOP           reduce using rule 35 (operand -> REGISTER .)
+    )               reduce using rule 35 (operand -> REGISTER .)
+    AND             reduce using rule 35 (operand -> REGISTER .)
+    OR              reduce using rule 35 (operand -> REGISTER .)
+    +               reduce using rule 35 (operand -> REGISTER .)
+    -               reduce using rule 35 (operand -> REGISTER .)
+    ID              reduce using rule 35 (operand -> REGISTER .)
+    ASSERT          reduce using rule 35 (operand -> REGISTER .)
+    ASSUME          reduce using rule 35 (operand -> REGISTER .)
+    INSTR1          reduce using rule 35 (operand -> REGISTER .)
+    INSTR2          reduce using rule 35 (operand -> REGISTER .)
+    INSTR_SWP       reduce using rule 35 (operand -> REGISTER .)
+    INSTR_BRANCH    reduce using rule 35 (operand -> REGISTER .)
+    $end            reduce using rule 35 (operand -> REGISTER .)
+
+
+state 29
+
+    (32) bexp -> bterm .
+
+    )               reduce using rule 32 (bexp -> bterm .)
+    OR              reduce using rule 32 (bexp -> bterm .)
+
+
+state 30
+
+    (15) exp -> texp . + texp
+    (16) exp -> texp . - texp
+    (17) exp -> texp .
+
+    +               shift and go to state 51
+    -               shift and go to state 52
+    AND             reduce using rule 17 (exp -> texp .)
+    )               reduce using rule 17 (exp -> texp .)
+    OR              reduce using rule 17 (exp -> texp .)
+    RELOP           reduce using rule 17 (exp -> texp .)
+
+
+state 31
+
+    (41) bfactor -> BLIT .
+
+    AND             reduce using rule 41 (bfactor -> BLIT .)
+    )               reduce using rule 41 (bfactor -> BLIT .)
+    OR              reduce using rule 41 (bfactor -> BLIT .)
+
+
+state 32
+
+    (30) factor -> operand .
+
+    *               reduce using rule 30 (factor -> operand .)
+    /               reduce using rule 30 (factor -> operand .)
+    +               reduce using rule 30 (factor -> operand .)
+    -               reduce using rule 30 (factor -> operand .)
+    )               reduce using rule 30 (factor -> operand .)
+    RELOP           reduce using rule 30 (factor -> operand .)
+    AND             reduce using rule 30 (factor -> operand .)
+    OR              reduce using rule 30 (factor -> operand .)
+
+
+state 33
+
+    (34) operand -> # . NUMBER
+
+    NUMBER          shift and go to state 53
+
+
+state 34
+
+    (42) bfactor -> ( . bexp )
+    (27) factor -> ( . exp )
+    (32) bexp -> . bterm
+    (33) bexp -> . bexp OR bterm
+    (15) exp -> . texp + texp
+    (16) exp -> . texp - texp
+    (17) exp -> . texp
+    (36) bterm -> . nfactor
+    (37) bterm -> . nfactor AND bterm
+    (22) texp -> . factor * factor
+    (23) texp -> . factor / factor
+    (24) texp -> . factor
+    (38) nfactor -> . NOT bfactor
+    (39) nfactor -> . bfactor
+    (27) factor -> . ( exp )
+    (30) factor -> . operand
+    (40) bfactor -> . brelation
+    (41) bfactor -> . BLIT
+    (42) bfactor -> . ( bexp )
+    (34) operand -> . # NUMBER
+    (35) operand -> . REGISTER
+    (43) brelation -> . exp RELOP exp
+
+    NOT             shift and go to state 41
+    (               shift and go to state 54
+    BLIT            shift and go to state 31
+    #               shift and go to state 33
+    REGISTER        shift and go to state 28
+
+    bexp                           shift and go to state 55
+    nfactor                        shift and go to state 38
+    bterm                          shift and go to state 29
+    bfactor                        shift and go to state 39
+    texp                           shift and go to state 30
+    brelation                      shift and go to state 36
+    exp                            shift and go to state 56
+    factor                         shift and go to state 35
+    operand                        shift and go to state 32
+
+state 35
+
+    (22) texp -> factor . * factor
+    (23) texp -> factor . / factor
+    (24) texp -> factor .
+
+    *               shift and go to state 57
+    /               shift and go to state 58
+    +               reduce using rule 24 (texp -> factor .)
+    -               reduce using rule 24 (texp -> factor .)
+    RELOP           reduce using rule 24 (texp -> factor .)
+    )               reduce using rule 24 (texp -> factor .)
+    AND             reduce using rule 24 (texp -> factor .)
+    OR              reduce using rule 24 (texp -> factor .)
+
+
+state 36
+
+    (40) bfactor -> brelation .
+
+    AND             reduce using rule 40 (bfactor -> brelation .)
+    )               reduce using rule 40 (bfactor -> brelation .)
+    OR              reduce using rule 40 (bfactor -> brelation .)
+
+
+state 37
+
+    (11) instruction -> ASSERT ( bexp . )
+    (33) bexp -> bexp . OR bterm
+
+    )               shift and go to state 59
+    OR              shift and go to state 60
+
+
+state 38
+
+    (36) bterm -> nfactor .
+    (37) bterm -> nfactor . AND bterm
+
+    )               reduce using rule 36 (bterm -> nfactor .)
+    OR              reduce using rule 36 (bterm -> nfactor .)
+    AND             shift and go to state 61
+
+
+state 39
+
+    (39) nfactor -> bfactor .
+
+    AND             reduce using rule 39 (nfactor -> bfactor .)
+    )               reduce using rule 39 (nfactor -> bfactor .)
+    OR              reduce using rule 39 (nfactor -> bfactor .)
+
+
+state 40
+
+    (43) brelation -> exp . RELOP exp
+
+    RELOP           shift and go to state 62
+
+
+state 41
+
+    (38) nfactor -> NOT . bfactor
+    (40) bfactor -> . brelation
+    (41) bfactor -> . BLIT
+    (42) bfactor -> . ( bexp )
+    (43) brelation -> . exp RELOP exp
+    (15) exp -> . texp + texp
+    (16) exp -> . texp - texp
+    (17) exp -> . texp
+    (22) texp -> . factor * factor
+    (23) texp -> . factor / factor
+    (24) texp -> . factor
+    (27) factor -> . ( exp )
+    (30) factor -> . operand
+    (34) operand -> . # NUMBER
+    (35) operand -> . REGISTER
+
+    BLIT            shift and go to state 31
+    (               shift and go to state 34
+    #               shift and go to state 33
+    REGISTER        shift and go to state 28
+
+    bfactor                        shift and go to state 63
+    texp                           shift and go to state 30
+    brelation                      shift and go to state 36
+    exp                            shift and go to state 40
+    factor                         shift and go to state 35
+    operand                        shift and go to state 32
+
+state 42
+
+    (13) instr_processing -> INSTR1 REGISTER , . operand
+    (34) operand -> . # NUMBER
+    (35) operand -> . REGISTER
+
+    #               shift and go to state 33
+    REGISTER        shift and go to state 28
+
+    operand                        shift and go to state 64
+
+state 43
+
+    (12) instr_processing -> INSTR1 COND REGISTER . , operand
+
+    ,               shift and go to state 65
+
+
+state 44
+
+    (19) instr_memory -> INSTR2 REGISTER , . [ ID ]
+
+    [               shift and go to state 66
+
+
+state 45
+
+    (18) instr_memory -> INSTR2 COND REGISTER . , [ ID ]
+
+    ,               shift and go to state 67
+
+
+state 46
+
+    (21) instr_swp -> INSTR_SWP REGISTER , . REGISTER , [ ID ]
+
+    REGISTER        shift and go to state 68
+
+
+state 47
+
+    (20) instr_swp -> INSTR_SWP COND REGISTER . , REGISTER , [ ID ]
+
+    ,               shift and go to state 69
+
+
+state 48
+
+    (5) statement -> ID : instruction .
+
+    ID              reduce using rule 5 (statement -> ID : instruction .)
+    ASSERT          reduce using rule 5 (statement -> ID : instruction .)
+    ASSUME          reduce using rule 5 (statement -> ID : instruction .)
+    INSTR1          reduce using rule 5 (statement -> ID : instruction .)
+    INSTR2          reduce using rule 5 (statement -> ID : instruction .)
+    INSTR_SWP       reduce using rule 5 (statement -> ID : instruction .)
+    INSTR_BRANCH    reduce using rule 5 (statement -> ID : instruction .)
+    $end            reduce using rule 5 (statement -> ID : instruction .)
+
+
+state 49
+
+    (25) instr_branch -> INSTR_BRANCH COND ID .
+
+    ID              reduce using rule 25 (instr_branch -> INSTR_BRANCH COND ID .)
+    ASSERT          reduce using rule 25 (instr_branch -> INSTR_BRANCH COND ID .)
+    ASSUME          reduce using rule 25 (instr_branch -> INSTR_BRANCH COND ID .)
+    INSTR1          reduce using rule 25 (instr_branch -> INSTR_BRANCH COND ID .)
+    INSTR2          reduce using rule 25 (instr_branch -> INSTR_BRANCH COND ID .)
+    INSTR_SWP       reduce using rule 25 (instr_branch -> INSTR_BRANCH COND ID .)
+    INSTR_BRANCH    reduce using rule 25 (instr_branch -> INSTR_BRANCH COND ID .)
+    $end            reduce using rule 25 (instr_branch -> INSTR_BRANCH COND ID .)
+
+
+state 50
+
+    (14) instruction -> ASSUME ( bexp . )
+    (33) bexp -> bexp . OR bterm
+
+    )               shift and go to state 70
+    OR              shift and go to state 60
+
+
+state 51
+
+    (15) exp -> texp + . texp
+    (22) texp -> . factor * factor
+    (23) texp -> . factor / factor
+    (24) texp -> . factor
+    (27) factor -> . ( exp )
+    (30) factor -> . operand
+    (34) operand -> . # NUMBER
+    (35) operand -> . REGISTER
+
+    (               shift and go to state 71
+    #               shift and go to state 33
+    REGISTER        shift and go to state 28
+
+    operand                        shift and go to state 32
+    texp                           shift and go to state 72
+    factor                         shift and go to state 35
+
+state 52
+
+    (16) exp -> texp - . texp
+    (22) texp -> . factor * factor
+    (23) texp -> . factor / factor
+    (24) texp -> . factor
+    (27) factor -> . ( exp )
+    (30) factor -> . operand
+    (34) operand -> . # NUMBER
+    (35) operand -> . REGISTER
+
+    (               shift and go to state 71
+    #               shift and go to state 33
+    REGISTER        shift and go to state 28
+
+    operand                        shift and go to state 32
+    texp                           shift and go to state 73
+    factor                         shift and go to state 35
+
+state 53
+
+    (34) operand -> # NUMBER .
+
+    *               reduce using rule 34 (operand -> # NUMBER .)
+    /               reduce using rule 34 (operand -> # NUMBER .)
+    RELOP           reduce using rule 34 (operand -> # NUMBER .)
+    )               reduce using rule 34 (operand -> # NUMBER .)
+    AND             reduce using rule 34 (operand -> # NUMBER .)
+    OR              reduce using rule 34 (operand -> # NUMBER .)
+    +               reduce using rule 34 (operand -> # NUMBER .)
+    -               reduce using rule 34 (operand -> # NUMBER .)
+    ID              reduce using rule 34 (operand -> # NUMBER .)
+    ASSERT          reduce using rule 34 (operand -> # NUMBER .)
+    ASSUME          reduce using rule 34 (operand -> # NUMBER .)
+    INSTR1          reduce using rule 34 (operand -> # NUMBER .)
+    INSTR2          reduce using rule 34 (operand -> # NUMBER .)
+    INSTR_SWP       reduce using rule 34 (operand -> # NUMBER .)
+    INSTR_BRANCH    reduce using rule 34 (operand -> # NUMBER .)
+    $end            reduce using rule 34 (operand -> # NUMBER .)
+
+
+state 54
+
+    (27) factor -> ( . exp )
+    (42) bfactor -> ( . bexp )
+    (15) exp -> . texp + texp
+    (16) exp -> . texp - texp
+    (17) exp -> . texp
+    (32) bexp -> . bterm
+    (33) bexp -> . bexp OR bterm
+    (22) texp -> . factor * factor
+    (23) texp -> . factor / factor
+    (24) texp -> . factor
+    (36) bterm -> . nfactor
+    (37) bterm -> . nfactor AND bterm
+    (27) factor -> . ( exp )
+    (30) factor -> . operand
+    (38) nfactor -> . NOT bfactor
+    (39) nfactor -> . bfactor
+    (34) operand -> . # NUMBER
+    (35) operand -> . REGISTER
+    (40) bfactor -> . brelation
+    (41) bfactor -> . BLIT
+    (42) bfactor -> . ( bexp )
+    (43) brelation -> . exp RELOP exp
+
+    (               shift and go to state 54
+    NOT             shift and go to state 41
+    #               shift and go to state 33
+    REGISTER        shift and go to state 28
+    BLIT            shift and go to state 31
+
+    bexp                           shift and go to state 55
+    nfactor                        shift and go to state 38
+    bterm                          shift and go to state 29
+    bfactor                        shift and go to state 39
+    texp                           shift and go to state 30
+    brelation                      shift and go to state 36
+    exp                            shift and go to state 56
+    factor                         shift and go to state 35
+    operand                        shift and go to state 32
+
+state 55
+
+    (42) bfactor -> ( bexp . )
+    (33) bexp -> bexp . OR bterm
+
+    )               shift and go to state 74
+    OR              shift and go to state 60
+
+
+state 56
+
+    (27) factor -> ( exp . )
+    (43) brelation -> exp . RELOP exp
+
+    )               shift and go to state 75
+    RELOP           shift and go to state 62
+
+
+state 57
+
+    (22) texp -> factor * . factor
+    (27) factor -> . ( exp )
+    (30) factor -> . operand
+    (34) operand -> . # NUMBER
+    (35) operand -> . REGISTER
+
+    (               shift and go to state 71
+    #               shift and go to state 33
+    REGISTER        shift and go to state 28
+
+    operand                        shift and go to state 32
+    factor                         shift and go to state 76
+
+state 58
+
+    (23) texp -> factor / . factor
+    (27) factor -> . ( exp )
+    (30) factor -> . operand
+    (34) operand -> . # NUMBER
+    (35) operand -> . REGISTER
+
+    (               shift and go to state 71
+    #               shift and go to state 33
+    REGISTER        shift and go to state 28
+
+    operand                        shift and go to state 32
+    factor                         shift and go to state 77
+
+state 59
+
+    (11) instruction -> ASSERT ( bexp ) .
+
+    ID              reduce using rule 11 (instruction -> ASSERT ( bexp ) .)
+    ASSERT          reduce using rule 11 (instruction -> ASSERT ( bexp ) .)
+    ASSUME          reduce using rule 11 (instruction -> ASSERT ( bexp ) .)
+    INSTR1          reduce using rule 11 (instruction -> ASSERT ( bexp ) .)
+    INSTR2          reduce using rule 11 (instruction -> ASSERT ( bexp ) .)
+    INSTR_SWP       reduce using rule 11 (instruction -> ASSERT ( bexp ) .)
+    INSTR_BRANCH    reduce using rule 11 (instruction -> ASSERT ( bexp ) .)
+    $end            reduce using rule 11 (instruction -> ASSERT ( bexp ) .)
+
+
+state 60
+
+    (33) bexp -> bexp OR . bterm
+    (36) bterm -> . nfactor
+    (37) bterm -> . nfactor AND bterm
+    (38) nfactor -> . NOT bfactor
+    (39) nfactor -> . bfactor
+    (40) bfactor -> . brelation
+    (41) bfactor -> . BLIT
+    (42) bfactor -> . ( bexp )
+    (43) brelation -> . exp RELOP exp
+    (15) exp -> . texp + texp
+    (16) exp -> . texp - texp
+    (17) exp -> . texp
+    (22) texp -> . factor * factor
+    (23) texp -> . factor / factor
+    (24) texp -> . factor
+    (27) factor -> . ( exp )
+    (30) factor -> . operand
+    (34) operand -> . # NUMBER
+    (35) operand -> . REGISTER
+
+    NOT             shift and go to state 41
+    BLIT            shift and go to state 31
+    (               shift and go to state 34
+    #               shift and go to state 33
+    REGISTER        shift and go to state 28
+
+    nfactor                        shift and go to state 38
+    bterm                          shift and go to state 78
+    bfactor                        shift and go to state 39
+    texp                           shift and go to state 30
+    brelation                      shift and go to state 36
+    exp                            shift and go to state 40
+    factor                         shift and go to state 35
+    operand                        shift and go to state 32
+
+state 61
+
+    (37) bterm -> nfactor AND . bterm
+    (36) bterm -> . nfactor
+    (37) bterm -> . nfactor AND bterm
+    (38) nfactor -> . NOT bfactor
+    (39) nfactor -> . bfactor
+    (40) bfactor -> . brelation
+    (41) bfactor -> . BLIT
+    (42) bfactor -> . ( bexp )
+    (43) brelation -> . exp RELOP exp
+    (15) exp -> . texp + texp
+    (16) exp -> . texp - texp
+    (17) exp -> . texp
+    (22) texp -> . factor * factor
+    (23) texp -> . factor / factor
+    (24) texp -> . factor
+    (27) factor -> . ( exp )
+    (30) factor -> . operand
+    (34) operand -> . # NUMBER
+    (35) operand -> . REGISTER
+
+    NOT             shift and go to state 41
+    BLIT            shift and go to state 31
+    (               shift and go to state 34
+    #               shift and go to state 33
+    REGISTER        shift and go to state 28
+
+    nfactor                        shift and go to state 38
+    bterm                          shift and go to state 79
+    bfactor                        shift and go to state 39
+    texp                           shift and go to state 30
+    brelation                      shift and go to state 36
+    exp                            shift and go to state 40
+    factor                         shift and go to state 35
+    operand                        shift and go to state 32
+
+state 62
+
+    (43) brelation -> exp RELOP . exp
+    (15) exp -> . texp + texp
+    (16) exp -> . texp - texp
+    (17) exp -> . texp
+    (22) texp -> . factor * factor
+    (23) texp -> . factor / factor
+    (24) texp -> . factor
+    (27) factor -> . ( exp )
+    (30) factor -> . operand
+    (34) operand -> . # NUMBER
+    (35) operand -> . REGISTER
+
+    (               shift and go to state 71
+    #               shift and go to state 33
+    REGISTER        shift and go to state 28
+
+    operand                        shift and go to state 32
+    texp                           shift and go to state 30
+    exp                            shift and go to state 80
+    factor                         shift and go to state 35
+
+state 63
+
+    (38) nfactor -> NOT bfactor .
+
+    AND             reduce using rule 38 (nfactor -> NOT bfactor .)
+    )               reduce using rule 38 (nfactor -> NOT bfactor .)
+    OR              reduce using rule 38 (nfactor -> NOT bfactor .)
+
+
+state 64
+
+    (13) instr_processing -> INSTR1 REGISTER , operand .
+
+    ID              reduce using rule 13 (instr_processing -> INSTR1 REGISTER , operand .)
+    ASSERT          reduce using rule 13 (instr_processing -> INSTR1 REGISTER , operand .)
+    ASSUME          reduce using rule 13 (instr_processing -> INSTR1 REGISTER , operand .)
+    INSTR1          reduce using rule 13 (instr_processing -> INSTR1 REGISTER , operand .)
+    INSTR2          reduce using rule 13 (instr_processing -> INSTR1 REGISTER , operand .)
+    INSTR_SWP       reduce using rule 13 (instr_processing -> INSTR1 REGISTER , operand .)
+    INSTR_BRANCH    reduce using rule 13 (instr_processing -> INSTR1 REGISTER , operand .)
+    $end            reduce using rule 13 (instr_processing -> INSTR1 REGISTER , operand .)
+
+
+state 65
+
+    (12) instr_processing -> INSTR1 COND REGISTER , . operand
+    (34) operand -> . # NUMBER
+    (35) operand -> . REGISTER
+
+    #               shift and go to state 33
+    REGISTER        shift and go to state 28
+
+    operand                        shift and go to state 81
+
+state 66
+
+    (19) instr_memory -> INSTR2 REGISTER , [ . ID ]
+
+    ID              shift and go to state 82
+
+
+state 67
+
+    (18) instr_memory -> INSTR2 COND REGISTER , . [ ID ]
+
+    [               shift and go to state 83
+
+
+state 68
+
+    (21) instr_swp -> INSTR_SWP REGISTER , REGISTER . , [ ID ]
+
+    ,               shift and go to state 84
+
+
+state 69
+
+    (20) instr_swp -> INSTR_SWP COND REGISTER , . REGISTER , [ ID ]
+
+    REGISTER        shift and go to state 85
+
+
+state 70
+
+    (14) instruction -> ASSUME ( bexp ) .
+
+    ID              reduce using rule 14 (instruction -> ASSUME ( bexp ) .)
+    ASSERT          reduce using rule 14 (instruction -> ASSUME ( bexp ) .)
+    ASSUME          reduce using rule 14 (instruction -> ASSUME ( bexp ) .)
+    INSTR1          reduce using rule 14 (instruction -> ASSUME ( bexp ) .)
+    INSTR2          reduce using rule 14 (instruction -> ASSUME ( bexp ) .)
+    INSTR_SWP       reduce using rule 14 (instruction -> ASSUME ( bexp ) .)
+    INSTR_BRANCH    reduce using rule 14 (instruction -> ASSUME ( bexp ) .)
+    $end            reduce using rule 14 (instruction -> ASSUME ( bexp ) .)
+
+
+state 71
+
+    (27) factor -> ( . exp )
+    (15) exp -> . texp + texp
+    (16) exp -> . texp - texp
+    (17) exp -> . texp
+    (22) texp -> . factor * factor
+    (23) texp -> . factor / factor
+    (24) texp -> . factor
+    (27) factor -> . ( exp )
+    (30) factor -> . operand
+    (34) operand -> . # NUMBER
+    (35) operand -> . REGISTER
+
+    (               shift and go to state 71
+    #               shift and go to state 33
+    REGISTER        shift and go to state 28
+
+    operand                        shift and go to state 32
+    texp                           shift and go to state 30
+    exp                            shift and go to state 86
+    factor                         shift and go to state 35
+
+state 72
+
+    (15) exp -> texp + texp .
+
+    AND             reduce using rule 15 (exp -> texp + texp .)
+    )               reduce using rule 15 (exp -> texp + texp .)
+    OR              reduce using rule 15 (exp -> texp + texp .)
+    RELOP           reduce using rule 15 (exp -> texp + texp .)
+
+
+state 73
+
+    (16) exp -> texp - texp .
+
+    AND             reduce using rule 16 (exp -> texp - texp .)
+    )               reduce using rule 16 (exp -> texp - texp .)
+    OR              reduce using rule 16 (exp -> texp - texp .)
+    RELOP           reduce using rule 16 (exp -> texp - texp .)
+
+
+state 74
+
+    (42) bfactor -> ( bexp ) .
+
+    AND             reduce using rule 42 (bfactor -> ( bexp ) .)
+    )               reduce using rule 42 (bfactor -> ( bexp ) .)
+    OR              reduce using rule 42 (bfactor -> ( bexp ) .)
+
+
+state 75
+
+    (27) factor -> ( exp ) .
+
+    *               reduce using rule 27 (factor -> ( exp ) .)
+    /               reduce using rule 27 (factor -> ( exp ) .)
+    +               reduce using rule 27 (factor -> ( exp ) .)
+    -               reduce using rule 27 (factor -> ( exp ) .)
+    )               reduce using rule 27 (factor -> ( exp ) .)
+    RELOP           reduce using rule 27 (factor -> ( exp ) .)
+    AND             reduce using rule 27 (factor -> ( exp ) .)
+    OR              reduce using rule 27 (factor -> ( exp ) .)
+
+
+state 76
+
+    (22) texp -> factor * factor .
+
+    +               reduce using rule 22 (texp -> factor * factor .)
+    -               reduce using rule 22 (texp -> factor * factor .)
+    RELOP           reduce using rule 22 (texp -> factor * factor .)
+    )               reduce using rule 22 (texp -> factor * factor .)
+    AND             reduce using rule 22 (texp -> factor * factor .)
+    OR              reduce using rule 22 (texp -> factor * factor .)
+
+
+state 77
+
+    (23) texp -> factor / factor .
+
+    +               reduce using rule 23 (texp -> factor / factor .)
+    -               reduce using rule 23 (texp -> factor / factor .)
+    RELOP           reduce using rule 23 (texp -> factor / factor .)
+    )               reduce using rule 23 (texp -> factor / factor .)
+    AND             reduce using rule 23 (texp -> factor / factor .)
+    OR              reduce using rule 23 (texp -> factor / factor .)
+
+
+state 78
+
+    (33) bexp -> bexp OR bterm .
+
+    )               reduce using rule 33 (bexp -> bexp OR bterm .)
+    OR              reduce using rule 33 (bexp -> bexp OR bterm .)
+
+
+state 79
+
+    (37) bterm -> nfactor AND bterm .
+
+    )               reduce using rule 37 (bterm -> nfactor AND bterm .)
+    OR              reduce using rule 37 (bterm -> nfactor AND bterm .)
+
+
+state 80
+
+    (43) brelation -> exp RELOP exp .
+
+    AND             reduce using rule 43 (brelation -> exp RELOP exp .)
+    )               reduce using rule 43 (brelation -> exp RELOP exp .)
+    OR              reduce using rule 43 (brelation -> exp RELOP exp .)
+
+
+state 81
+
+    (12) instr_processing -> INSTR1 COND REGISTER , operand .
+
+    ID              reduce using rule 12 (instr_processing -> INSTR1 COND REGISTER , operand .)
+    ASSERT          reduce using rule 12 (instr_processing -> INSTR1 COND REGISTER , operand .)
+    ASSUME          reduce using rule 12 (instr_processing -> INSTR1 COND REGISTER , operand .)
+    INSTR1          reduce using rule 12 (instr_processing -> INSTR1 COND REGISTER , operand .)
+    INSTR2          reduce using rule 12 (instr_processing -> INSTR1 COND REGISTER , operand .)
+    INSTR_SWP       reduce using rule 12 (instr_processing -> INSTR1 COND REGISTER , operand .)
+    INSTR_BRANCH    reduce using rule 12 (instr_processing -> INSTR1 COND REGISTER , operand .)
+    $end            reduce using rule 12 (instr_processing -> INSTR1 COND REGISTER , operand .)
+
+
+state 82
+
+    (19) instr_memory -> INSTR2 REGISTER , [ ID . ]
+
+    ]               shift and go to state 87
+
+
+state 83
+
+    (18) instr_memory -> INSTR2 COND REGISTER , [ . ID ]
+
+    ID              shift and go to state 88
+
+
+state 84
+
+    (21) instr_swp -> INSTR_SWP REGISTER , REGISTER , . [ ID ]
+
+    [               shift and go to state 89
+
+
+state 85
+
+    (20) instr_swp -> INSTR_SWP COND REGISTER , REGISTER . , [ ID ]
+
+    ,               shift and go to state 90
+
+
+state 86
+
+    (27) factor -> ( exp . )
+
+    )               shift and go to state 75
+
+
+state 87
+
+    (19) instr_memory -> INSTR2 REGISTER , [ ID ] .
+
+    ID              reduce using rule 19 (instr_memory -> INSTR2 REGISTER , [ ID ] .)
+    ASSERT          reduce using rule 19 (instr_memory -> INSTR2 REGISTER , [ ID ] .)
+    ASSUME          reduce using rule 19 (instr_memory -> INSTR2 REGISTER , [ ID ] .)
+    INSTR1          reduce using rule 19 (instr_memory -> INSTR2 REGISTER , [ ID ] .)
+    INSTR2          reduce using rule 19 (instr_memory -> INSTR2 REGISTER , [ ID ] .)
+    INSTR_SWP       reduce using rule 19 (instr_memory -> INSTR2 REGISTER , [ ID ] .)
+    INSTR_BRANCH    reduce using rule 19 (instr_memory -> INSTR2 REGISTER , [ ID ] .)
+    $end            reduce using rule 19 (instr_memory -> INSTR2 REGISTER , [ ID ] .)
+
+
+state 88
+
+    (18) instr_memory -> INSTR2 COND REGISTER , [ ID . ]
+
+    ]               shift and go to state 91
+
+
+state 89
+
+    (21) instr_swp -> INSTR_SWP REGISTER , REGISTER , [ . ID ]
+
+    ID              shift and go to state 92
+
+
+state 90
+
+    (20) instr_swp -> INSTR_SWP COND REGISTER , REGISTER , . [ ID ]
+
+    [               shift and go to state 93
+
+
+state 91
+
+    (18) instr_memory -> INSTR2 COND REGISTER , [ ID ] .
+
+    ID              reduce using rule 18 (instr_memory -> INSTR2 COND REGISTER , [ ID ] .)
+    ASSERT          reduce using rule 18 (instr_memory -> INSTR2 COND REGISTER , [ ID ] .)
+    ASSUME          reduce using rule 18 (instr_memory -> INSTR2 COND REGISTER , [ ID ] .)
+    INSTR1          reduce using rule 18 (instr_memory -> INSTR2 COND REGISTER , [ ID ] .)
+    INSTR2          reduce using rule 18 (instr_memory -> INSTR2 COND REGISTER , [ ID ] .)
+    INSTR_SWP       reduce using rule 18 (instr_memory -> INSTR2 COND REGISTER , [ ID ] .)
+    INSTR_BRANCH    reduce using rule 18 (instr_memory -> INSTR2 COND REGISTER , [ ID ] .)
+    $end            reduce using rule 18 (instr_memory -> INSTR2 COND REGISTER , [ ID ] .)
+
+
+state 92
+
+    (21) instr_swp -> INSTR_SWP REGISTER , REGISTER , [ ID . ]
+
+    ]               shift and go to state 94
+
+
+state 93
+
+    (20) instr_swp -> INSTR_SWP COND REGISTER , REGISTER , [ . ID ]
+
+    ID              shift and go to state 95
+
+
+state 94
+
+    (21) instr_swp -> INSTR_SWP REGISTER , REGISTER , [ ID ] .
+
+    ID              reduce using rule 21 (instr_swp -> INSTR_SWP REGISTER , REGISTER , [ ID ] .)
+    ASSERT          reduce using rule 21 (instr_swp -> INSTR_SWP REGISTER , REGISTER , [ ID ] .)
+    ASSUME          reduce using rule 21 (instr_swp -> INSTR_SWP REGISTER , REGISTER , [ ID ] .)
+    INSTR1          reduce using rule 21 (instr_swp -> INSTR_SWP REGISTER , REGISTER , [ ID ] .)
+    INSTR2          reduce using rule 21 (instr_swp -> INSTR_SWP REGISTER , REGISTER , [ ID ] .)
+    INSTR_SWP       reduce using rule 21 (instr_swp -> INSTR_SWP REGISTER , REGISTER , [ ID ] .)
+    INSTR_BRANCH    reduce using rule 21 (instr_swp -> INSTR_SWP REGISTER , REGISTER , [ ID ] .)
+    $end            reduce using rule 21 (instr_swp -> INSTR_SWP REGISTER , REGISTER , [ ID ] .)
+
+
+state 95
+
+    (20) instr_swp -> INSTR_SWP COND REGISTER , REGISTER , [ ID . ]
+
+    ]               shift and go to state 96
+
+
+state 96
+
+    (20) instr_swp -> INSTR_SWP COND REGISTER , REGISTER , [ ID ] .
+
+    ID              reduce using rule 20 (instr_swp -> INSTR_SWP COND REGISTER , REGISTER , [ ID ] .)
+    ASSERT          reduce using rule 20 (instr_swp -> INSTR_SWP COND REGISTER , REGISTER , [ ID ] .)
+    ASSUME          reduce using rule 20 (instr_swp -> INSTR_SWP COND REGISTER , REGISTER , [ ID ] .)
+    INSTR1          reduce using rule 20 (instr_swp -> INSTR_SWP COND REGISTER , REGISTER , [ ID ] .)
+    INSTR2          reduce using rule 20 (instr_swp -> INSTR_SWP COND REGISTER , REGISTER , [ ID ] .)
+    INSTR_SWP       reduce using rule 20 (instr_swp -> INSTR_SWP COND REGISTER , REGISTER , [ ID ] .)
+    INSTR_BRANCH    reduce using rule 20 (instr_swp -> INSTR_SWP COND REGISTER , REGISTER , [ ID ] .)
+    $end            reduce using rule 20 (instr_swp -> INSTR_SWP COND REGISTER , REGISTER , [ ID ] .)
+
+WARNING: 
+WARNING: Conflicts:
+WARNING: 
+WARNING: shift/reduce conflict for ASSERT in state 24 resolved as shift
+WARNING: shift/reduce conflict for ASSUME in state 24 resolved as shift
+WARNING: shift/reduce conflict for INSTR1 in state 24 resolved as shift
+WARNING: shift/reduce conflict for INSTR2 in state 24 resolved as shift
+WARNING: shift/reduce conflict for INSTR_SWP in state 24 resolved as shift
+WARNING: shift/reduce conflict for INSTR_BRANCH in state 24 resolved as shift
