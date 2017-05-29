@@ -148,41 +148,27 @@ class SPARCParser(ASMParser):
 		'operand : REGISTER'
 		p[0] = Register(p[1])
 
-# Build the parser
+# if __name__ == '__main__':
+# 	ss = '''
+# 	L1: 
+# 	  ldstub [lock], r0
+# 	  brnz,pn r0, L2
+# 	  nop
+# 	  ba L3
+# 	  nop
+# 	L2: 
+# 	  ldub [lock], r1
+# 	  brnz,pt r1, L2
+# 	  nop 
+# 	  ba,a,pt L1
+# 	  nop
+# 	L3:
+# 	; critical
+# 	'''
 
-# lexer = SPARCLex().lexer
-
-
-# lexer.input(test_prog)
-
-# # Tokenize
-# while True:
-#     tok = lexer.token()
-#     if not tok: 
-#         break      # No more input
-#     print(tok)
-
-if __name__ == '__main__':
-	ss = '''
-	L1: 
-	  ldstub [lock], r0
-	  brnz,pn r0, L2
-	  nop
-	  ba L3
-	  nop
-	L2: 
-	  ldub [lock], r1
-	  brnz,pt r1, L2
-	  nop 
-	  ba,a,pt L1
-	  nop
-	L3:
-	; critical
-	'''
-
-	parser = SPARCParser().parser
-	# print '====='
-	result = parser.parse(ss)
-	# print result
-	for e in result:
-		print e
+# 	parser = SPARCParser().parser
+# 	# print '====='
+# 	result = parser.parse(ss)
+# 	# print result
+# 	for e in result:
+# 		print e

@@ -33,21 +33,21 @@ class PSOPlusModel(HWModel):
 		)
 
 	# Relations
-	spo = Function('spo', hw.Instr, hw.Instr, BoolSort()) 	# Significant program order
-	spo1 = Function('spo1', hw.Instr, hw.Instr, BoolSort()) 	# Significant program order spo'
-	spo2 = Function('spo2', hw.Instr, hw.Instr, BoolSort()) 	# Significant program order spo''
-	sco = Function('sco', hw.Instr, hw.Instr, BoolSort())		# Significant conflict order
-	loopRel = Function('loopRel', hw.Instr, hw.Instr, BoolSort())	# Helping_relation
+	spo = Function('spo', hw.Opr, hw.Opr, BoolSort()) 	# Significant program order
+	spo1 = Function('spo1', hw.Opr, hw.Opr, BoolSort()) 	# Significant program order spo'
+	spo2 = Function('spo2', hw.Opr, hw.Opr, BoolSort()) 	# Significant program order spo''
+	sco = Function('sco', hw.Opr, hw.Opr, BoolSort())		# Significant conflict order
+	loopRel = Function('loopRel', hw.Opr, hw.Opr, BoolSort())	# Helping_relation
 
 	# xo_mul1 = Function('xo_mul1', SubOpr, SubOpr, BoolSort())
 	# xo_mul2 = Function('xo_mul1', SubOpr, SubOpr, BoolSort())
 	# xo_mul3 = Function('xo_mul1', SubOpr, SubOpr, BoolSort())
 
-	spo.domain = (lambda i: hw.Instr)
-	spo1.domain = (lambda i: hw.Instr)
-	spo2.domain = (lambda i: hw.Instr)
-	sco.domain = (lambda i: hw.Instr)
-	loopRel.domain = (lambda i: hw.Instr) 
+	spo.domain = (lambda i: hw.Opr)
+	spo1.domain = (lambda i: hw.Opr)
+	spo2.domain = (lambda i: hw.Opr)
+	sco.domain = (lambda i: hw.Opr)
+	loopRel.domain = (lambda i: hw.Opr) 
 
 
 	def spo_relation(self, info):
@@ -182,7 +182,7 @@ class PSOPlusModel(HWModel):
 
 		# ------ variables 
 		rw1, rw2, rw3 = Consts('rw1 rw2 rw3', hw.MemOp)
-		a, b = 	Consts('a b', hw.Instr)
+		a, b = 	Consts('a b', hw.Opr)
 		r = Const('r', hw.ReadOp)
 		w = Const('w', hw.WriteOp)
 		r1, r2 = Consts('r1 r2', hw.ReadOp)

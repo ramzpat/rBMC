@@ -8,17 +8,20 @@ from encode_z3 import *
 import itertools
 
 # Utilities function
+# Emulate w \in writes 
 def restrict(w, writes = []):
 	ret = [False]
 	for (m,l,i) in writes:
 		ret += [(w == m)]
 	return Or(ret)
 
+# check two operators are conflict 
 def is_conflict(w1, w2):
 	(wA, locA, pA) = w1
 	(wB, locB, pB) = w2
 	return (wA.sort() == WriteOp or wB.sort() == WriteOp) and (eq(locA,locB))		
 
+# collect a list of conflicting writes wrt memory operation rw
 def conflict_writes(writes, rw):
 	ret = []
 	for w in writes:
@@ -31,6 +34,8 @@ class HWModel(object):
 	__metaclass__ = ABCMeta
 
 	def axioms(self, info):
+		# Basis behaviors under a general model
+		# + X_M : constraints of memory model M
 		return self.based_axioms(info)  + self.model_axioms(info)
 
 	def initial_location(self, locations, value = 0):
@@ -62,7 +67,7 @@ class HWModel(object):
 		return [ForAll([m], m == either())]
 
 	# Axiom for model
-	# underlying behaviors
+	# Behavior property (basisS)
 	def based_axioms(self, info):
 		
 		# Conflict 
@@ -93,6 +98,7 @@ class HWModel(object):
 			else:
 				return Not(hw.co(wA, wB))
 
+		# -co'-> definition
 		def ico_def(w1, w2):
 			(wA, locA, pA) = w1
 			(wB, locB, pB) = w2

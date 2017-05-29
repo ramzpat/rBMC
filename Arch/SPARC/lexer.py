@@ -89,9 +89,6 @@ class SPARCLex(ASMLex):
   def t_COND(self, t):
     r'eq | EQ | ne | NE'
     return t
-  
-
-
 
   def t_INSTR_ARTH(self, t):
     r'add '
@@ -101,7 +98,7 @@ class SPARCLex(ASMLex):
     r'stub | st'
     return t
   def t_MEM_SYNC(self, t):
-    r'FLUSH | MEMBAR' 
+    r'MEMBAR' 
     return t 
    # -- Identification
   def t_ID(self, t):

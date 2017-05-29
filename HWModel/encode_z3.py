@@ -54,40 +54,55 @@ def z3Exp(exp, info):
 	return False
 
 
+# translation of a statement (intermediate representation)
 def z3Instr(instr, info):
 
-	CS = [] # Programs behaviors (Not accumulate)
+	CS = [] 	# Programs behaviors (Not accumulate)
+	InfoS = [] 	# Program information
+	BasisS = []	# Behavior property 
+
 	PS = [] # Programs Properties (Not accumulate)
 	Regs = info['Regs']	# Register (accumulate)
 
+	# translation of assertion
 	if isinstance(instr, InstrAssert):
 		PS += [z3Exp(instr.cond, info)]
+
+	# translation of assertion
 	elif isinstance(instr, InstrAssume):
-		CS += [z3Exp(instr.cond, info)]
+		# CS += [z3Exp(instr.cond, info)]
+		InfoS += [z3Exp(instr.cond, info)]
+
+	# translation of assingment
 	elif isinstance(instr, i_assignment):
 		Regs[str(instr.var)] = Int(str(instr.var)) 
 		var = Regs[str(instr.var)]
 		exp = instr.expression
+
+		# the assignment read a shared-memory location
 		if isinstance(exp, i_read):
 			# New read 
 			name = 'read_'+str(info['ReadCnt'])
 			info['ReadCnt'] = info['ReadCnt'] + 1			
 			read = Const(name,hw.ReadOp)							# Generate a fresh memory operation (read operation)
 
+			# collect data for presenting a counterexample 
 			info['counterExample']['read'] += [(read, instr, info['Proc'][-1])]
 
 			addr = str(exp.opr)
 			info['Loc'][addr] = Const(addr, hw.Loc)
-
 			loc = info['Loc'][addr]
-
+			# read \in R_S
 			info['MemOp']['read'] += [(read, loc, info['Proc'][-1])]	# Add the memory operation
 			info['po'] = info['po']	+ [read]							# Update the program order
 
-			CS = [var == hw.return_val(read),
+			# transformation of read
+			InfoS += [var == hw.return_val(read),
 				  hw.mem_access(read) == loc, 
 				  hw.issue_proc(read) == info['Proc'][-1]
 				  ]
+
+		# the assignment read a value from rmw statement
 		elif isinstance(exp, i_rmw):
 			# New rmw 
 			name = 'rmw_'+str(info['RmwCnt'])
@@ -100,18 +115,22 @@ def z3Instr(instr, info):
 			info['Loc'][addr] = Const(addr, hw.Loc)
 			loc = info['Loc'][addr]
 
+			# rmw \in RMW_S
 			info['MemOp']['rmw'] += [(rmw, loc, info['Proc'][-1])]		# Add the memory operation
 			info['po'] = info['po']	+ [rmw] 							# Update the program order 
 
 			write_val = Regs[str(exp.rt)] if isinstance(exp.rt, Register) else exp.rt
 
-			CS = [ 	var == hw.return_val(hw.atomic_read(rmw)),
+			# transformation of rmw
+			InfoS += [ 	var == hw.return_val(hw.atomic_read(rmw)),
 					hw.mem_access(hw.atomic_read(rmw)) == loc,
 					hw.mem_access(hw.atomic_write(rmw)) == loc, 
 					hw.issue_proc(hw.atomic_read(rmw)) == info['Proc'][-1], 
 					hw.issue_proc(hw.atomic_write(rmw)) == info['Proc'][-1],
 					hw.write_val(hw.atomic_write(rmw)) == write_val
 			]
+
+		# the result from if-expression ( in the form (cond)? exp1:exp2 )
 		elif isinstance(exp, i_if_exp):
 
 			t_exp = (var == If( z3Exp(exp.cond, info),  
@@ -119,9 +138,15 @@ def z3Instr(instr, info):
 			# f_exp = Implies( Not(z3_exp(r.cond, Regs)),  
 							# Regs[str(e.var)] == z3_exp(r.f_exp, Regs))
 			# (e_cs, new_ps, Regs, Wop, Rop, RMWop, Ls, po) = self.statement_behav_z3(s[1:], Regs, Wop, Rop, RMWop, Ls, Proc)
-			CS = [ t_exp ]
+
+			# transformation of read
+			InfoS += [ t_exp ]
+
+		# normal expression
 		else: 
-			CS += [ var == z3Exp(instr.expression, info) ]
+			InfoS += [ var == z3Exp(instr.expression, info) ]
+
+	# translation of write statement
 	elif isinstance(instr, i_write):
 		# New write
 		name = 'write_' + str(info['WriteCnt'])
@@ -134,29 +159,32 @@ def z3Instr(instr, info):
 		info['Loc'][addr] = Const(addr, hw.Loc)
 		loc = info['Loc'][addr]
 
+		# write \in W_S
 		info['MemOp']['write'] += [(write, loc, info['Proc'][-1])]		# Add the memory operation
 		info['po'] = info['po'] + [write]
 
-		CS = [	hw.write_val(write) == Regs[str(instr.rt)],
+		InfoS = [	hw.write_val(write) == Regs[str(instr.rt)],
 				hw.mem_access(write) == loc, hw.issue_proc(write) == info['Proc'][-1]
 				]
+
+	# translation of if statement
 	elif isinstance(instr, i_if):
-		cs = []
-		infoS = info
+		info2 = info
 		for s in instr.statement:
-			infoS = z3Instr(s, infoS)
-		cs = infoS['CS']
+			info2 = z3Instr(s, info2)
+		ifs = info2['InfoS']
 		ps = info['PS'] 
 
 		cond = (z3Exp(instr.cond, info))
 
-		newCS = [Implies(cond, cc) for cc in cs]
+		newInfoS = [Implies(cond, cc) for cc in ifs]
 		newPS = [Implies(cond, cc) for cc in ps]
 	
-		CS += newCS
+		InfoS += newInfoS
 		PS += newPS
 
-	info['CS'] = CS 
+	# info['CS'] = CS 
+	info['InfoS'] = InfoS 
 	info['PS'] = PS
 	info['Regs'] = Regs
 	return info
@@ -164,6 +192,8 @@ def z3Instr(instr, info):
 def encode(listS):
 	info = {
 		'CS' : [],			# Program Behaviors
+			'InfoS': [],	# Program Information
+			'BasisS':[],	# Behavior property
 		'PS' : [],			# Program Properties
 		'MemOp' : {			# Memory Operations
 			'write':[], 	#  - Write Operations 				(name, accessLocation, issuedProc)
@@ -191,10 +221,11 @@ def encode(listS):
 			}
 	}
 
-	# (1) Encode instructions as program behaviors (CS)
+	# (1) Encode instructions as program information (InfoS)
 	# (2) Collect Memory Operations 
 	# (4) Program Properties (PS)
-	CS = []
+	InfoS = []
+	BasisS = []
 	PS = []
 	PO = []
 	p = 0
@@ -203,7 +234,7 @@ def encode(listS):
 		info['po'] = []
 		for e in s:
 			info = z3Instr(e, info)
-			CS += info['CS']
+			InfoS += info['InfoS']
 			PS += info['PS']
 
 		# (2.5) Generate the program order of program s 
@@ -213,15 +244,17 @@ def encode(listS):
 		if(len(o) >= 2):
 			for i in range(1,len(o)):
 				po_z3 += [hw.po(o[i-1], o[i])]
-		CS += po_z3
+		InfoS += po_z3
 		p = p + 1
 
 	# Each location should different
 	for (l1, l2) in itertools.combinations(info['Loc'],2):
-		CS += [ Not(info['Loc'][l1] == info['Loc'][l2]) ]
+		BasisS += [ Not(info['Loc'][l1] == info['Loc'][l2]) ]
 		
 
-	info['CS'] = CS
+	info['InfoS'] = InfoS 
+	info['BasisS'] = BasisS
+	info['CS'] = InfoS + BasisS
 	info['PS'] = PS
 	info['po'] = PO
 

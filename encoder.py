@@ -31,10 +31,11 @@ def archEncode(P, arch = 'arm', model = 'SC'):
 		modelAx = sparc_models.getModel(model)
 
 	# encode
-	info = encode(norm)				# program information
-
-	axioms 	= modelAx.axioms(info) 			# basis axioms
+	info = encode(norm)						# program information (consists of InfoS and BasisS)
+	# initial location axioms are included in BasisS
 	initalLoc = modelAx.initial_location(info['Loc'])	# initial value of every location
+	axioms 	= modelAx.axioms(info) 			# BasisS + X_M (constraints of a memory model)
+	# U_S : Underlying behaviors
 	addition = modelAx.additional_axioms(	# Additional (xo, return_value)
 										Loc = info['Loc'], 
 		  								MemOp = { 
@@ -42,7 +43,7 @@ def archEncode(P, arch = 'arm', model = 'SC'):
 		  									'write': info['MemOp']['write'],
 		  									'rmw': info['MemOp']['rmw'] },
 		  								Proc = info['Proc']) 
-	behaviors = And(info['CS'])		# 	CS
+	behaviors = And(info['InfoS'] + info['BasisS'])		# 	CS
 	properties = (And(info['PS']))	#	PS
 
 	return (info, And(axioms + initalLoc + addition + [behaviors,Not(properties)]))

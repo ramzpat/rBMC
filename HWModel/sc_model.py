@@ -9,18 +9,18 @@ class SCModel(HWModel):
 		return "SC model"
 
 	# Relations
-	spo = Function('spo', hw.Instr, hw.Instr, BoolSort()) 	# Significant program order
-	sco = Function('sco', hw.Instr, hw.Instr, BoolSort())		# Significant conflict order
+	spo = Function('spo', hw.Opr, hw.Opr, BoolSort()) 	# Significant program order
+	sco = Function('sco', hw.Opr, hw.Opr, BoolSort())		# Significant conflict order
 	
 	# Helping_relation
-	loopRel = Function('loopRel', hw.Instr, hw.Instr, BoolSort())	
+	loopRel = Function('loopRel', hw.Opr, hw.Opr, BoolSort())	
 
-	spo.domain = (lambda i: hw.Instr)
-	sco.domain = (lambda i: hw.Instr)
-	loopRel.domain = (lambda i: hw.Instr) 
+	spo.domain = (lambda i: hw.Opr)
+	sco.domain = (lambda i: hw.Opr)
+	loopRel.domain = (lambda i: hw.Opr) 
 
 	rw1, rw2 = Consts('rw1 rw2', hw.MemOp)
-	a, b = 	Consts('a b', hw.Instr)
+	a, b = 	Consts('a b', hw.Opr)
 	r = Const('r', hw.ReadOp)
 	w = Const('w', hw.WriteOp)
 	r1, r2 = Consts('r1 r2', hw.ReadOp)
