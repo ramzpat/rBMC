@@ -104,30 +104,52 @@ def z3Instr(instr, info):
 
 		# the assignment read a value from rmw statement
 		elif isinstance(exp, i_rmw):
-			# New rmw 
-			name = 'rmw_'+str(info['RmwCnt'])
-			info['RmwCnt'] = info['RmwCnt'] + 1
-			rmw = Const(name, hw.AtomicOp)							# Generate a fresh memory operation (rmw operation)
 
-			info['counterExample']['rmw'] += [(rmw, instr, info['Proc'][-1])]
+			# New rmw 
+			# name = 'rmw_'+str(info['RmwCnt'])
+			# info['RmwCnt'] = info['RmwCnt'] + 1
+			# rmw = Const(name, hw.AtomicOp)							# Generate a fresh memory operation (rmw operation)
+
+			read = Const('read_'+str(info['ReadCnt']), hw.ReadOp)
+			write = Const('write_'+str(info['WriteCnt']), hw.WriteOp)
+			info['ReadCnt'] = info['ReadCnt'] + 1			
+			info['WriteCnt'] = info['WriteCnt'] + 1
+
+			# collect data for presenting a counterexample 
+			info['counterExample']['read'] += [(read, instr, info['Proc'][-1])]
+			info['counterExample']['write'] += [(write, instr, info['Proc'][-1])]
+			# info['counterExample']['rmw'] += [ (rmw, instr, info['Proc'][-1]) ]
 
 			addr = str(exp.addr)
 			info['Loc'][addr] = Const(addr, hw.Loc)
 			loc = info['Loc'][addr]
 
-			# rmw \in RMW_S
-			info['MemOp']['rmw'] += [(rmw, loc, info['Proc'][-1])]		# Add the memory operation
-			info['po'] = info['po']	+ [rmw] 							# Update the program order 
+			# r, w \in RW_S
+			info['MemOp']['read'] += [(read, loc, info['Proc'][-1])]	# Add the memory operation
+			info['MemOp']['write'] += [(write, loc, info['Proc'][-1])]	# Add the memory operation
+			info['MemOp']['rmw'] += [((read, loc, info['Proc'][-1]), (write, loc, info['Proc'][-1]))]		# Add the read-modify-write behavior
+			info['po'] = info['po'] + [read, write]						# Update the program order 
+			# info['po'] = info['po']	+ [rmw] 							# Update the program order 
 
 			write_val = Regs[str(exp.rt)] if isinstance(exp.rt, Register) else exp.rt
 
 			# transformation of rmw
-			InfoS += [ 	var == hw.return_val(hw.atomic_read(rmw)),
-					hw.mem_access(hw.atomic_read(rmw)) == loc,
-					hw.mem_access(hw.atomic_write(rmw)) == loc, 
-					hw.issue_proc(hw.atomic_read(rmw)) == info['Proc'][-1], 
-					hw.issue_proc(hw.atomic_write(rmw)) == info['Proc'][-1],
-					hw.write_val(hw.atomic_write(rmw)) == write_val
+			InfoS += [
+					# read
+					var == hw.return_val(read),
+					hw.mem_access(read) == loc,
+					hw.issue_proc(read) == info['Proc'][-1],
+					# write
+					hw.write_val(write) == write_val,
+					hw.mem_access(write)== loc,
+					hw.issue_proc(write) == info['Proc'][-1]
+
+					# var == hw.return_val(hw.atomic_read(rmw)),
+					# hw.mem_access(hw.atomic_read(rmw)) == loc,
+					# hw.mem_access(hw.atomic_write(rmw)) == loc, 
+					# hw.issue_proc(hw.atomic_read(rmw)) == info['Proc'][-1], 
+					# hw.issue_proc(hw.atomic_write(rmw)) == info['Proc'][-1],
+					# hw.write_val(hw.atomic_write(rmw)) == write_val
 			]
 
 		# the result from if-expression ( in the form (cond)? exp1:exp2 )

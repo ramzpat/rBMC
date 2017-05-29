@@ -84,8 +84,8 @@ class HWModel(object):
 		read = info['MemOp']['read']
 		rmwList = info['MemOp']['rmw']
 		memOp = write + read
-		for (a, loc, p) in rmwList:
-			memOp += [(hw.atomic_write(a),loc,p), (hw.atomic_read(a), loc, p)]
+		# for (a, loc, p) in rmwList:
+		# 	memOp += [(hw.atomic_write(a),loc,p), (hw.atomic_read(a), loc, p)]
 		conflict_manual_def += [ conflict_def(w1, w2) for (w1, w2) in itertools.permutations(memOp, 2)]
 		
 		# -co-> definition
@@ -115,8 +115,8 @@ class HWModel(object):
 
 
 		rw1, rw2 = Consts('rw1 rw2', MemOp)
-		rmw = Const('rmw', AtomicOp)
-		rmw1, rmw2 = Consts('rmw1 rmw2', AtomicOp)
+		# rmw = Const('rmw', AtomicOp)
+		# rmw1, rmw2 = Consts('rmw1 rmw2', AtomicOp)
 		w = Const('w', WriteOp)
 		r1, r2 = Consts('r1 r2', ReadOp)
 		i, j = Consts('i j', Proc)
@@ -127,54 +127,70 @@ class HWModel(object):
 					And( xo(subAtomR, subW), xo(subAtomW, subW) ),
 					And( xo(subW, subAtomR), xo(subW, subAtomW) ))
 
-		axioms_atomic = [			
-					ForAll([rmw, w, i], 
+		# axioms_atomic = [			
+		# 			ForAll([rmw, w, i], 
+		# 				Implies(
+		# 					And(restrict(rmw, rmwList),
+		# 						issue_proc(rmw) != issue_proc(w), 
+		# 						issue_proc(rmw) == i, 
+		# 						conflict(atomic_read(rmw), w)
+		# 						),
+		# 					__atomicExce(
+		# 						subOpr(atomic_read(rmw), i), 
+		# 						subOpr(atomic_write(rmw), i), 
+		# 						subOpr(w, i)
+		# 						)
+		# 					)
+		# 				),
+		# 			#  po information for read and write in atomicOp
+		# 			ForAll([rw1, rmw],
+		# 				Implies(And(restrict(rmw, rmwList),
+		# 							po(rw1, rmw)),
+		# 						po(rw1, atomic_read(rmw))
+		# 					)
+		# 				),
+		# 			ForAll([rw1, rmw],
+		# 				Implies(And(restrict(rmw, rmwList),
+		# 							po(rw1, rmw)),
+		# 						po(rw1, atomic_write(rmw))
+		# 					)
+		# 				),
+		# 			ForAll([rw2, rmw],
+		# 				Implies(And(restrict(rmw, rmwList),
+		# 							po(rmw, rw2)),
+		# 						po(atomic_read(rmw), rw2)
+		# 					)
+		# 				),
+		# 			ForAll([rw2, rmw],
+		# 				Implies(And(restrict(rmw, rmwList),
+		# 							po(rmw, rw2)),
+		# 						po(atomic_write(rmw), rw2)
+		# 					)
+		# 				),
+		# 			ForAll([rmw1, rmw2],
+		# 				Implies(And(restrict(rmw1, rmwList),
+		# 							restrict(rmw2, rmwList),
+		# 							po(rmw1, rmw2)),
+		# 						po(atomic_write(rmw1), atomic_read(rmw2))
+		# 					)
+		# 				)
+		# 			]
+
+		# Cond 3 : read-modify-write behaviors
+		axioms_atomic = []
+		for ((rmw_r, loc, pi), (rmw_w, loc, pi)) in rmwList:
+			axioms_atomic += [
+				ForAll(w, 
 						Implies(
-							And(restrict(rmw, rmwList),
-								issue_proc(rmw) != issue_proc(w), 
-								issue_proc(rmw) == i, 
-								conflict(atomic_read(rmw), w)
-								),
+							And(conflict(rmw_w, w)),
 							__atomicExce(
-								subOpr(atomic_read(rmw), i), 
-								subOpr(atomic_write(rmw), i), 
-								subOpr(w, i)
+								subOpr(rmw_r, pi), 
+								subOpr(rmw_w, pi), 
+								subOpr(w, pi)
 								)
 							)
-						),
-					#  po information for read and write in atomicOp
-					ForAll([rw1, rmw],
-						Implies(And(restrict(rmw, rmwList),
-									po(rw1, rmw)),
-								po(rw1, atomic_read(rmw))
-							)
-						),
-					ForAll([rw1, rmw],
-						Implies(And(restrict(rmw, rmwList),
-									po(rw1, rmw)),
-								po(rw1, atomic_write(rmw))
-							)
-						),
-					ForAll([rw2, rmw],
-						Implies(And(restrict(rmw, rmwList),
-									po(rmw, rw2)),
-								po(atomic_read(rmw), rw2)
-							)
-						),
-					ForAll([rw2, rmw],
-						Implies(And(restrict(rmw, rmwList),
-									po(rmw, rw2)),
-								po(atomic_write(rmw), rw2)
-							)
-						),
-					ForAll([rmw1, rmw2],
-						Implies(And(restrict(rmw1, rmwList),
-									restrict(rmw2, rmwList),
-									po(rmw1, rmw2)),
-								po(atomic_write(rmw1), atomic_read(rmw2))
-							)
-						)
-					]
+					)
+			]
 
 		# Partial order axioms 
 		def DeclareList(sort):
@@ -219,8 +235,8 @@ class HWModel(object):
 	# Additional conditions for programs behaviors
 	# Condition 4.4 + 4.5
 	def generate_xo(self, location, write = [], read = [], proc = [], rmw = []):
-		write += [(atomic_write(a),l,i) for (a,l,i) in rmw]
-		read += [(atomic_read(a),l,i) for (a,l,i) in rmw]
+		# write += [(atomic_write(a),l,i) for (a,l,i) in rmw]
+		# read += [(atomic_read(a),l,i) for (a,l,i) in rmw]
 		
 		listSubOprW = [subOpr(w, i) for i in proc for (w,l,j) in write ]
 		listSubOprR = [subOpr(r, i) for (r,l,i) in read ]
@@ -314,8 +330,8 @@ class HWModel(object):
 		
 
 		# ---------- Process 
-		write += [ (atomic_write(a),l,k) for (a,l,k) in rmw ]
-		read += [ (atomic_read(a),l,k) for (a,l,k) in rmw ]
+		# write += [ (atomic_write(a),l,k) for (a,l,k) in rmw ]
+		# read += [ (atomic_read(a),l,k) for (a,l,k) in rmw ]
 	
 		wj = Const('wj', WriteOp)
 		i,j = Consts('i j', Proc)
@@ -434,8 +450,8 @@ class HWModel(object):
 		wj = Const('wj', WriteOp)
 		r = Const('r', ReadOp)
 
-		write += [ (atomic_write(a),l,k) for (a,l,k) in rmw ]
-		read += [ (atomic_read(a),l,k) for (a,l,k) in rmw ]
+		# write += [ (atomic_write(a),l,k) for (a,l,k) in rmw ]
+		# read += [ (atomic_read(a),l,k) for (a,l,k) in rmw ]
 	
 		i,j = Consts('i j', Proc)
 
