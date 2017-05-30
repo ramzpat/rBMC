@@ -70,20 +70,35 @@ class SCModel(HWModel):
 				hw.xo(hw.subOpr(w1,i), hw.subOpr(w2, i)) 
 				)
 			),
-		# LoopRel def (Base case)
+		
+		# LoopRel def 
 		ForAll([rw1, rw2],
-			Implies(sco(rw1, rw2),
-				loopRel(rw1, rw2))
-			),
-		# LoopRel def (Inductive case)
-		ForAll([rw1, rw2,a, b, i],
-			Implies(
-				And(loopRel(rw1, a),
-					spo(a, b),
-					sco(b, rw2)
-					),
-				loopRel(rw1, rw2))
-			),
+			If( Exists(a, And(sco(rw1, a), spo(a, rw2))), loopRel(rw1, rw2),
+				If( Exists([a], And(loopRel(rw1,a), loopRel(a, rw2)) ) , 
+					loopRel(rw1, rw2) , Not(loopRel(rw1, rw2)) )
+				)
+		),
+		# not reflexive
+		ForAll([rw1, rw2],
+			Implies(loopRel(rw1,rw2), rw1 != rw2)
+		),
+
+		# # LoopRel def (Base case)
+		# ForAll([rw1, rw2],
+		# 	Implies(sco(rw1, rw2),
+		# 		loopRel(rw1, rw2))
+		# 	),
+		# # LoopRel def (Inductive case)
+		# ForAll([rw1, rw2,a, b, i],
+		# 	Implies(
+		# 		And(loopRel(rw1, a),
+		# 			spo(a, b),
+		# 			sco(b, rw2)
+		# 			),
+		# 		loopRel(rw1, rw2))
+		# 	),
+
+
 		# Multi-proc 1
 		ForAll([w1, r, rw2, i],
 			Implies(
@@ -94,23 +109,23 @@ class SCModel(HWModel):
 				hw.xo(hw.subOpr(w1, i), hw.subOpr(rw2, i)))
 			),
 		# Multi-proc 2
-		ForAll([rw1, rw2, a, b, i],
+		ForAll([rw1, rw2, a, i],
 			Implies(And(
 					hw.conflict(rw1, rw2),
 					spo(rw1, a),
-					loopRel(a, b),
-					spo(b, rw2),
+					loopRel(a, rw2),
+					# spo(b, rw2),
 					),
 				hw.xo(hw.subOpr(rw1, i), hw.subOpr(rw2, i)))
 			),
 		# Multi-proc 3
-		ForAll([w1, r2, i, r, a, b],
+		ForAll([w1, r2, i, r, a],
 			Implies(And(
 					hw.conflict(w1, r2),
 					sco(w1, r),
 					spo(r, a), 
-					loopRel(a, b),
-					spo(b, r2),
+					loopRel(a, r2),
+					# spo(b, r2),
 					),
 				hw.xo(hw.subOpr(w1, i), hw.subOpr(r2, i)))
 			),

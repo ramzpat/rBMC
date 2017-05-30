@@ -83,15 +83,16 @@ class PSOPlusModel(HWModel):
 		SPO1 = [ ForAll([x], Not( spo1(x,x) )) ]
 		SPO2 = [ ForAll([x], Not( spo2(x,x) )) ]
 
-		write_p_rmw = writes + [(hw.atomic_write(a),l,i) for (a, l, i) in rmw]
-		read_p_rmw = reads + [(hw.atomic_read(a),l,i) for (a, l, i) in rmw]
+		write_p_rmw = writes #+ [(hw.atomic_write(a),l,i) for (a, l, i) in rmw]
+		read_p_rmw = reads #+ [(hw.atomic_read(a),l,i) for (a, l, i) in rmw]
+		atom_w = [w for (r, w) in rmw]
 		
 		rw1, rw2, rw3 = Consts('rw1 rw2 rw3', hw.MemOp)
 		r = Const('tempR', hw.ReadOp)
 		w1, w2 = Consts('tempW1 tempW2', hw.WriteOp)
 		wr = Const('wr_fence', MembarWR)
 		st = Const('st_fence', STBar)
-		a_rmw = Const('a_rmw', hw.AtomicOp)
+		# a_rmw = Const('a_rmw', hw.AtomicOp)
 
 		SPO2 += [
 			ForAll([rw1, rw2], 
@@ -115,8 +116,12 @@ class PSOPlusModel(HWModel):
 		SPO1 += [
 			ForAll([rw1, rw2],
 				# W (in RMW) -po-> R
-				If( Exists([a_rmw, r], And(restrict(a_rmw, rmw), restrict(r, read_p_rmw), 
-											rw1 == write(hw.atomic_write(a_rmw)), rw2 == hw.read(r),
+				If( Exists([r], And(
+											# restrict(a_rmw, rmw), 
+											# rw1 == write(hw.atomic_write(a_rmw)), 
+											restrict(r, read_p_rmw), 
+											restrict(rw1, atom_w),
+											rw2 == hw.read(r),
 											hw.po(rw1, rw2))),
 				spo1(rw1, rw2), Not(spo1(rw1, rw2)))
 				)
@@ -190,7 +195,7 @@ class PSOPlusModel(HWModel):
 		i, j = Consts('i j', hw.Proc)
 
 		# stbar = Const('stbar', FenceOp)
-		rmw = Const('rmw', hw.AtomicOp)
+		# rmw = Const('rmw', hw.AtomicOp)
 		memb_wr = Const('membar_wr', self.MembarWR)
 
 		# Conditions 
@@ -232,14 +237,14 @@ class PSOPlusModel(HWModel):
 				)
 			),
 
-			# % util-func   X -sco-> ... -spo-> Y 
+			# LoopRel def 
 			ForAll([rw1, rw2],
-			If( sco(rw1, rw2), loopRel(rw1, rw2),
-				If( Exists([a,b], And(loopRel(rw1,a), spo(a, b), sco(b, rw2)) ) , 
-					loopRel(rw1, rw2) , Not(loopRel(rw1, rw2)) )
-				)
+				If( Exists(a, And(sco(rw1, a), spo(a, rw2))), loopRel(rw1, rw2),
+					If( Exists([a], And(loopRel(rw1,a), loopRel(a, rw2)) ) , 
+						loopRel(rw1, rw2) , Not(loopRel(rw1, rw2)) )
+					)
 			),
-
+			# not reflexive
 			ForAll([rw1, rw2],
 				Implies(loopRel(rw1,rw2), rw1 != rw2)
 			),
@@ -247,13 +252,13 @@ class PSOPlusModel(HWModel):
 			# % Multi - 2
 			# % RW -spo-> { A -sco-> B -spo-> }+ RW *)
 			# xo(subOpr(RW,I), subOpr(RW2,I)) :- conflict(RW,RW2), subOpr(RW,I), subOpr(RW2,I), isRW(RW), isRW(RW2), spo(RW,AA), loopRel(AA,BB), spo(BB,RW2). 
-			ForAll([rw1, rw2, a, b, i],
+			ForAll([rw1, rw2, a, i],
 				Implies(
 					And(
 						hw.conflict(rw1, rw2),
 						spo(rw1, a),
-						loopRel(a, b),
-						spo(b, rw2),
+						loopRel(a, rw2),
+						# spo(b, rw2),
 					),
 					hw.xo(hw.subOpr(rw1, i), hw.subOpr(rw2, i))
 				)
@@ -262,14 +267,14 @@ class PSOPlusModel(HWModel):
 			# % Multi - 3
 			# %% W -sco-> R -spo-> { A -sco-> B -spo-> }+ R
 			# xo(subOpr(W,I), subOpr(R2,I)) :- conflict(W,R2), subOpr(W,I), subOpr(R2,I), isWrite(W), isRead(R), isRead(R2), sco(W,R), spo(R,AA), loopRel(AA,BB), spo(BB,R2). 
-			ForAll([w1, r2, i, a, b, r],
+			ForAll([w1, r2, i, a, r],
 				Implies(
 					And(
 						hw.conflict(w1, r2),
 						sco(w1, r),
 						spo(r, a),
-						loopRel(a, b),
-						spo(b, r2),  
+						loopRel(a, r2),
+						# spo(b, r2),  
 					),
 					hw.xo(hw.subOpr(w1, i), hw.subOpr(r2, i))
 				)
