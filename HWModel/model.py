@@ -127,55 +127,6 @@ class HWModel(object):
 					And( xo(subAtomR, subW), xo(subAtomW, subW) ),
 					And( xo(subW, subAtomR), xo(subW, subAtomW) ))
 
-		# axioms_atomic = [			
-		# 			ForAll([rmw, w, i], 
-		# 				Implies(
-		# 					And(restrict(rmw, rmwList),
-		# 						issue_proc(rmw) != issue_proc(w), 
-		# 						issue_proc(rmw) == i, 
-		# 						conflict(atomic_read(rmw), w)
-		# 						),
-		# 					__atomicExce(
-		# 						subOpr(atomic_read(rmw), i), 
-		# 						subOpr(atomic_write(rmw), i), 
-		# 						subOpr(w, i)
-		# 						)
-		# 					)
-		# 				),
-		# 			#  po information for read and write in atomicOp
-		# 			ForAll([rw1, rmw],
-		# 				Implies(And(restrict(rmw, rmwList),
-		# 							po(rw1, rmw)),
-		# 						po(rw1, atomic_read(rmw))
-		# 					)
-		# 				),
-		# 			ForAll([rw1, rmw],
-		# 				Implies(And(restrict(rmw, rmwList),
-		# 							po(rw1, rmw)),
-		# 						po(rw1, atomic_write(rmw))
-		# 					)
-		# 				),
-		# 			ForAll([rw2, rmw],
-		# 				Implies(And(restrict(rmw, rmwList),
-		# 							po(rmw, rw2)),
-		# 						po(atomic_read(rmw), rw2)
-		# 					)
-		# 				),
-		# 			ForAll([rw2, rmw],
-		# 				Implies(And(restrict(rmw, rmwList),
-		# 							po(rmw, rw2)),
-		# 						po(atomic_write(rmw), rw2)
-		# 					)
-		# 				),
-		# 			ForAll([rmw1, rmw2],
-		# 				Implies(And(restrict(rmw1, rmwList),
-		# 							restrict(rmw2, rmwList),
-		# 							po(rmw1, rmw2)),
-		# 						po(atomic_write(rmw1), atomic_read(rmw2))
-		# 					)
-		# 				)
-		# 			]
-
 		# Cond 3 : read-modify-write behaviors
 		axioms_atomic = []
 		for ((rmw_r, loc, pi), (rmw_w, loc, pi)) in rmwList:

@@ -88,6 +88,8 @@ class TSOPlusModel(HWModel):
 		wr = Const('wr_fence',MembarWR)
 		# a_rmw = Const('a_rmw', hw.AtomicOp)
 
+		# In the implementation, using iff(==) might slow the solver
+		# So, we using If expression in z3 to def it.
 		SPO2 += [
 			ForAll([rw1, rw2], 
 				# R -po-> RW

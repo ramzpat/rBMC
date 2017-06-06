@@ -1,0 +1,17 @@
+; peterson's algorithm 2
+mov r6, #0
+	mov r1, #1
+	str r1, [f1]	; flag[1] <- true
+P1_gate:
+	str r6, [turn] 
+while:
+	ldr r2, [f0] 
+	cmp r2, #1
+	bne CS
+while2:
+	ldr r3, [turn]
+	cmp r3, r6
+	beq while
+CS: assert(not(r2 <> #1 or r3 <> r6))
+unlock: 
+	;str r6, [f1]
