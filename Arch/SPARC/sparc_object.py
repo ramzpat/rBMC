@@ -3,8 +3,12 @@ if __package__ is None:
   from os import path
   sys.path.append( path.dirname(path.dirname( path.dirname( path.abspath(__file__) ) ) ))
   from Arch.arch_object import *
+  from Arch.SPARC.Models.sparc_z3 import *
 else:  
   from Arch.arch_object import *
+  from Arch.SPARC.Models.sparc_z3 import *
+
+
 
 class SparcBranch(InstrBranch):
 	def setAnnulled(self, a):
@@ -29,6 +33,17 @@ class MEMWR(i_fence):
 		self.name = 'MEMBAR(WR)'
 	def __str__(self):
 		return 'MEMBAR(WR)'
+	def encoded_element(self, name):
+		return Const(name, MembarWR)
+
+class STBAR(i_fence):
+	def __init__(self):
+		self.name = 'STBAR'
+	def __str__(self):
+		return 'STBAR'
+	def encoded_element(self, name):
+		return Const(name, STBar)
+
 		
 
 # Encode Instruction object
@@ -68,8 +83,8 @@ def instr_memory(name, addr, reg, cond = (True)):
 		i.iSemantics = (lambda: [(reg << i_rmw(1, addr))])
 		statement = i 
 		# [(reg << i_rmw(1, addr))]
-	# elif name == 'str':
-	# 	statement = [i_write(reg, operand)]
+	elif name == 'stub':
+		statement = i_write(reg, addr)
 	return [statement]
 
 def instr_branch(br, reg, label):
@@ -157,8 +172,12 @@ def instr_branch(br, reg, label):
 		statement = [b]
 	return statement
 
-def instr_fence():
-	statement = [MEMWR()]
+def instr_fence(mask):
+	statement = []
+	if mask == 'StoreLoad':
+		statement = [MEMWR()]
+	elif mask == 'StoreStore':
+		statement = [STBAR()]
 	return statement
 
 

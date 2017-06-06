@@ -4,7 +4,7 @@ import encoder
 from z3 import *
 from HWModel.hw_z3 import *
 
-def verify(P, arch = 'arm', model = 'SC', k = 0, debug = False):
+def verify(P, arch = 'arm', model = 'SC', k = 0, debug = True):
 	U = translator.translate(P, arch, k)
 	j = 1
 	result = unsat

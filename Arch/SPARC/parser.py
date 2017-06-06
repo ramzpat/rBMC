@@ -73,7 +73,7 @@ class SPARCParser(ASMParser):
 	def p_instr_memwr(self, p):
 		'''	instr_memwr : MEM_SYNC '#' MEM_MASK
 		'''
-		p[0] = instr_fence()
+		p[0] = instr_fence(p[3])
 
 	def p_instr_processing(self, p):
 		''' instr_processing : INSTR_ARTH REGISTER ',' operand

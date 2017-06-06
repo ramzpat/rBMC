@@ -1,0 +1,4 @@
+mova #1, r1
+stub [X], r1
+MEMBAR #StoreStore
+stub [Y], r1

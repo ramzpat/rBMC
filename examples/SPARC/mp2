@@ -1,0 +1,4 @@
+ldub [Y], r2
+ldub [X], r3
+assume(r2 = #1)
+assert(r3 = #1)

@@ -107,7 +107,7 @@ class SPARCLex(ASMLex):
     return t 
 
   def t_MEM_MASK(self, t):
-    r'StoreLoad'
+    r'StoreLoad | StoreStore'
     return t
 
    # -- Identification

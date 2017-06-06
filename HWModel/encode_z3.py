@@ -205,7 +205,10 @@ def z3Instr(instr, info):
 		InfoS += newInfoS
 		PS += newPS
 	elif isinstance(instr, i_fence):
-		element = instr.encoded_element()
+		# New fence
+		name = 'fence_' + str(info['FenceCnt'])
+		info['FenceCnt'] = info['FenceCnt'] + 1
+		element = instr.encoded_element(name)
 		if element:
 			info['po'] = info['po'] + [element]
 
@@ -234,6 +237,7 @@ def encode(listS):
 		'ReadCnt' : 0,
 		'WriteCnt' : 0,
 		'RmwCnt' : 0,
+		'FenceCnt' : 0,
 
 		'Loc' : {}, 	# A set of locations
 		'Proc' : [],

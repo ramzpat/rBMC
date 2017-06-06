@@ -252,6 +252,6 @@ class Register(Exp):
 
 # # -- Additional operator (such as fence)
 class i_fence(iSemantics):
-	def encoded_element(self):
+	def encoded_element(self, name):
 		return None
 

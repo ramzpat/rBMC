@@ -9,7 +9,7 @@ This work adopts a framework provided by Characholoo [1]. The current support me
 
 # Usage
 ``
-python rbmc.py \<bound_k\> \<memory_model\> \<syntax\> \{ \<input_file\> \}+
+python rbmc.py <bound_k> <memory_model> <syntax> { <input_file> }+
 ``
 ## Example
 ```
