@@ -24,6 +24,9 @@ def Norm(R, cs = True):
 		return Norm(r.statement, (cs & r.cond)) + Norm(R[1:], cs)
 	elif r == None:
 		return Norm(R[1:], cs)
+	# add fence
+	elif isinstance(r, i_fence):
+		return [ i_if(cs, [r] ) ] + Norm(R[1:], cs)
 	else:
 		print R
 		# return 

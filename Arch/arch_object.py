@@ -197,7 +197,7 @@ class i_read(iSemantics):
 		# self.read = read 
 		self.opr = opr 
 	def __str__(self):
-		return 'load('+ str(self.opr) + ')'
+		return 'read('+ str(self.opr) + ')'
 
 # -- write(rt, addr)
 class i_write(iSemantics):
@@ -206,7 +206,7 @@ class i_write(iSemantics):
 		self.rt = rt
 		self.addr = addr
 	def __str__(self):
-		return 'store(' + str(self.rt) + ','  + str(self.addr) + ')'
+		return 'write(' + str(self.rt) + ','  + str(self.addr) + ')'
 
 # -- var := exp
 class i_assignment(iSemantics):
@@ -234,9 +234,6 @@ class i_if_exp(iSemantics):
 	def __str__(self):
 		return "(" + str(self.cond) + ")? " + str(self.t_exp) + ":" + str(self.f_exp)
 
-class i_special (iSemantics):
-	pass
-
 # -- Register
 class Register(Exp):
 	def __init__(self, name):
@@ -250,4 +247,11 @@ class Register(Exp):
 
 	def __hash__(self):
 		return hash(self.reg_name)
+
+
+
+# # -- Additional operator (such as fence)
+class i_fence(iSemantics):
+	def encoded_element(self):
+		return None
 

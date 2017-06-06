@@ -17,6 +17,18 @@ syntax = sys.argv[3]
 input_files = sys.argv[4:]
 nProc = len(input_files)
 
+
+__modelList = ['SC','TSO+','PSO+']
+__systaxList = ['arm', 'sparc']
+
+
+if not( memory_model in __modelList ):
+	raise Exception('This tool currently supports only SC, TSO+, and PSO+ memory models')
+
+if not( syntax in __systaxList ):
+	raise Exception('This tool currently supports only arm and sparc syntax (not complete yet)')
+
+
 prog = []
 for file in input_files:
 	with open(file, 'r') as myfile:

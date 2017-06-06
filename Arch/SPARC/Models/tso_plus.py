@@ -10,6 +10,7 @@ else:
   from HWModel.model import *
   import HWModel.hw_z3 as hw
 
+from sparc_z3 import *
 from z3 import *
 
 
@@ -18,9 +19,9 @@ class TSOPlusModel(HWModel):
 	def __str__(self):
 		return "TSO+ Model"
 
-	# Additional Op
-	MembarWR =	DeclareSort('MEMBAR(WR)')				# MEMBER(WR) operation in TSO+ (spac v8+) 
-	membarOp = Function('f_membar', MembarWR, hw.FenceOp)	# a wrapper function
+	# # Additional Op
+	# MembarWR =	DeclareSort('MEMBAR(WR)')				# MEMBER(WR) operation in TSO+ (spac v8+) 
+	# membarOp = Function('f_membar', MembarWR, hw.FenceOp)	# a wrapper function
 	
 	def __init__(self):
 		hw.FenceOp.cast = (lambda val:
@@ -56,7 +57,7 @@ class TSOPlusModel(HWModel):
 		spo2 = self.spo2
 		spo  = self.spo
 		sco = self.sco
-		MembarWR = self.MembarWR
+		# MembarWR = self.MembarWR
 
 		def is_PO(po, x, y):
 			result = False
@@ -112,12 +113,13 @@ class TSOPlusModel(HWModel):
 		SPO1 += [
 			ForAll([rw1, rw2],
 				# W (in RMW) -po-> R
-				If( Exists([r], And(
+				If( Exists([r, w1], And(
 											# restrict(a_rmw, rmw), 
 											# rw1 == write(hw.atomic_write(a_rmw)), 
 											restrict(r, read_p_rmw), 
-											restrict(rw1, atom_w),
+											restrict(w1, atom_w),
 											rw2 == hw.read(r),
+											rw1 == hw.write(w1),
 											hw.po(rw1, rw2))),
 				spo1(rw1, rw2), Not(spo1(rw1, rw2)))
 				)
@@ -147,7 +149,7 @@ class TSOPlusModel(HWModel):
 		spo2 = self.spo2
 		spo  = self.spo
 		sco = self.sco
-		MembarWR = self.MembarWR
+		# MembarWR = self.MembarWR
 
 		write_p_rmw = writes #+ [(hw.atomic_write(a),l,i) for (a, l, i) in rmw]
 		read_p_rmw = reads #+ [(hw.atomic_read(a),l,i) for (a, l, i) in rmw]
@@ -192,7 +194,7 @@ class TSOPlusModel(HWModel):
 
 		# stbar = Const('stbar', FenceOp)
 		# rmw = Const('rmw', hw.AtomicOp)
-		memb_wr = Const('membar_wr', self.MembarWR)
+		memb_wr = Const('membar_wr', MembarWR)
 
 		# Conditions 
 		tso_axioms = [		

@@ -6,7 +6,6 @@ if __package__ is None:
 else:  
   from Arch.arch_object import *
 
-
 class SparcBranch(InstrBranch):
 	def setAnnulled(self, a):
 		self.annul = a 
@@ -22,6 +21,15 @@ class SparcBranch(InstrBranch):
 	# 	return ([InstrAssume(self.cond), self.delayInstr],
 	# 			[InstrAssume(Exp(EOpr['not'],(self.cond))), self.delayInstr])
 
+
+
+# fence - MEMBAR(WR)
+class MEMWR(i_fence):
+	def __init__(self):
+		self.name = 'MEMBAR(WR)'
+	def __str__(self):
+		return 'MEMBAR(WR)'
+		
 
 # Encode Instruction object
 def instr(name, operand, cond = (True)):
@@ -148,6 +156,11 @@ def instr_branch(br, reg, label):
 		b.setPredict(p)
 		statement = [b]
 	return statement
+
+def instr_fence():
+	statement = [MEMWR()]
+	return statement
+
 
 # def instr_delaySlot(s):
 # 	for i in range(0, len(s)-1):

@@ -204,6 +204,11 @@ def z3Instr(instr, info):
 	
 		InfoS += newInfoS
 		PS += newPS
+	elif isinstance(instr, i_fence):
+		element = instr.encoded_element()
+		if element:
+			info['po'] = info['po'] + [element]
+
 
 	# info['CS'] = CS 
 	info['InfoS'] = InfoS 

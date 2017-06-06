@@ -6,6 +6,8 @@ if __package__ is None:
 else:
 	from Arch.arch_computation import *
 
+def fenceList():
+	return []
 
 # Standard CFG for asm behaviors 
 def constructCFG(s):	

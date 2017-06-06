@@ -10,6 +10,7 @@ else:
   from HWModel.model import *
   import HWModel.hw_z3 as hw
 
+from sparc_z3 import *
 from z3 import *
 
 
@@ -18,9 +19,9 @@ class PSOPlusModel(HWModel):
 	def __str__(self):
 		return "PSO+ Model"
 
-	# Additional Op
-	MembarWR =	DeclareSort('MEMBAR(WR)')				# MEMBER(WR) operation in TSO+ (spac v8+) 
-	STBar = DeclareSort('STBar')
+	# # Additional Op
+	# MembarWR =	DeclareSort('MEMBAR(WR)')				# MEMBER(WR) operation in TSO+ (spac v8+) 
+	# STBar = DeclareSort('STBar')
 
 	membarOp = Function('f_membar', MembarWR, hw.FenceOp)	# a wrapper function
 	stbarOp = Function('f_stbar', STBar, hw.FenceOp)	# a wrapper function
@@ -28,7 +29,7 @@ class PSOPlusModel(HWModel):
 	def __init__(self):
 		hw.FenceOp.cast = (lambda val:
 			val if (val.sort() == hw.FenceOp)
-			else self.stbarOp(val) if (val.sort() == self.STBar)
+			else self.stbarOp(val) if (val.sort() == STBar)
 			else self.membarOp(val)
 		)
 
@@ -60,8 +61,8 @@ class PSOPlusModel(HWModel):
 		spo2 = self.spo2
 		spo  = self.spo
 		sco = self.sco
-		MembarWR = self.MembarWR
-		STBar = self.STBar
+		# MembarWR = self.MembarWR
+		# STBar = self.STBar
 
 		def is_PO(po, x, y):
 			result = False
@@ -116,12 +117,13 @@ class PSOPlusModel(HWModel):
 		SPO1 += [
 			ForAll([rw1, rw2],
 				# W (in RMW) -po-> R
-				If( Exists([r], And(
+				If( Exists([r,w1], And(
 											# restrict(a_rmw, rmw), 
 											# rw1 == write(hw.atomic_write(a_rmw)), 
 											restrict(r, read_p_rmw), 
-											restrict(rw1, atom_w),
+											restrict(w1, atom_w),
 											rw2 == hw.read(r),
+											rw1 == hw.write(w1),
 											hw.po(rw1, rw2))),
 				spo1(rw1, rw2), Not(spo1(rw1, rw2)))
 				)
@@ -151,10 +153,10 @@ class PSOPlusModel(HWModel):
 		spo2 = self.spo2
 		spo  = self.spo
 		sco = self.sco
-		MembarWR = self.MembarWR
+		# MembarWR = self.MembarWR
 
-		write_p_rmw = writes + [(hw.atomic_write(a),l,i) for (a, l, i) in rmw]
-		read_p_rmw = reads + [(hw.atomic_read(a),l,i) for (a, l, i) in rmw]
+		write_p_rmw = writes #+ [(hw.atomic_write(a),l,i) for (a, l, i) in rmw]
+		read_p_rmw = reads #+ [(hw.atomic_read(a),l,i) for (a, l, i) in rmw]
 		memOps = [ (hw.MemOp.cast(rw),l,i) for (rw, l, i) in write_p_rmw + read_p_rmw]
 
 		x, y = Consts('x y', hw.MemOp)
@@ -196,7 +198,7 @@ class PSOPlusModel(HWModel):
 
 		# stbar = Const('stbar', FenceOp)
 		# rmw = Const('rmw', hw.AtomicOp)
-		memb_wr = Const('membar_wr', self.MembarWR)
+		memb_wr = Const('membar_wr', MembarWR)
 
 		# Conditions 
 		tso_axioms = [		

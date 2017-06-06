@@ -28,6 +28,9 @@ else:
 # SUB
 
 
+# MEMBAR <mask>
+# <mask> = #StoreStore | #LoadStore | #StoreLoad(WR) | #LoadLoad | #Sync | #MemIssue | #Lookaside
+# MEMBAR(WR) = MEMBAR #StoreLoad
 
 class SPARCLex(ASMLex):
 
@@ -46,6 +49,8 @@ class SPARCLex(ASMLex):
 
             'INSTR_BRANCH', # Branch
             'INSTR_BRANCH_A', # Branch Alway
+
+            'MEM_MASK', 
 
             ]   
   literals = []
@@ -100,6 +105,11 @@ class SPARCLex(ASMLex):
   def t_MEM_SYNC(self, t):
     r'MEMBAR' 
     return t 
+
+  def t_MEM_MASK(self, t):
+    r'StoreLoad'
+    return t
+
    # -- Identification
   def t_ID(self, t):
     r'[a-zA-Z_][a-zA-Z_0-9]*'

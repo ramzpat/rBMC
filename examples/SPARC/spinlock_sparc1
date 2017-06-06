@@ -11,5 +11,6 @@ L2:
   ba,a,pt L1
   nop
 L3:
+MEMBAR #StoreLoad
 assume(r0 = #1)
 ; critical

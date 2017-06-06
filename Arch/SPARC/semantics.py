@@ -6,6 +6,8 @@ if __package__ is None:
 else:
 	from Arch.arch_computation import *
 
+
+
 # SPARC CFG for delayed instructions
 def constructSPARCCGF(s):
 	cfg = CFGNode(s[len(s)-1], (True,None))

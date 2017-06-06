@@ -98,10 +98,7 @@ if __name__ == '__main__':
 	  	# print addition
 	  	m = s.model()
 
-	 #  	w0, w1 = Consts('write_0 write_1', WriteOp)
 	  	r0, r1, r2, r3 = Consts('read_0 read_1 read_2 read_3', ReadOp)
-	 #  	reg3 = Const('r3_0', IntSort())
-	 #  	P0, P1 = Consts('P0 P1', Proc)
 	  	print m[WriteOp]
 	  	print m[ReadOp]
 

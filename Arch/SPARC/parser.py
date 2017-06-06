@@ -57,6 +57,7 @@ class SPARCParser(ASMParser):
 	def p_instruction(self, p):
 		''' instruction : instr_processing
 						| instr_atomic
+						| instr_memwr
 						| instr_memory
 						| instr_branch
 						| instr_branch_a
@@ -68,6 +69,11 @@ class SPARCParser(ASMParser):
 		''' instruction : INSTR_NOP
 		'''
 		p[0] = [None]
+
+	def p_instr_memwr(self, p):
+		'''	instr_memwr : MEM_SYNC '#' MEM_MASK
+		'''
+		p[0] = instr_fence()
 
 	def p_instr_processing(self, p):
 		''' instr_processing : INSTR_ARTH REGISTER ',' operand
