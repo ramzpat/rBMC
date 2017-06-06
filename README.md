@@ -12,15 +12,15 @@ This work adopts a framework provided by Characholoo [1]. The current support me
 python rbmc.py \<bound_k\> \<memory_model\> \<syntax\> \{ \<input_file\> \}+
 ``
 ## Example
-``
+```
 python rbmc.py 1 PSO+ arm examples/ARM/mp*
-``
+```
 or
-``
+```
 python rbmc.py 1 PSO+ arm examples/ARM/mp1 examples/ARM/mp2 
-``
+```
 It results 
-``
+```
 Invalid under PSO+
 ================= Nomalize Programs ======================
 ====== Thread #0
@@ -48,7 +48,7 @@ if(True)['assert((r3_0 == 1)); ']
 [subOpr(write(write_1), P0), subOpr(write(write_0), P0)]
 ==== Trace on processor P1
 [subOpr(write(write_1), P1), subOpr(read(read_0), P1), subOpr(read(read_1), P1), subOpr(write(write_0), P1)]
-``
+```
 
 
 ## Experiment
@@ -56,5 +56,5 @@ if(True)['assert((r3_0 == 1)); ']
 
 
 # References 
-[1] K. Gharachorloo, “Memory Consistency Models for Shared-Memory Multiprocessors.” Stanford University, 1995.
+[1] K. Gharachorloo, “Memory Consistency Models for Shared-Memory Multiprocessors.” Stanford University, 1995.\n
 [2] A. Armando, J. Mantovani, and L. Platania, “Bounded Model Checking of Software Using SMT Solvers Instead of SAT Solvers,” Springer Berlin Heidelberg, 2006, pp. 146–162.
