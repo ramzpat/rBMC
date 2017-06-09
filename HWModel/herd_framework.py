@@ -205,8 +205,8 @@ def program_order(s, PoSet = [], Ev = []):
 	# 								Exists(z, And(po(x,z), po(z,y)))
 	# 								)))
 
-	# for (i,j) in poS:
-	# 	s.add(po(i, j)) 
+	for (i,j) in poS:
+		s.add(po(i, j)) 
 	# s.add(ForAll([x,y,z], Implies(And(po(x,y), po(y,z)), po(x,z))))
 	
 	# s.add(ForAll(x,Not(po(x,x))))
@@ -836,54 +836,47 @@ if __name__ == '__main__':
 	# str r1, [r2/x]
 	tempAddr1 = Int('tempAddr1')
 	Rr2 = new_read('Rr2_0', r2, tempAddr1, 1)
-	loc1 = InitLoc(addrX)
 	# loc1 = Const('loc1', Loc)
 	# s.add(addrLoc(loc1) == TempAddr)
 
 	Vr1_0 = Int('Temp1')
 	Rr1_0 = new_read('Rr1_0', r1, Vr1_0, 1)
 	
-	Wx1 = new_write('Wx1_0', loc1, Vr1_0, 1)
+	Wx1 = new_write('Wx1_0', InitLoc(addrX), Vr1_0, 1)
 
 	# str r1, [r3/y]
 	TempAddr2 = Int('Temp3')
 	Rr3 = new_read('Rr3_0', r3, TempAddr2, 1)
-	loc2 = InitLoc(addrY)
 	# loc2 = Const('loc2', Loc)
 	Vr1_1 = Int('Temp4')
 	Rr1_1 = new_read('Rr1_1', r1, Vr1_1, 1)
 	
 	# s.add(addrLoc(loc2) == TempAddr2)
-	Wy1 = new_write('Wy1_0', loc2, Vr1_1, 1)
-
+	Wy1 = new_write('Wy1_0', InitLoc(addrY), Vr1_1, 1)
+	# print InitLoc(TempAddr2)
 	Ev1 = [Wx0, Wy0, Wr1, Wr2, Wr3, Rr1_0, Rr2, Rr3, Rr1_1, Wx1, Wy1]
 	# print [ev.sort() for ev in Ev1 if isWriteReg(ev) ]
 
 	# P2 
 	r4, r5, r6, r7 = Reg(3), Reg(4), Reg(5), Reg(6)
-
-
+	
 	# mov r4, x
 	Wr4 = new_write('Wr4', r4, addrX, 2)
 	# mov r5, y
 	Wr5 = new_write('Wr5', r5, addrY, 2)
+
 	# ldr r6, [r5]
 	Vr5 = Int('Temp5')
 	Rr5 = new_read('Rr5', r5, Vr5, 2)
-	loc3 = InitLoc(addrY)
-	# loc3 = Const('loc3', Loc)
-	# s.add(addrLoc(loc3) == Int('Vr5'))
 	Vloc3 = Int('Temp6')
-	Rvr5 = new_read('Rvr5', loc3, Vloc3, 2) 
+	Rvr5 = new_read('Rvr5', InitLoc(addrY), Vloc3, 2) 
 	Wr6 = new_write('Wr6', r6, Vloc3, 2)
+
 	# ldr r7, [r4]
 	Vr4 = Int('Temp7')
 	Rr4 = new_read('Rr4', r4, Vr4, 2)
-	# loc4 = Const('loc4', Loc)
-	# s.add(addrLoc(loc4) == Int('Vr4'))
-	loc4 = InitLoc(addrX)
 	Vloc4 = Int('Temp8')
-	Rvr4 = new_read('Rvr4', loc4, Vloc4, 2) 
+	Rvr4 = new_read('Rvr4', InitLoc(addrX), Vloc4, 2) 
 	Wr7 = new_write('Wr7', r7, (Vloc4), 2)
 	
 	Ev2 = [Wr4, Wr5, Rr5, Rvr5, Wr6, Rr4, Rvr4, Wr7]
@@ -915,26 +908,29 @@ if __name__ == '__main__':
 	(s, rf) = read_from(s, Ev1 + Ev2)
 	#  - fr : E x E relation
 	(s, fr) = from_read(s, rf, co)
-	
-	# s = sc_constraints(s, po, rf, fr, co, Ev1 + Ev2)
-	# s = tso_constraints(s, po, rf, fr, co, Ev1 + Ev2)
-	# s = pso_constraints(s, po, rf, fr, co, Ev1 + Ev2)
-
-	EvID = [0 for e in Ev1 + Ev2 ]
-	for e in Ev1 + Ev2:
-		EvID[e.eid] = e
-
 
 	# Instruction semantics level
 	#  - iico : E x E relation
 	(s, iico, iicoSet) = iico_relation(s, iicoS, Ev1 + Ev2)
 	#  - rf-reg : W-reg x R-reg relation
 	(s, rf_reg, rf_regSet) = rf_reg_relation(s, Ev1 + Ev2)
-	s = arm_constraints(s, po, rf, fr, co, iico, rf_reg, poS, iicoSet, rf_regSet, Ev1 + Ev2)
+	
+
+	# s = sc_constraints(s, po, rf, fr, co, Ev1 + Ev2)
+	# s = tso_constraints(s, po, rf, fr, co, Ev1 + Ev2)
+	s = pso_constraints(s, po, rf, fr, co, Ev1 + Ev2)
+
+
+	EvID = [0 for e in Ev1 + Ev2 ]
+	for e in Ev1 + Ev2:
+		EvID[e.eid] = e
+
+	# s = arm_constraints(s, po, rf, fr, co, iico, rf_reg, poS, iicoSet, rf_regSet, Ev1 + Ev2)
 
 	# check prob
 	# s.add(po(Wx0, Wy0))
-	# s.add(Rr1_1.val == 1)
+	# s.add(Rr1_1.val == 2)
+
 	s.add(Rvr5.val == 1)
 	s.add(Rvr4.val == 0)
 	print s.check()
