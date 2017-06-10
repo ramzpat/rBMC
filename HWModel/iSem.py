@@ -1,7 +1,7 @@
 from z3 import *
 import itertools
 
-	# intermediate semantics
+# intermediate semantics
 #  P = <N, E, n0, f>
 #  directed graph
 
@@ -59,6 +59,7 @@ class ReadAssn(Assignment):
 class Assertion(iSem):
 	pass
 
+# fence 
 class ffence(iSem):
 	def __init__(self, name = 'ffence'):
 		iSem.__init__(self, name) 

@@ -273,8 +273,6 @@ def read_from(s, Ev = []):
 	# s.register_relation(rf)
 	for e1 in Ev:
 		if isRead(e1):
-			# print e1
-			# print candidate_writes(e1, Ev)
 			cWrite = candidate_writes(e1, Ev)
 			s.add(Or([rf(w, e1) for w in cWrite ]))
 			# rf-val
@@ -330,7 +328,6 @@ def rf_reg_relation(s, Ev = []):
 	rf_regSet = []
 	for e1 in Ev:
 		if isReadReg(e1):
-			print e1
 			cWrite = candidate_writes(e1, Ev)
 			assert(len(cWrite) == 1)
 			# there are only one correspond write in ssa form
@@ -815,7 +812,6 @@ def power_constraints(Ev = []):
 
 	# Propogation order for Power
 	# 
-
 	axioms = []
 	return axioms
 

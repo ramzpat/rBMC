@@ -5,9 +5,9 @@ if __package__ is None:
 	import sys
 	from os import path
 	sys.path.append((path.dirname( path.dirname( path.abspath(__file__) ) ) ))
-	from HWModel.iSem import *
+	from HWModel.OperatorSem import *
 else:
-	from HWModel.iSem import *
+	from HWModel.OperatorSem import *
 
 from abc import ABCMeta, abstractmethod
 
