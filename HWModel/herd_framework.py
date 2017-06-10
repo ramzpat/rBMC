@@ -205,7 +205,7 @@ def program_order(s, PoSet = [], Ev = []):
 	# 								Exists(z, And(po(x,z), po(z,y)))
 	# 								)))
 
-	for (i,j) in poS:
+	for (i,j) in PoSet:
 		s.add(po(i, j)) 
 	# s.add(ForAll([x,y,z], Implies(And(po(x,y), po(y,z)), po(x,z))))
 	
@@ -330,6 +330,7 @@ def rf_reg_relation(s, Ev = []):
 	rf_regSet = []
 	for e1 in Ev:
 		if isReadReg(e1):
+			print e1
 			cWrite = candidate_writes(e1, Ev)
 			assert(len(cWrite) == 1)
 			# there are only one correspond write in ssa form
@@ -481,7 +482,7 @@ def sc_constraints(s, po, rf, fr, co, Ev = []):
 	(s, trans) = (acyclic(s, po, fr, rf, co))
 	return s
 
-def tso_constraints(s, po, rf, fr, co, Ev):
+def tso_constraints(s, po, poSet, rf, fr, co, Ev):
 	# tso-01.cat
 	# (* Communication relations that order events*)
 	# let com-tso = rfe | co | fr
@@ -506,8 +507,34 @@ def tso_constraints(s, po, rf, fr, co, Ev):
 	# acyclic ghb
 
 	(s, ghb) = acyclic(s, com_tso, po_tso)
-	return s
-	# show ghb
+
+	# prepare for uniproc
+	po_loc = Function('po-loc', Event, Event, BoolSort())
+	po_locSet = [ (e1.eid, e2.eid) for e1 in Ev for e2 in Ev if (e1.eid, e2.eid) in poSet and (eq(e1.target, e2.target) if e1.target.sort() == e2.target.sort() else False) ]
+	s.add([po_loc(e1, e2) == And(po(e1, e2), (e1.target == e2.target) if e1.target.sort() == e2.target.sort() else False )  for e1 in Ev for e2 in Ev])
+
+	rfi = Function('rfi', Event, Event, BoolSort())
+	fri = Function('fri', Event, Event, BoolSort())
+	for e1 in Ev:
+		for e2 in Ev:
+			s.add(rfi(e1, e2) == And(rf(e1,e2), (e1.pid == e2.pid)))
+			s.add(fri(e1, e2) == And(fr(e1,e2), (e1.pid == e2.pid)))
+
+	# (* Uniproc check specialized for TSO *)
+	# irreflexive po-loc & (R*W); rfi as uniprocRW
+	# irreflexive po-loc & (W*R); fri as uniprocWR
+	uniprocRW = Function('uniprocRW', Event, Event, BoolSort())
+	uniprocWR = Function('uniprocWR', Event, Event, BoolSort())
+
+	po_loc_RW = Function('po-loc(RW)', Event, Event, BoolSort())
+	po_loc_WR = Function('po-loc(WR)', Event, Event, BoolSort())
+	s.add([po_loc_RW(e1, e2) == And(po_loc(e1, e2), True if isRead(e1) and isWrite(e2) else False )  for e1 in Ev for e2 in Ev])
+	s.add([po_loc_WR(e1, e2) == And(po_loc(e1, e2), True if isWrite(e1) and isRead(e2) else False )  for e1 in Ev for e2 in Ev])
+	e1, e2, e3 = Consts('e1 e2 e3', Event)
+	s.add(ForAll([e1, e2, e3], Implies(And(po_loc_RW(e1,e2), rfi(e2,e3)), uniprocRW(e1,e3))))
+	s.add(ForAll([e1, e2, e3], Implies(And(po_loc_WR(e1,e2), fri(e2,e3)), uniprocWR(e1,e3))))
+	s = irreflexive(s, uniprocRW)
+	s = irreflexive(s, uniprocWR)
 
 	return s
 
@@ -794,7 +821,7 @@ def power_constraints(Ev = []):
 
 
 
-if __name__ == '__main__':
+def mpCheck():
 	# try ARM models
 
 	s = Solver()
@@ -914,11 +941,11 @@ if __name__ == '__main__':
 	(s, iico, iicoSet) = iico_relation(s, iicoS, Ev1 + Ev2)
 	#  - rf-reg : W-reg x R-reg relation
 	(s, rf_reg, rf_regSet) = rf_reg_relation(s, Ev1 + Ev2)
-	
+
 
 	# s = sc_constraints(s, po, rf, fr, co, Ev1 + Ev2)
-	# s = tso_constraints(s, po, rf, fr, co, Ev1 + Ev2)
-	s = pso_constraints(s, po, rf, fr, co, Ev1 + Ev2)
+	s = tso_constraints(s, po, rf, fr, co, Ev1 + Ev2)
+	# s = pso_constraints(s, po, rf, fr, co, Ev1 + Ev2)
 
 
 	EvID = [0 for e in Ev1 + Ev2 ]
@@ -934,5 +961,190 @@ if __name__ == '__main__':
 	s.add(Rvr5.val == 1)
 	s.add(Rvr4.val == 0)
 	print s.check()
+
+def mpLoopCheck1():
+	# Invariant Check
+	# inv = v in {0, 1}
+
+	s = Solver()
+	
+	addrX, addrY = Ints('addrX addrY')
+	x = InitLoc(addrX)
+	y = InitLoc(addrY)
+	s.add(Distinct(x,y))
+	
+	# print x
+	# inital value
+	Wx0 = new_write('Wx0', x, 0)
+	Wy0 = new_write('Wy0', y, 0)
+
+	# Prepare Pid
+	pid1, pid2 = Consts('pid1 pid2', Proc)
+	s.add(Distinct(pid1, pid2))
+	
+	# P1 (pid1)
+	# variables 
+	# r1, r2, r3 = Consts('r1 r2 r3', Reg)
+	r1 = Reg(0)
+	r2 = Reg(1)
+	r3 = Reg(2)
+
+	# mov r1, #1
+	Wr1 = new_write('Wr1_0', r1, 1, 1)
+
+	# str r1, [x]
+	Vr1_0 = Int('Temp1')
+	Rr1_0 = new_read('Rr1_0', r1, Vr1_0, 1)
+	Wx1 = new_write('Wx1_0', InitLoc(addrX), Vr1_0, 1)
+
+	# str r1, [y]
+	Vr1_1 = Int('Temp4')
+	Rr1_1 = new_read('Rr1_1', r1, Vr1_1, 1)
+
+	Wy1 = new_write('Wy1_0', InitLoc(addrY), Vr1_1, 1)
+	
+	Ev1 = [Wx0, Wy0, Wr1, Rr1_0, Rr1_1, Wx1, Wy1]
+
+	# P2 (pid2) ---------------------------
+	r6 = Reg(5)
+	PS2 = []
+	
+	# ldr r6, [y]
+	Vloc3 = Int('Temp6')
+	Rvr5 = new_read('Rvr5', InitLoc(addrY), Vloc3, 2) 
+	Wr6 = new_write('Wr6', r6, Vloc3, 2)
+
+	# assert ( inv ) = ( r6 in {0,1} /\ [x] in {0,1} /\ [y] in {0,1})
+	# 				 = And( Or(Vloc3 == 0, Vloc3 == 1), 
+	# 						generateRead(x, valX) /\ Or(valX == 0, valX == 1),
+	# 						generateRead(y, valY) /\ Or(valY == 0, valY == 1))
+	valX_1 = Int('valX_1')
+	assertReadX_1 = new_read('asReadX_1', InitLoc(addrX), valX_1, 2)
+	valY_1 = Int('valY_1')
+	assertReadY_1 = new_read('asReadY_1', InitLoc(addrY), valY_1, 2)
+	PS2 += [ Or(valX_1 == 0, valX_1 == 1) ]
+	PS2 += [ Or(valY_1 == 0, valY_1 == 1) ]
+	PS2 += [ Or(Rvr5.val == 0, Rvr5.val == 1) ]
+
+
+
+	# havoc (Wx, Wy, r6)
+	hvocValX = Int('hvocValX')
+	havoc_Wx = new_write('havoc_Wx', InitLoc(addrX), hvocValX, 2)
+	hvocValY = Int('hvocValY')
+	havoc_Wy = new_write('havoc_Wy', InitLoc(addrY), hvocValY, 2)
+	hvoc_r6 = Int('hvoc_r6')
+	havoc_Wr6 = new_write('havoc_r6', r6, hvoc_r6, 2)
+
+	# assume ( inv ) 
+	valX_2 = Int('valX_2')
+	assertReadX_2 = new_read('asReadX_2', InitLoc(addrX), valX_2, 2)
+	valY_2 = Int('valY_2')
+	assertReadY_2 = new_read('asReadY_2', InitLoc(addrY), valY_2, 2)
+	s.add( Or(valX_2 == 0, valX_2 == 1) )
+	s.add( Or(valY_2 == 0, valY_2 == 1) )
+	s.add( Or(hvoc_r6 == 0, hvoc_r6 == 1) )
+
+	# ldr r6, [y]
+	Vloc3_1 = Int('Temp6_1')
+	Rvr5_1 = new_read('Rvr5_1', InitLoc(addrY), Vloc3_1, 2) 
+	Wr6_1 = new_write('Wr6_1', r6, Vloc3_1, 2)
+
+	# assert( inv )
+	valX_3 = Int('valX_3')
+	assertReadX_3 = new_read('asReadX_3', InitLoc(addrX), valX_3, 2)
+	valY_3 = Int('valY_3')
+	assertReadY_3 = new_read('asReadY_3', InitLoc(addrY), valY_3, 2)
+
+	PS2 += [ Or(valX_3 == 0, valX_3 == 1) ]
+	PS2 += [ Or(valY_3 == 0, valY_3 == 1) ]
+	PS2 += [ Or(Vloc3_1 == 0, Vloc3_1 == 1) ]
+
+	# --------------------------------------
+
+	Ev2 = [Rvr5, Wr6, assertReadX_1, assertReadY_1, havoc_Wx]
+	Ev2 += [havoc_Wy, havoc_Wr6, assertReadX_2, assertReadY_2, Rvr5_1, Wr6_1, assertReadX_3, assertReadY_3]
+
+
+	# manual po
+	poS = []
+	# po for P1
+	poS += [(Wx0, Wy0), (Wy0, Wr1)]
+	poS += [(Wr1, Rr1_0), (Rr1_0, Wx1)]
+	poS += [(Wx1, Rr1_1), (Rr1_1, Wy1)]
+	# po for P2 
+	# poS += [(Wy0, Wr4), (Wr4, Wr5), (Wr5, Rr5), (Rr5, Rvr5) ,(Rvr5, Wr6), (Wr6, Rr4), (Rr4, Rvr4), (Rvr4, Wr7)]
+	poS += [(Wy0, Rvr5), (Rvr5, Wr6), (Wr6, assertReadX_1), (assertReadX_1, assertReadY_1), (assertReadY_1, havoc_Wx)]
+	poS += [(havoc_Wx, havoc_Wy), (havoc_Wy, havoc_Wr6), (havoc_Wr6, assertReadX_2)]
+	poS += [(assertReadX_2, assertReadY_2), (assertReadY_2, Rvr5_1), (Rvr5_1, Wr6_1), (Wr6_1, assertReadX_3), (assertReadX_3, assertReadY_3)]
+
+	# manual iico
+	iicoS = []
+	# iico for P1 
+	iicoS += [(Rr1_0, Wx1), (Rr1_1, Wy1)]
+	# iico for P2
+	iicoS += [(Rvr5, Wr6), (Rvr5_1, Wr6_1)]
+	
+	# distinct events
+	s.add(Distinct(Ev1 + Ev2 ))
+
+	(s, po, poS) = program_order(s, poS, Ev1 + Ev2)
+	#  - co : W x W relation
+	(s, co) = conflict_order(s, Ev1 + Ev2)
+	#  - rf : W x R relation
+	(s, rf) = read_from(s, Ev1 + Ev2)
+	#  - fr : E x E relation
+	(s, fr) = from_read(s, rf, co)
+
+	# Instruction semantics level
+	#  - iico : E x E relation
+	(s, iico, iicoSet) = iico_relation(s, iicoS, Ev1 + Ev2)
+	#  - rf-reg : W-reg x R-reg relation
+	(s, rf_reg, rf_regSet) = rf_reg_relation(s, Ev1 + Ev2)
+	# print rf_regSet
+
+	# s = sc_constraints(s, po, rf, fr, co, Ev1 + Ev2)
+	s = tso_constraints(s, po, poS, rf, fr, co, Ev1 + Ev2)
+
+	# s = pso_constraints(s, po, rf, fr, co, Ev1 + Ev2)
+
+
+
+	EvID = [0 for e in Ev1 + Ev2 ]
+	for e in Ev1 + Ev2:
+		EvID[e.eid] = e
+
+	# s = arm_constraints(s, po, rf, fr, co, iico, rf_reg, poS, iicoSet, rf_regSet, Ev1 + Ev2)
+
+	# check prob
+	# s.add(po(Wx0, Wy0))
+	# s.add(Rr1_1.val == 2)
+
+	# s.add(Rvr5.val == 1)
+	# s.add(Rvr4.val == 0)
+
+	# print simplify(Not(And(PS2)))
+	s.add(Not(And(PS2)))
+
+	result = s.check()
+	print result
+	if True and result == sat:
+		m = s.model()
+		print m.evaluate(Rvr5)
+		print m.evaluate(Wr6)
+		print m.evaluate(rf(havoc_Wy,Rvr5))
+
+
+
+if __name__ == '__main__':
+	print 'hello world'
+	mpLoopCheck1()
+	# mpCheck()
+
+
+
+
+
+
 
 
