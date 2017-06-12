@@ -170,8 +170,8 @@ class CodeStructure():
 			yield self.body
 		else:
 			for i in self.next:
-				# for p in i:
-				yield self.body + i
+				for p in i:
+					yield self.body + p
 	def __getitem__(self, key):
 		return SeqSem(self.body, self.next[key].getSem())
 	def getSem(self, key = 0):
@@ -183,14 +183,14 @@ class CodeStructure():
 		assert(isinstance(other, Operation) or isinstance(other, AnnotatedStatement) or isinstance(other, SeqSem) or 
 			isinstance(other, CodeStructure))
 		body = self.body
-		next = self.next
+		next = self.next[:]
 		if isinstance(other, CodeStructure):
-			if self.next == []:
+			if next == []:
 				body = body + other.body
 				next = other.next
 			else:
-				next[0] = next[0] + other.body
-		elif self.next == []:
+				next[0] = next[0] + other
+		elif next == []:
 			body = body + other
 		else: 
 			next[0] = next[0] + other

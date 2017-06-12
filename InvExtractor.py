@@ -22,16 +22,11 @@ def invExtractor(P):
 				Assume(p.inv)
 				)
 			loopBody2 += loopBody
-			loopBody2 += CodeStructure(SeqSem(), [
-					SeqSem(Assume(False), Assertion('Q')),
-					SeqSem(Assertion('p.inv'))
+			loopBody2 = loopBody2 + CodeStructure(SeqSem(), [
+					CodeStructure( SeqSem(Assume(False), Assertion('p.Q')) ),
+					CodeStructure( SeqSem(Assertion('p.inv')) )
 				])
-			print '====='
-			for u in loopBody2:
-				print u
-				print ':::::'
-			print '====='
-			pass
+			ret += loopBody2
 		elif isinstance(p,Operation):
 			ret += p
 		elif isinstance(p,AnnotatedStatement):
@@ -61,10 +56,16 @@ def mp():
 	P2 = SeqSem(
 		DoWhile(		# L:
 			SeqSem(
-			InstrSem(	# ldr r2, [y]
-				TempReg('val') << Location('y'),
-				Register('r2') << TempReg('val')
-				),
+			DoWhile(		# L:
+				InstrSem(	# ldr r2, [y]
+					TempReg('xal') << Location('y'),
+					Register('X2') << TempReg('val')
+					),
+
+				(Register('n') == 0),						# { inv }
+				Register('n') == 0,			# bne L
+				Register('n') == 1			# { Q }
+			), 
 			InstrSem(	# cmp r2, #1
 				ParallelSem(
 					TempReg('rd') << 1,
@@ -85,7 +86,7 @@ def mp():
 			),
 		Assertion(Register('r3') == 1)
 		)
-	print P2
+	# print P2
 	print '+++++++'
 	ret = invExtractor(P2)
 	for p in ret:
