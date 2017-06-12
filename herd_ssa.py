@@ -147,6 +147,7 @@ class SSASem:
 							 self.newExp(exp.t_exp),
 							 self.newExp(exp.f_exp) )
 		elif isinstance(exp, Exp):
+
 			if len(exp) > 2 and (exp[1] == EOpr['plus'] or exp[1] == EOpr['minus'] or exp[1] == EOpr['times'] or 
 				exp[1] == EOpr['divide'] or exp[1] == EOpr['eq'] or exp[1] == EOpr['lt'] or exp[1] == EOpr['gt'] or
 				exp[1] == EOpr['and'] or exp[1] == EOpr['or']  ):
@@ -212,12 +213,77 @@ class SSASem:
 		else:
 			return [p]
 
+	def getLocations(self, exp):
+		if isinstance(exp, Location):
+			return [exp]
+		elif isVar(exp):
+			return []
+		elif isinstance(exp, Exp):
+			if len(exp) > 2 and (exp[1] == EOpr['plus'] or exp[1] == EOpr['minus'] or exp[1] == EOpr['times'] or 
+				exp[1] == EOpr['divide'] or exp[1] == EOpr['eq'] or exp[1] == EOpr['lt'] or exp[1] == EOpr['gt'] or
+				exp[1] == EOpr['and'] or exp[1] == EOpr['or']  ):
+
+				return self.getLocations(exp[0]) + self.getLocations(exp[1])
+			elif len(exp) == 2 and exp[0] == EOpr['not'] :
+				return self.getLocations(exp[1])
+		return []
+
+	def updateCond(self, exp, dictLoc):
+		if isinstance(exp, Location):
+			return dictLoc[exp]
+		elif isVar(exp):
+			return exp
+		elif isinstance(exp, Exp):
+			if len(exp) > 2 and (exp[1] == EOpr['plus'] or exp[1] == EOpr['minus'] or exp[1] == EOpr['times'] or 
+				exp[1] == EOpr['divide'] or exp[1] == EOpr['eq'] or exp[1] == EOpr['lt'] or exp[1] == EOpr['gt'] or
+				exp[1] == EOpr['and'] or exp[1] == EOpr['or']  ):
+
+				return Exp( self.updateCond(exp[0], dictLoc),
+							exp[1],
+							self.updateCond(exp[2], dictLoc))
+			elif len(exp) == 2 and exp[0] == EOpr['not'] :
+				return Exp(EOpr['not'],(self.updateCond(exp[1], dictLoc)))
+		return exp
+
+
+	def additionalRead(self, p):
+		if isinstance(p, Assertion):
+			locVar = self.getLocations(p.cond)
+			locVar = set(locVar)
+			dictLoc = {}
+			for v in locVar:
+				dictLoc[v] = TempReg('val_'+str(v))
+			# print self.updateCond(p, dictLoc)
+			return [ dictLoc[v] << v for v in locVar] + [Assertion(self.updateCond(p.cond, dictLoc))]
+		elif isinstance(p, Assume):
+			locVar = self.getLocations(p.cond)
+			locVar = set(locVar)
+			dictLoc = {}
+			for v in locVar:
+				dictLoc[v] = TempReg('val_'+str(v))
+			# print self.updateCond(p, dictLoc)
+			return [ dictLoc[v] << v for v in locVar] + [Assume(self.updateCond(p.cond, dictLoc))]
+		elif isinstance(p, ParallelSem):
+			newPar = []
+			for i in p.list():
+				newPar += self.additionalRead(i)
+
+			return [ParallelSem(*newPar)]
+		elif isinstance(p, SeqSem):
+			newSeq = []
+			for i in p.list():
+				newSeq += self.additionalRead(i)
+			# print SeqSem(*newSeq)
+			return [SeqSem(*newSeq)]
+		else:
+			return [p]
+
 	def ssa(self):
 		# eliminate havoc annotation
 		[P] = self.eliminateHavoc(self.p)
 
 		# realize reads for assertion and assumption
-
+		[P] = self.additionalRead(P)
 
 		return self.__ssa(P)
 
@@ -256,7 +322,7 @@ if __name__ == "__main__":
 					Register('n') << i_if_exp(TempReg('rd') == TempReg('rt'), 0, 1),
 				)
 			)),
-			(Register('z') == 0),						# { inv }
+			(Location('x') == 0),						# { inv }
 			Register('z') == 0,			# bne L
 			Register('z') == 1			# { Q }
 		), 

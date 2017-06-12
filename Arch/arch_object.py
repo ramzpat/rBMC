@@ -343,8 +343,10 @@ class Location(Exp):
 		return WriteAssn(self, other_address)
 	def __hash__(self):
 		return hash(self.address)
-	def __eq__(self, other):
-		return self.address == other.address
+	def __len__(self):
+		return 0
+	# def __eq__(self, other):
+	# 	return self.address == other.address
 
 # def is_reg(reg):
 # 	return isinstance(reg, Register)
