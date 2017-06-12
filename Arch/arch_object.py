@@ -110,6 +110,9 @@ class Exp: # Value expression
 	def __lshift__(self, other):
 		return Assignment(self, other)
 
+class undefinedExp(Exp):
+	def __str__(self):
+		return '*'
 
 def bool_and(e1, e2):
 	return Exp(e1, EOpr['and'], e2)

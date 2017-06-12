@@ -2,7 +2,7 @@
 from HWModel.OperatorSem import *
 from Arch.arch_object import *
 
-def invExtractor(P):
+def invExtractor(P, vars = []):
 	# build Code Structure
 
 	# 1 - extract Operations as linear ? except parallel ?
@@ -18,7 +18,7 @@ def invExtractor(P):
 			loopBody = invExtractor(p.body)
 			loopBody2 = loopBody + SeqSem(
 				Assertion(p.inv),
-				havoc(0),
+				havoc(*vars),
 				Assume(p.inv)
 				)
 			loopBody2 += loopBody
@@ -35,6 +35,7 @@ def invExtractor(P):
 	# 	print p
 
 	return ret
+
 
 def mp():
 	P1 = SeqSem(
@@ -56,16 +57,10 @@ def mp():
 	P2 = SeqSem(
 		DoWhile(		# L:
 			SeqSem(
-			DoWhile(		# L:
-				InstrSem(	# ldr r2, [y]
-					TempReg('xal') << Location('y'),
-					Register('X2') << TempReg('val')
-					),
-
-				(Register('n') == 0),						# { inv }
-				Register('n') == 0,			# bne L
-				Register('n') == 1			# { Q }
-			), 
+			InstrSem(	# ldr r2, [y]
+				TempReg('xal') << Location('y'),
+				Register('X2') << TempReg('val')
+				),
 			InstrSem(	# cmp r2, #1
 				ParallelSem(
 					TempReg('rd') << 1,
@@ -86,9 +81,9 @@ def mp():
 			),
 		Assertion(Register('r3') == 1)
 		)
-	# print P2
+
 	print '+++++++'
-	ret = invExtractor(P2)
+	ret = invExtractor(P2, [Register('x')])
 	for p in ret:
 		print p
 		print '----'

@@ -1,6 +1,6 @@
 
 from Arch.arch_object import *
-from HWModel.iSem import *
+from HWModel.OperatorSem import *
 
 import HWModel.herd_framework as herd
 
@@ -43,7 +43,7 @@ def encodeExp(exp, pid = 0):
 
 
 def encodeISem(i, pid = 0):
-	assert(isinstance(i,iSem))
+	# assert(isinstance(i,iSem))
 	if isinstance(i, WriteAssn):
 		if (isinstance(i.var, Location)):
 			addr = i.var.address
