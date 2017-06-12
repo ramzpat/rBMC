@@ -29,19 +29,6 @@ class WriteAssn(Assignment):
 class ReadAssn(Assignment):
 	pass 
 
-# Havoc operator for inductive invariant
-# havoc( {<var>}+ )
-class havoc(Operation):
-	def __init__(self, *v):
-		self.vars = v
-	def getVars(self):
-		return self.vars
-	def __str__(self):
-		ret = 'havoc('
-		ret += str(self.vars[0])
-		for v in self.vars[1:]:
-			ret += ', ' + str(v)
-		return ret + ')'
 
 # ---------------- Execution on operations
 # sequential execution -> list ?
@@ -53,7 +40,7 @@ class havoc(Operation):
 class SeqSem:
 	def __init__(self, *seq):
 		# print type(seq)
-		self.seq = (seq)
+		self.seq = list(seq)
 		for i in self.seq:
 			assert( isinstance(i, Operation) or isinstance(i, AnnotatedStatement) or isinstance(i, SeqSem) )
 
@@ -82,14 +69,29 @@ class SeqSem:
 
 	def __str__(self):
 		return self.strIndent()
+	def __add__(self, other):
+		assert(isinstance(other, Operation) or isinstance(other, Assertion) or isinstance(other, Assume) or isinstance(other, SeqSem))
+		seq = self.seq
+		if isinstance(other, SeqSem):
+			if isinstance(other, ParallelSem) or isinstance(other, InstrSem):
+				seq = seq + [other]
+			else:
+				seq = seq + other.seq
+		else:
+			seq = seq + [other]
+
+		return SeqSem(*seq)
 		
 		
 
 class ParallelSem(SeqSem):
+	# assume that no loop in Parallel Sem
 	def __init__(self, *par):
 		self.par = list(par)
 		for i in self.par:
 			assert( isinstance(i, Operation) or isinstance(i, AnnotatedStatement) or isinstance(i, SeqSem) )
+			assert( not isinstance(i, DoWhile))
+		# self.seq = self.par
 
 	def __iter__(self):
 		for i in self.par:
@@ -147,6 +149,61 @@ class CodeBlock():
 			for i in self.next:
 				for p in i:
 					yield SeqSem(self.body, p)
+	def __getitem__(self, key):
+		return SeqSem(self.body, self.next[key].getSem())
+	def getSem(self, key = 0):
+		if self.next:
+			return self.body + self.next[key].getSem()
+		return self.body
+
+class CodeStructure():
+	def __init__(self, seq, next = []):		
+		self.body = seq
+		self.next = next
+		
+
+	def body(self):
+		return self.body
+
+	def __iter__(self):
+		if len(self.next) == 0:
+			yield self.body
+		else:
+			for i in self.next:
+				# for p in i:
+				yield self.body + i
+	def __getitem__(self, key):
+		return SeqSem(self.body, self.next[key].getSem())
+	def getSem(self, key = 0):
+		if self.next:
+			return self.body + self.next[key].getSem()
+		return self.body
+	def __add__(self, other):
+
+		assert(isinstance(other, Operation) or isinstance(other, AnnotatedStatement) or isinstance(other, SeqSem) or 
+			isinstance(other, CodeStructure))
+		body = self.body
+		next = self.next
+		if isinstance(other, CodeStructure):
+			if self.next == []:
+				body = body + other.body
+				next = other.next
+			else:
+				next[0] = next[0] + other.body
+		elif self.next == []:
+			body = body + other
+		else: 
+			next[0] = next[0] + other
+
+		return CodeStructure(body, next)
+		# if isinstance(other, Operation):
+		# 	self.next[0] += other 
+		# elif isinstance(other, SeqSem):
+		# 	self.next[0] = SeqSem(self.next[0] + other)
+		# else:
+
+
+
 
 if __name__ == '__main__':
 	print 'hello operation semantics'
@@ -160,6 +217,8 @@ if __name__ == '__main__':
 			)
 	A = CodeBlock(SeqSem(ReadAssn('r', '4')))
 	B = CodeBlock(SeqSem(ReadAssn('r', '6'), havoc('r1', 'r2')))
+	t = CodeBlock(P, [A, B])
+	print t[1]
 	for p in CodeBlock(P, [A, B]):
 		print p
 		print '-----'

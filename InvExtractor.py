@@ -2,8 +2,44 @@
 from HWModel.OperatorSem import *
 from Arch.arch_object import *
 
-def invExtractor(P = []):
-	return []
+def invExtractor(P):
+	# build Code Structure
+
+	# 1 - extract Operations as linear ? except parallel ?
+	# assert(not isinstance(P, ParallelSem))
+	ret = CodeStructure(SeqSem(), [])
+	for p in P.list():
+		if isinstance(p, SeqSem):
+			# i = invExtractor(p)
+			ret += p
+		if isinstance(p, DoWhile):
+			# 'do-while'
+			# ret += CodeStructure(p)
+			loopBody = invExtractor(p.body)
+			loopBody2 = loopBody + SeqSem(
+				Assertion(p.inv),
+				havoc(0),
+				Assume(p.inv)
+				)
+			loopBody2 += loopBody
+			loopBody2 += CodeStructure(SeqSem(), [
+					SeqSem(Assume(False), Assertion('Q')),
+					SeqSem(Assertion('p.inv'))
+				])
+			print '====='
+			for u in loopBody2:
+				print u
+				print ':::::'
+			print '====='
+			pass
+		elif isinstance(p,Operation):
+			ret += p
+		elif isinstance(p,AnnotatedStatement):
+			ret += p
+	# for p in ret.body:
+	# 	print p
+
+	return ret
 
 def mp():
 	P1 = SeqSem(
@@ -13,6 +49,7 @@ def mp():
 			),
 		InstrSem(	# str r1, [x]
 			TempReg('val') << Register('r1'),
+			ParallelSem(TempReg('val1') << Register('r2'), TempReg('val2') << Register('r2')),
 			Location('x') << TempReg('val')
 			),
 		InstrSem(	# str r1, [y]
@@ -38,7 +75,7 @@ def mp():
 					Register('n') << i_if_exp(TempReg('rd') == TempReg('rt'), 0, 1),
 				)
 			)),
-			True,						# { inv }
+			(Register('z') == 0),						# { inv }
 			Register('z') == 0,			# bne L
 			Register('z') == 1			# { Q }
 		), 
@@ -49,6 +86,11 @@ def mp():
 		Assertion(Register('r3') == 1)
 		)
 	print P2
+	print '+++++++'
+	ret = invExtractor(P2)
+	for p in ret:
+		print p
+		print '----'
 	pass 
 
 if __name__ == '__main__':
