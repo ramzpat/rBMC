@@ -3,6 +3,7 @@ from Arch.arch_object import *
 from HWModel.OperatorSem import *
 
 import HWModel.herd_framework as herd
+from herd_ssa import *
 
 locationAddr = []
 
@@ -77,6 +78,21 @@ def encodeISem(i, pid = 0):
 	else:
 		assert(False)
 
+def encodeSem(i, pid = 0):
+	if isinstance(p, ParallelSem):
+		newPar = []
+		for i in p.list():
+			newPar += self.additionalRead(i)
+
+		return [ParallelSem(*newPar)]
+	elif isinstance(p, SeqSem):
+		newSeq = []
+		for i in p.list():
+			newSeq += self.additionalRead(i)
+		# print SeqSem(*newSeq)
+		return [SeqSem(*newSeq)]
+	else:
+		return [p]
 
 # def encodeMemOp(p):
 # 	assert(isinstance(p, SeqSem) or isinstance(p, iSem))
@@ -123,11 +139,9 @@ def encode(p):
 
 	# derive the set of events
 	# events = [e for e in p]
-	print p
 	Ev = []
 	print '----'
-	for e in p:	
-		e = encodeISem(e)
+	# info = encodeSem(p)
 		# print e
 		# Ev += [e]
 	# for i in a + herd.global_axioms:
@@ -145,9 +159,7 @@ def encode(p):
 	# (co, axiom_co) = conflict_order(Ev)
 	# (rf, axiom_rf) = read_from(Ev)
 
-
-
-if __name__ == '__main__':
+def test():
 
 	ssaP1 = SeqSem(
 		# mov r1, 0
@@ -214,3 +226,74 @@ if __name__ == '__main__':
 		)
 	# print ssaP
 	f = encode(ssaP)
+
+def mp():
+	P1 = SeqSem(
+		InstrSem(	# mov r1, #1
+			TempReg('val') << 1, 
+			Register('r1') << TempReg('val')
+			),
+		InstrSem(	# str r1, [x]
+			TempReg('val') << Register('r1'),
+			ParallelSem(TempReg('val1') << Register('val'), TempReg('val2') << Register('val')),
+			Location('x') << TempReg('val')
+			),
+		InstrSem(	# str r1, [y]
+			TempReg('val') << Register('r1'),
+			Location('y') << TempReg('val')
+			)
+		)
+
+	P2 = SeqSem(
+		DoWhile(		# L:
+			SeqSem(
+			InstrSem(	# ldr r2, [y]
+				TempReg('val') << Location('y'),
+				Register('r2') << TempReg('val')
+				),
+			InstrSem(	# cmp r2, #1
+				ParallelSem(
+					TempReg('rd') << 1,
+					TempReg('rt') << Register('r2')
+				),
+				ParallelSem(
+					Register('z') << i_if_exp(TempReg('rd') == TempReg('rt'), 1, 0),
+					Register('n') << i_if_exp(TempReg('rd') == TempReg('rt'), 0, 1),
+				)
+			)),
+			((Location('x') == 0) | (Location('x') == 1)) &
+			((Location('y') == 0) | (Location('y') == 1)) &
+			((Register('r2') == 0) | (Register('r2') == 1)),						# { inv }
+			Register('z') == 0,			# bne L
+			Register('r2') == 1			# { Q }
+		), 
+		InstrSem(	# ldr r3, [x]
+			TempReg('val') << Location('x'),
+			Register('r3') << TempReg('val')
+			),
+		Assertion(Register('r3') == 1)
+		)
+	P1 = invExtractor(P1, [Register('r2')])
+	P2 = invExtractor(P2, [Register('r2'), Register('r3'), Register('z'), Register('n'), Location('x'), Location('y')])
+
+	for i in P1:
+		# print i
+		for j in P2:
+			# print j
+			break
+		break
+		# print i
+	print '----- ssa -----'
+	ssa_i = SSASem(i).ssa()
+	ssa_j = SSASem(j).ssa()
+	print ssa_i
+	# print ssa_j
+	f = encode(ssa_i)
+	print f
+
+
+if __name__ == '__main__':
+	mp()
+
+
+

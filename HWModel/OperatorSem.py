@@ -29,6 +29,12 @@ class WriteAssn(Assignment):
 class ReadAssn(Assignment):
 	pass 
 
+# fence()
+class fenceStm(Operation):
+	def __init__(self):
+		pass
+	def __str__(self):
+		return 'fence()' 
 
 # ---------------- Execution on operations
 # sequential execution -> list ?
@@ -70,18 +76,25 @@ class SeqSem:
 	def __str__(self):
 		return self.strIndent()
 	def __add__(self, other):
+		clss = self.__class__
 		assert(isinstance(other, Operation) or isinstance(other, Assertion) or isinstance(other, Assume) or isinstance(other, SeqSem))
-		seq = self.seq
+
+		if isinstance(self, IfStm):
+			seq = self.sem
+		elif isinstance(self, ParallelSem):
+			seq = self.par
+		else:
+			seq = self.seq
+
 		if isinstance(other, SeqSem):
-			if isinstance(other, ParallelSem) or isinstance(other, InstrSem):
+			if isinstance(other, ParallelSem) or isinstance(other, InstrSem) or isinstance(other, IfStm):
 				seq = seq + [other]
+				# clss = other.__class__
 			else:
 				seq = seq + other.seq
 		else:
 			seq = seq + [other]
-
-		return SeqSem(*seq)
-		
+		return clss(*seq)
 		
 
 class ParallelSem(SeqSem):
@@ -133,6 +146,29 @@ class InstrSem(SeqSem):
 		ret += (' '* indent) + ']'
 		return ret
 
+# if(cond) {SeqSem}
+class IfStm(SeqSem):
+	def __init__(self, cond, *sem):
+		self.cond = cond
+		self.sem = list(sem)
+
+	def strIndent(self, indent = 0):
+		ret = ''
+		ret += (' '* indent) + 'if(%s)[ \n'%str(self.cond)
+		for i in self.sem:
+			iStr = ''
+			if isinstance(i, SeqSem):
+				iStr = i.strIndent(indent + 1)
+			else:
+				iStr = (' '*(indent+1)) +str(i)
+			ret += (' '* indent) + iStr + ',\n'
+		ret += (' '* indent) + ']'
+		return ret
+
+	def list(self):
+		return list(self.sem)
+
+
 # --------- CodeBlock 
 class CodeBlock():
 	def __init__(self, seq, next = []):
@@ -170,6 +206,11 @@ class CodeStructure():
 			yield self.body
 		else:
 			for i in self.next:
+				# print self
+				# print i
+				# print '-----debug'
+				# print i.body
+				# print '-----debug----'
 				for p in i:
 					yield self.body + p
 	def __getitem__(self, key):
@@ -178,6 +219,33 @@ class CodeStructure():
 		if self.next:
 			return self.body + self.next[key].getSem()
 		return self.body
+
+	def __lshift__(self, other):
+		assert(isinstance(other, Operation) or isinstance(other, AnnotatedStatement) or isinstance(other, SeqSem) or 
+			isinstance(other, CodeStructure))
+		body = self.body
+		next = self.next
+		if isinstance(other, CodeStructure):
+			if next == []:
+				self.body += other.body
+				self.next = other.next
+				# self.next = [other]
+			else:
+				# a = self.next[0]
+				# print self.next[0]
+				# a << other
+				# print a
+				self.next[0] << other
+				
+
+				# for i in self.next:
+				# 	i += other
+		elif next == []:
+
+			self.body += other
+		else: 
+			self.next[0] += other
+
 	def __add__(self, other):
 
 		assert(isinstance(other, Operation) or isinstance(other, AnnotatedStatement) or isinstance(other, SeqSem) or 
@@ -202,6 +270,41 @@ class CodeStructure():
 		# 	self.next[0] = SeqSem(self.next[0] + other)
 		# else:
 
+class emptyCS(CodeStructure):
+	def __init__(self):		
+		pass
+		
+
+	def body(self):
+		return SeqSem()
+
+	def __iter__(self):
+		yield SeqSem()
+
+	def __getitem__(self, key):
+		return SeqSem()
+
+	def __lshift__(self, other):
+		self = other 
+
+	def __add__(self, other):
+
+		assert(isinstance(other, Operation) or isinstance(other, AnnotatedStatement) or isinstance(other, SeqSem) or 
+			isinstance(other, CodeStructure))
+	
+		next = []
+		if isinstance(other, CodeStructure):
+			body = other.body
+			next = other.next
+		else: 
+			body = SeqSem(other)
+
+		return CodeStructure(body, next)
+		# if isinstance(other, Operation):
+		# 	self.next[0] += other 
+		# elif isinstance(other, SeqSem):
+		# 	self.next[0] = SeqSem(self.next[0] + other)
+		# else:
 
 
 

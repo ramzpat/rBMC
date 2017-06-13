@@ -2,17 +2,39 @@
 from HWModel.OperatorSem import *
 from Arch.arch_object import *
 
-def invExtractor(P, vars = []):
+
+def invExtractor(P, vars = [], clss = SeqSem):
 	# build Code Structure
 
 	# 1 - extract Operations as linear ? except parallel ?
 	# assert(not isinstance(P, ParallelSem))
-	ret = CodeStructure(SeqSem(), [])
+	ret = CodeStructure(clss(), [])
+	# ret = emptyCS()
 	for p in P.list():
-		if isinstance(p, SeqSem):
-			# i = invExtractor(p)
-			ret += p
-		if isinstance(p, DoWhile):
+		# if-Extractor
+		if isinstance(p, IfStm):
+			cond = p.cond 
+			# sem = p.sem
+			sem = invExtractor(SeqSem(*p.sem), vars, SeqSem)
+			
+			mergePoint = CodeStructure(SeqSem(Assertion(True)))
+			
+			# print 'mPoint'
+			# print mergePoint
+			fCS = CodeStructure(SeqSem( Assume(~ cond)), [mergePoint])
+			tCS = CodeStructure(SeqSem( Assume(cond),*(sem)), [mergePoint])
+			separatePoint = CodeStructure(SeqSem(Assertion(True)), [tCS, fCS])			
+
+			ret << separatePoint
+		elif isinstance(p, SeqSem):
+			i = p
+			i = invExtractor(p, vars, p.__class__)
+			# if ret.__class__ == emptyCS:
+			# 	ret = i
+			# else:
+			# 	ret << i
+			ret << i
+		elif isinstance(p, DoWhile):
 			# 'do-while'
 			# ret += CodeStructure(p)
 			loopBody = invExtractor(p.body)
@@ -23,14 +45,20 @@ def invExtractor(P, vars = []):
 				)
 			loopBody2 += loopBody
 			loopBody2 = loopBody2 + CodeStructure(SeqSem(), [
-					CodeStructure( SeqSem(Assume(False), Assertion('p.Q')) ),
-					CodeStructure( SeqSem(Assertion('p.inv')) )
+					CodeStructure( SeqSem(Assume(~(p.bInstr)), Assertion(p.Q)) ),
+					CodeStructure( SeqSem(Assertion(p.inv)) )
 				])
-			ret += loopBody2
+			ret << loopBody2
 		elif isinstance(p,Operation):
-			ret += p
+			# ret += p
+			
+			# if ret.__class__ == emptyCS:
+			# 	ret = p
+			# else:
+			ret << p
+
 		elif isinstance(p,AnnotatedStatement):
-			ret += p
+			ret << p
 	# for p in ret.body:
 	# 	print p
 
@@ -43,11 +71,12 @@ def mp():
 			TempReg('val') << 1, 
 			Register('r1') << TempReg('val')
 			),
+		IfStm( TempReg('val') == 1,
 		InstrSem(	# str r1, [x]
 			TempReg('val') << Register('r1'),
 			ParallelSem(TempReg('val1') << Register('r2'), TempReg('val2') << Register('r2')),
 			Location('x') << TempReg('val')
-			),
+			)),
 		InstrSem(	# str r1, [y]
 			TempReg('val') << Register('r1'),
 			Location('y') << TempReg('val')
@@ -83,7 +112,7 @@ def mp():
 		)
 
 	print '+++++++'
-	ret = invExtractor(P2, [Register('x')])
+	ret = invExtractor(P1, [Register('x')])
 	for p in ret:
 		print p
 		print '----'

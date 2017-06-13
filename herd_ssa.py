@@ -187,12 +187,19 @@ class SSASem:
 			for i in p.list():
 				newPar += [self.__ssa(i)]
 			return ParallelSem(*newPar)
+		elif isinstance(p, IfStm):
+			newSeq = []
+			assnVars = []
+			for i in p.list():
+				newSeq += [self.__ssa(i)]
+			# print SeqSem(*newSeq)
+			return IfStm(p.cond, *newSeq)
 		elif isinstance(p, SeqSem):
 			newSeq = []
 			for i in p.list():
 				newSeq += [self.__ssa(i)]
 			# print SeqSem(*newSeq)
-			return SeqSem(*newSeq)
+			return p.__class__(*newSeq)
 		return p
 
 	def eliminateHavoc(self, p):
@@ -204,12 +211,18 @@ class SSASem:
 				newPar += self.eliminateHavoc(i)
 
 			return [ParallelSem(*newPar)]
+		elif isinstance(p, IfStm):
+			newSeq = []
+			for i in p.list():
+				newSeq += self.eliminateHavoc(i)
+			# print SeqSem(*newSeq)
+			return [IfStm(p.cond, *newSeq)]
 		elif isinstance(p, SeqSem):
 			newSeq = []
 			for i in p.list():
 				newSeq += self.eliminateHavoc(i)
 			# print SeqSem(*newSeq)
-			return [SeqSem(*newSeq)]
+			return [p.__class__(*newSeq)]
 		else:
 			return [p]
 
@@ -223,7 +236,7 @@ class SSASem:
 				exp[1] == EOpr['divide'] or exp[1] == EOpr['eq'] or exp[1] == EOpr['lt'] or exp[1] == EOpr['gt'] or
 				exp[1] == EOpr['and'] or exp[1] == EOpr['or']  ):
 
-				return self.getLocations(exp[0]) + self.getLocations(exp[1])
+				return self.getLocations(exp[0]) + self.getLocations(exp[2])
 			elif len(exp) == 2 and exp[0] == EOpr['not'] :
 				return self.getLocations(exp[1])
 		return []
@@ -251,8 +264,9 @@ class SSASem:
 			locVar = self.getLocations(p.cond)
 			locVar = set(locVar)
 			dictLoc = {}
+
 			for v in locVar:
-				dictLoc[v] = TempReg('val_'+str(v))
+				dictLoc[v] = TempReg('val_'+str(v.address))
 			# print self.updateCond(p, dictLoc)
 			return [ dictLoc[v] << v for v in locVar] + [Assertion(self.updateCond(p.cond, dictLoc))]
 		elif isinstance(p, Assume):
@@ -260,7 +274,7 @@ class SSASem:
 			locVar = set(locVar)
 			dictLoc = {}
 			for v in locVar:
-				dictLoc[v] = TempReg('val_'+str(v))
+				dictLoc[v] = TempReg('val_'+str(v.address))
 			# print self.updateCond(p, dictLoc)
 			return [ dictLoc[v] << v for v in locVar] + [Assume(self.updateCond(p.cond, dictLoc))]
 		elif isinstance(p, ParallelSem):
@@ -269,12 +283,17 @@ class SSASem:
 				newPar += self.additionalRead(i)
 
 			return [ParallelSem(*newPar)]
+		elif isinstance(p, IfStm):
+			newIf = []
+			for i in p.list():
+				newIf += self.additionalRead(i)
+			return [IfStm(p.cond, *newIf)]
 		elif isinstance(p, SeqSem):
 			newSeq = []
 			for i in p.list():
 				newSeq += self.additionalRead(i)
 			# print SeqSem(*newSeq)
-			return [SeqSem(*newSeq)]
+			return [p.__class__(*newSeq)]
 		else:
 			return [p]
 
@@ -282,7 +301,7 @@ class SSASem:
 		# eliminate havoc annotation
 		[P] = self.eliminateHavoc(self.p)
 
-		# realize reads for assertion and assumption
+		# # realize reads for assertion and assumption
 		[P] = self.additionalRead(P)
 
 		return self.__ssa(P)
@@ -294,11 +313,13 @@ if __name__ == "__main__":
 			TempReg('val') << 1, 
 			Register('r1') << TempReg('val')
 			),
-		InstrSem(	# str r1, [x]
-			TempReg('val') << Register('r1'),
-			ParallelSem(TempReg('val1') << Register('val'), TempReg('val2') << Register('val')),
-			Location('x') << TempReg('val')
-			),
+		IfStm( Register('z') == 0,
+			InstrSem(	# str r1, [x]
+				TempReg('val') << Register('r1'),
+				ParallelSem(TempReg('val1') << Register('val'), TempReg('val2') << Register('val')),
+				Location('x') << TempReg('val')
+			)
+		),
 		InstrSem(	# str r1, [y]
 			TempReg('val') << Register('r1'),
 			Location('y') << TempReg('val')
@@ -322,9 +343,11 @@ if __name__ == "__main__":
 					Register('n') << i_if_exp(TempReg('rd') == TempReg('rt'), 0, 1),
 				)
 			)),
-			(Location('x') == 0),						# { inv }
+			((Location('x') == 0) | (Location('x') == 1)) &
+			((Location('y') == 0) | (Location('y') == 1)) &
+			((Register('r2') == 0) | (Register('r2') == 1)),						# { inv }
 			Register('z') == 0,			# bne L
-			Register('z') == 1			# { Q }
+			Register('r2') == 1			# { Q }
 		), 
 		InstrSem(	# ldr r3, [x]
 			TempReg('val') << Location('x'),
@@ -332,13 +355,14 @@ if __name__ == "__main__":
 			),
 		Assertion(Register('r3') == 1)
 		)
+	print P1
 	P1 = invExtractor(P1, [Register('r2')])
-	P2 = invExtractor(P2, [Register('r2'), Register('r3'), Register('z'), Register('n'), Location('x'), Location('y')])
-	for i in P2:
-		print i
+	# P2 = invExtractor(P2, [Register('r2'), Register('r3'), Register('z'), Register('n'), Location('x'), Location('y')])
+	for i in P1:
+	# 	print i
 		print '----- ssa -----'
 		ssa_i = SSASem(i)
 		j = ssa_i.ssa()
 		print j
-
+	
 
