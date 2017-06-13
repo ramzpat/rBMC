@@ -104,33 +104,52 @@ def encodeSem(i, pid = 0):
 # result a set of formulas ?
 def encode(p):
 
-	def constructPO(p, prev = []):
-		if isinstance(p, iSem):
+	def constructPO(p, prev = [], info = {}):
+		if isinstance(p, Operation):
 			ret = []
 			for i in prev:
 				ret += [(i, p)]
-			return (ret, [p])
+			if 'Ev' in info.keys():
+				info['Ev'] += [p]
+			return (ret, [p], info)
 		elif isinstance(p, ParallelSem):
 			poRet = []
 			lastEle = []
 			for pl in p.list():
-				(po,e) = constructPO(pl, prev)
+				(po,e, info) = constructPO(pl, prev, info)
 				lastEle += e 
 				poRet += po
-			return (poRet, lastEle)
+			return (poRet, lastEle, info)
+		elif isinstance(p, InstrSem):
+			poRet = []
+			iico = []
+			# print prev
+			prev2 = []
+			for pl in p.list():
+				(po,e,info) = constructPO(pl, prev2, info)
+				poRet += po
+				prev2 = e
+
+			info['iico'] += poRet
+			# print prev, poRet[0][0]
+			poRet = [ (pl, poRet[0][0]) for pl in prev] + poRet
+				
+			return (poRet, e, info)
 		elif isinstance(p, SeqSem):
 			poRet = []
 			for pl in p.list():
-				(po,e) = constructPO(pl, prev)
+				(po,e,info) = constructPO(pl, prev, info)
+				
 				poRet += po
 				prev = e 
-			return (poRet, prev)
+
+			return (poRet, prev, info)
 			
 
 	def constructIICO(p):
 		ret = []
 		if isinstance(p, InstrSem):
-			(iico, e) = constructPO(p)
+			(iico, e, info) = constructPO(p)
 			ret += iico 
 		elif isinstance(p, SeqSem):
 			for i in p.list():
@@ -140,7 +159,28 @@ def encode(p):
 	# derive the set of events
 	# events = [e for e in p]
 	Ev = []
-	print '----'
+
+	info = {
+		'CS':[],
+		'PS':[],
+		'Ev':[],
+		'iico':[]
+	}
+
+	# collect po, iico, Events(R,W,regRW)
+	# locations, facts assignment
+	# properties
+
+	# change p to be operation in z3 wrt to structure...
+
+	(poS,e, info) = constructPO(p, [], info)
+	print len(info['Ev'])
+	# for (x,y) in poS:
+	# 	print str(x) + ',' + str(y)
+	# iico = constructIICO(p)
+	# for (x,y) in info['iico']:
+	# 	print str(x) + ',' + str(y)
+
 	# info = encodeSem(p)
 		# print e
 		# Ev += [e]
@@ -288,6 +328,7 @@ def mp():
 	ssa_j = SSASem(j).ssa()
 	print ssa_i
 	# print ssa_j
+	print '------ encode ------'
 	f = encode(ssa_i)
 	print f
 
