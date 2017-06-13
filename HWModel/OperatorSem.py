@@ -90,6 +90,9 @@ class SeqSem:
 			if isinstance(other, ParallelSem) or isinstance(other, InstrSem) or isinstance(other, IfStm):
 				seq = seq + [other]
 				# clss = other.__class__
+			elif isinstance(self, ParallelSem) or isinstance(self, InstrSem) or isinstance(self, IfStm):
+				clss = SeqSem
+				seq = [self.__class__(*seq),other]
 			else:
 				seq = seq + other.seq
 		else:
@@ -260,6 +263,7 @@ class CodeStructure():
 				next[0] = next[0] + other
 		elif next == []:
 			body = body + other
+			# next[0] = next[0] + other
 		else: 
 			next[0] = next[0] + other
 

@@ -17,13 +17,13 @@ def invExtractor(P, vars = [], clss = SeqSem):
 			# sem = p.sem
 			sem = invExtractor(SeqSem(*p.sem), vars, SeqSem)
 			
-			mergePoint = CodeStructure(SeqSem(Assertion(True)))
-			
+			mergePoint = CodeStructure(SeqSem())
+
 			# print 'mPoint'
 			# print mergePoint
 			fCS = CodeStructure(SeqSem( Assume(~ cond)), [mergePoint])
 			tCS = CodeStructure(SeqSem( Assume(cond),*(sem)), [mergePoint])
-			separatePoint = CodeStructure(SeqSem(Assertion(True)), [tCS, fCS])			
+			separatePoint = CodeStructure(SeqSem(), [tCS, fCS])			
 
 			ret << separatePoint
 		elif isinstance(p, SeqSem):
@@ -37,14 +37,14 @@ def invExtractor(P, vars = [], clss = SeqSem):
 		elif isinstance(p, DoWhile):
 			# 'do-while'
 			# ret += CodeStructure(p)
-			loopBody = invExtractor(p.body)
+			loopBody = invExtractor(p.body, vars, p.body.__class__)
 			loopBody2 = loopBody + SeqSem(
 				Assertion(p.inv),
 				havoc(*vars),
 				Assume(p.inv)
 				)
-			loopBody2 += loopBody
-			loopBody2 = loopBody2 + CodeStructure(SeqSem(), [
+			loopBody2 << loopBody
+			loopBody2 << CodeStructure(SeqSem(), [
 					CodeStructure( SeqSem(Assume(~(p.bInstr)), Assertion(p.Q)) ),
 					CodeStructure( SeqSem(Assertion(p.inv)) )
 				])
@@ -86,10 +86,16 @@ def mp():
 	P2 = SeqSem(
 		DoWhile(		# L:
 			SeqSem(
-			InstrSem(	# ldr r2, [y]
-				TempReg('xal') << Location('y'),
-				Register('X2') << TempReg('val')
-				),
+				DoWhile(
+					InstrSem(	# ldr r2, [y]
+						TempReg('xal') << Location('y'),
+						Register('X2') << TempReg('val')
+						),
+						(Register('z') == 0),						# { inv }
+					Register('z') == 0,			# bne L
+					Register('z') == 1			# { Q }
+				), 
+
 			InstrSem(	# cmp r2, #1
 				ParallelSem(
 					TempReg('rd') << 1,
