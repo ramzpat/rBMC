@@ -201,6 +201,10 @@ class IfStm(SeqSem):
 	def list(self):
 		return list(self.sem)
 
+# atomic{ ... }
+class AtmStm(SeqSem):
+	pass
+
 
 # --------- Code Structure
 class CodeStructure():

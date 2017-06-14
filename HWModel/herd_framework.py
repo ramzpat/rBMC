@@ -276,6 +276,7 @@ def read_from(s, Ev = []):
 			cWrite = candidate_writes(e1, Ev)
 			s.add(Or([rf(w, e1) for w in cWrite ]))
 			# rf-val
+			print e1, cWrite
 			s.add(And([
 				Implies(rf(w, e1), w.val == e1.val)
 				for w in cWrite
@@ -329,7 +330,8 @@ def rf_reg_relation(s, Ev = []):
 	for e1 in Ev:
 		if isReadReg(e1):
 			cWrite = candidate_writes(e1, Ev)
-			print e1
+			# print e1, cWrite[0]
+			# print len(cWrite)
 			assert(len(cWrite) == 1)
 			# there are only one correspond write in ssa form
 			s.add(rf_reg(cWrite[0], e1))

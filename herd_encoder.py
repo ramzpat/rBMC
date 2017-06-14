@@ -104,7 +104,12 @@ def encodeOpr(i, info):
 			(exp, info) = encodeElement(i.exp, info)
 			info['CS'] += [var == exp]
 		else:
-			pass
+			# val := (cond)?1:0
+			(cond, info) = encodeElement(i.exp.cond, info)
+			(tExp, info)= encodeElement(i.exp.t_exp, info)
+			(fExp, info) = encodeElement(i.exp.f_exp, info)
+			info['CS'] += [ Implies(cond, var == tExp), 
+							Implies(Not(cond), var == fExp) ]
 	elif isinstance(i, fenceStm):
 		pass 
 	elif isinstance(i, branchOp):
@@ -125,6 +130,7 @@ def encode(P = []):
 		elif isinstance(p, Assume):
 			(cs,info) = encodeElement(p.cond, info)
 			info['CS'] += [cs]
+			print cs
 			return ([],prev, info)
 		elif isinstance(p, Operation):
 
@@ -224,7 +230,7 @@ def encode(P = []):
 	PoS += [ (w, p) for (p,p2) in PoS for w in WriteInit]
 	info['Ev'] += WriteInit
 
-	print info['Ev']
+	# print info['Ev']
 
 	s = herd.Solver()
 
@@ -232,6 +238,7 @@ def encode(P = []):
 
 	# execution
 	(s, po, poS) = herd.program_order(s, PoS, info['Ev'])
+	# print poS
 	#  - co : W x W relation
 	(s, co) = herd.conflict_order(s, info['Ev'])
 	#  - rf : W x R relation
@@ -247,14 +254,19 @@ def encode(P = []):
 
 
 	s = herd.sc_constraints(s, po, rf, fr, co, info['Ev'])
-	# s = herd.tso_constraints(s, po, rf, fr, co, info['Ev'])
+	# s = herd.tso_constraints(s, po, poS, rf, fr, co, info['Ev'])
 	# s = herd.pso_constraints(s, po, rf, fr, co, info['Ev'])
 
 	print '------ PS'
-	print herd.Not(herd.And(info['PS']))
+	print simplify(herd.Not(herd.And(info['PS'])))
 	s.add(herd.Not(herd.And(info['PS'])))
 	result = s.check()
 	print result
+	m = s.model()
+	for r in [r for r in info['Ev'] if herd.isRead(r)]:
+		for w in [w for w in info['Ev'] if herd.isWrite(w) ]:
+			if herd.is_true(m.evaluate(rf(w,r))):
+				print r, w, m.evaluate(r.val)
 
 def test():
 
@@ -363,9 +375,13 @@ def mp():
 			)),
 			((Location('x') == 0) | (Location('x') == 1)) &
 			((Location('y') == 0) | (Location('y') == 1)) &
-			((Register('r2') == 0) | (Register('r2') == 1)),						# { inv }
+			((Register('z') == 0) | (Register('z') == 1)) &
+			((Register('n') == 0) | (Register('n') == 1)) &
+			((Register('r2') == 0) | (Register('r2') == 1)) 
+			# ((Register('r3') == 0) | (Register('r3') == 1)) 
+			,						# { inv }
 			Register('z') == 0,			# bne L
-			Register('r2') == 1			# { Q }
+			Register('z') == 1			# { Q }
 		), 
 		InstrSem(	# ldr r3, [x]
 			TempReg('val') << Location('x'),
@@ -374,7 +390,7 @@ def mp():
 		Assertion(Register('r3') == 1)
 		)
 
-	print P2
+	# print P2
 	P1 = invExtractor(P1, [Register('r2')])
 	P2 = invExtractor(P2, [Register('r2'), Register('r3'), Register('z'), Register('n'), Location('x'), Location('y')])
 	# P3 = invExtractor(P3, [Register('r2')], P3.__class__)
@@ -386,15 +402,19 @@ def mp():
 			break
 		break
 		# print i
+	# j = P2[1]
+	# print j
 	print '----- ssa -----'
-	# ssa_i = SSASem(i).ssa()
+	
+
+	ssa_i = SSASem(i).ssa()
 	# return 
 	ssa_j = SSASem(j).ssa()
 	# print ssa_i
-	# print ssa_j
+	print ssa_j
 
 	print '------ encode ------'
-	# f = encode([ssa_i, ssa_j])
+	f = encode([ssa_i, ssa_j])
 	# print f
 	# print InstrSem(	# cmp r2, #1
 	# 			ParallelSem(

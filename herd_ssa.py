@@ -6,8 +6,8 @@ from HWModel.OperatorSem import *
 from InvExtractor import *
 
 def isVar(i):
-	# return isinstance(i, Register)
-	return isinstance(i, TempReg)
+	return isinstance(i, Register)
+	# return isinstance(i, TempReg)
 
 def newExp(exp, lastVarName):
 	if isVar(exp):
@@ -191,8 +191,8 @@ class SSASem:
 				newPar += [self.__ssa(i)]
 			# print '---- debug parallel'
 			# print p
-			for i in newPar:
-				print i
+			# for i in newPar:
+			# 	print i
 			# print '++++ debug parallel'
 			return ParallelSem(*newPar)
 		elif isinstance(p, IfStm):
@@ -314,12 +314,12 @@ class SSASem:
 
 	def ssa(self):
 		# eliminate havoc annotation
-		# P = self.p
+		P = self.p
 		[P] = self.eliminateHavoc(self.p)
 
-		# realize reads for assertion and assumption
+		# # realize reads for assertion and assumption
 		[P] = self.additionalRead(P)
-
+		# return P
 		return self.__ssa(P)
 
 
@@ -371,7 +371,7 @@ if __name__ == "__main__":
 			),
 		Assertion(Register('r3') == 1)
 		)
-	print P1
+	# print P1
 	P1 = invExtractor(P1, [Register('r2')])
 	# P2 = invExtractor(P2, [Register('r2'), Register('r3'), Register('z'), Register('n'), Location('x'), Location('y')])
 	for i in P1:
