@@ -9,7 +9,7 @@ locationAddr = []
 
 MemOp = []
 
-def encodeExp(exp, pid = 0):
+def encodeExp(exp, info):
 	if isinstance(exp, int) or isinstance(exp, bool):
 		return exp
 	elif isinstance(exp, Register):
@@ -18,100 +18,131 @@ def encodeExp(exp, pid = 0):
 		# print exp
 		if(len(exp) > 2):
 			op = exp[1]
+			(e1,info) = encodeElement(exp[0], info)
+			(e2,info) = encodeElement(exp[2], info)
+
 			if op == EOpr['plus']:
-				return encodeExp(exp[0], pid) + encodeExp(exp[2], pid)
+				return e1 + e2
 			elif op == EOpr['minus']:
-				return encodeExp(exp[0], pid) - encodeExp(exp[2], pid)
+				return e1 - e2
 			elif op == EOpr['times']:
-				return encodeExp(exp[0], pid) * encodeExp(exp[2], pid)
+				return e1 * e2
 			elif op == EOpr['divide']:
-				return encodeExp(exp[0], pid) / encodeExp(exp[2], pid)
+				return e1 / e2
 			elif op == EOpr['eq']:
-				return (encodeExp(exp[0], pid) == encodeExp(exp[2], pid))
+				return (e1 == e2)
 			elif op == EOpr['lt']:
-				return encodeExp(exp[0], pid) < encodeExp(exp[2], pid)
+				return e1 < e2
 			elif op == EOpr['gt']:
-				return encodeExp(exp[0], pid) > encodeExp(exp[2], pid)
+				return e1 > e2
 			elif op == EOpr['and']:
-				return And(encodeExp(exp[0], pid),encodeExp(exp[2], pid))
+				return herd.And(e1, e2)
 			elif op == EOpr['or']:
-				return Or(encodeExp(exp[0], pid),encodeExp(exp[2], pid))
+								
+				return herd.Or(e1, e2)
 		elif len(exp) == 2:
 			if exp[0] == EOpr['not']:
-				return Not(encodeExp(exp[1], pid))
+				(e1, info) = encodeElement(exp[1], info)
+				return herd.Not(e1)
 		else:
-			return encodeExp(exp[0], pid)
+			return encodeElement(exp[0], info)
 
-
-def encodeISem(i, pid = 0):
-	# assert(isinstance(i,iSem))
-	if isinstance(i, WriteAssn):
-		if (isinstance(i.var, Location)):
-			addr = i.var.address
-			exp = i.exp
-			w = herd.new_write(str(i), (addr), str(exp), pid)
-			# print str(i) + ' -> \t ' + str(w)
-			# MemOp += [w]
-			return w
-		else:
-			return None
-	elif isinstance(i, ReadAssn):
-		if (isinstance(i.exp, Location)):
-			addr = i.exp.address
-			var = i.var
-			
-			r = herd.new_read(str(i), (addr), str(var), pid)
-			# print str(i) + ' -> \t ' + str(r)
-			# MemOp += [r]
-			return r
-		else :
-			return None
-	elif isinstance(i, Assignment):
-		# pass
-		# print i
-		assn = ( herd.Const(str(i.var), herd.Val) == encodeExp(i.exp) )
-		print str(i) + ' -> \t ' + str(assn)
-		# (herd.Int('a') == 1)
-		return assn
-		# assert(False)
-		# return None
-	else:
-		assert(False)
-
-def encodeSem(i, pid = 0):
-	if isinstance(p, ParallelSem):
-		newPar = []
-		for i in p.list():
-			newPar += self.additionalRead(i)
-
-		return [ParallelSem(*newPar)]
-	elif isinstance(p, SeqSem):
-		newSeq = []
-		for i in p.list():
-			newSeq += self.additionalRead(i)
-		# print SeqSem(*newSeq)
-		return [SeqSem(*newSeq)]
-	else:
-		return [p]
 
 # def encodeMemOp(p):
 # 	assert(isinstance(p, SeqSem) or isinstance(p, iSem))
 # 	if isinstance(p, iSem):
 # 		return encodeISem(p)
 # 	elif isinstance(p, ParallelSem):
+def encodeElement(e, info):
+	assert(isinstance(e, Exp) or isinstance(e, Register) or type(e) == int)
+	# print 'hey',herd.Int(str(e))
+	if type(e) == int:
+		return (e, info)
+	elif isinstance(e, TempReg):
+		return (herd.Int(str(e)), info)
+	elif isinstance(e, Register):
+		if not(str(e) in info['Reg'].keys()):
+			info['Reg'][str(e)] = herd.Reg(info['RegCnt'])
+			info['RegCnt'] += 1
+		return (info['Reg'][str(e)], info)
+	elif isinstance(e, Location):
+		if not(e.address in info['Loc'].keys()):
+			addrLoc = herd.Int(str(e.address))
+			info['Loc'][e.address] = herd.InitLoc(addrLoc)
+		return (info['Loc'][e.address], info)
+	elif isinstance(e, ifExp):
+		# val := (cond)?1:0
+		# r1 << val 
+		return (None, info)
+	elif isinstance(e, undefinedExp):
+		return (herd.FreshInt(), info)
+	elif isinstance(e, Exp):
+		return (encodeExp(e,info), info)
 
+	return (None, info)
+
+def encodeOpr(i, info):
+	assert(isinstance(i, Operation))
+	formulas = []
+	encodeOp = None 
+	pid = info['Pid']
+	if isinstance(i, WriteAssn):		
+		# herd_element
+		(var, info) = encodeElement(i.var, info)
+		(exp, info) = encodeElement(i.exp, info)
+		# print i
+		encodeOp = herd.new_write(var, exp, pid)
+		
+	elif isinstance(i, ReadAssn):
+		# herd_element
+		(var, info) = encodeElement(i.var, info)
+		(exp, info) = encodeElement(i.exp, info)
+		encodeOp = herd.new_read(exp, var, pid)
+	elif isinstance(i, Assignment):
+		(var, info) = encodeElement(i.var, info)
+		if not isinstance(i.exp, ifExp):
+			(exp, info) = encodeElement(i.exp, info)
+			info['CS'] += [var == exp]
+		else:
+			pass
+	elif isinstance(i, fenceStm):
+		pass 
+	elif isinstance(i, branchOp):
+		pass 
+	return (encodeOp, formulas, info)
 
 # result a set of formulas ?
-def encode(p):
+def encode(P = []):
 
 	def constructPO(p, prev = [], info = {}):
-		if isinstance(p, Operation):
+		if isinstance(p, Assertion):
+			# print 'assertion:::'
+			# print p.cond
+			(ps,info) = encodeElement(p.cond, info)
+			info['PS'] += [ps]
+			
+			return ([],prev, info)
+		elif isinstance(p, Assume):
+			(cs,info) = encodeElement(p.cond, info)
+			info['CS'] += [cs]
+			return ([],prev, info)
+		elif isinstance(p, Operation):
+
+			# encode each operation... 
+			(encodeOp, formulas, info) = encodeOpr(p, info)
+
+			# prepare program order 
 			ret = []
-			for i in prev:
-				ret += [(i, p)]
-			if 'Ev' in info.keys():
-				info['Ev'] += [p]
-			return (ret, [p], info)
+			if encodeOp:
+				for i in prev:
+					ret += [(i, encodeOp)]
+
+			# prepare a set of operations
+			if encodeOp:
+				info['Ev'] += [encodeOp]	
+
+			retE = [encodeOp] if encodeOp else prev
+			return (ret, retE, info)
 		elif isinstance(p, ParallelSem):
 			poRet = []
 			lastEle = []
@@ -144,7 +175,7 @@ def encode(p):
 				prev = e 
 
 			return (poRet, prev, info)
-			
+		assert(False)
 
 	def constructIICO(p):
 		ret = []
@@ -164,7 +195,13 @@ def encode(p):
 		'CS':[],
 		'PS':[],
 		'Ev':[],
-		'iico':[]
+		'iico':[],
+		'Pid':0,
+
+		'EventCnt':0,
+		'RegCnt':0,
+		'Reg':{},
+		'Loc':{},
 	}
 
 	# collect po, iico, Events(R,W,regRW)
@@ -172,32 +209,52 @@ def encode(p):
 	# properties
 
 	# change p to be operation in z3 wrt to structure...
+	PoS = []
+	info['Pid'] = 1
+	for p in P:
+		(poS, e, info) = constructPO(p, [], info)
+		PoS += poS
+		info['Pid'] += 1
 
-	(poS,e, info) = constructPO(p, [], info)
-	print len(info['Ev'])
-	# for (x,y) in poS:
-	# 	print str(x) + ',' + str(y)
-	# iico = constructIICO(p)
-	# for (x,y) in info['iico']:
-	# 	print str(x) + ',' + str(y)
+	info['CS'] += [herd.Distinct(info['Ev'])]
+	info['CS'] += [herd.Distinct(info['Loc'].values())]
+	
+	# initial location = 0 ?
+	WriteInit = [herd.new_write(v, 0, 0) for v in info['Loc'].values()]
+	PoS += [ (w, p) for (p,p2) in PoS for w in WriteInit]
+	info['Ev'] += WriteInit
 
-	# info = encodeSem(p)
-		# print e
-		# Ev += [e]
-	# for i in a + herd.global_axioms:
-	# 	print i
-	# derive po
-	# (poS,e) = constructPO(p)
-	# derive iico
-	# iico = constructIICO(p)
-	# RW_S = []
-	# print poS
-	#PoS = [e for (e, loc, )]
+	print info['Ev']
+
+	s = herd.Solver()
+
+	s.add(herd.And(info['CS']))
 
 	# execution
-	# (po, axiom_po) = herd.program_order(poS, Ev)
-	# (co, axiom_co) = conflict_order(Ev)
-	# (rf, axiom_rf) = read_from(Ev)
+	(s, po, poS) = herd.program_order(s, PoS, info['Ev'])
+	#  - co : W x W relation
+	(s, co) = herd.conflict_order(s, info['Ev'])
+	#  - rf : W x R relation
+	(s, rf) = herd.read_from(s, info['Ev'])
+	#  - fr : E x E relation
+	(s, fr) = herd.from_read(s, rf, co)
+
+	# Instruction semantics level
+	#  - iico : E x E relation
+	(s, iico, iicoSet) = herd.iico_relation(s, info['iico'], info['Ev'])
+	#  - rf-reg : W-reg x R-reg relation
+	(s, rf_reg, rf_regSet) = herd.rf_reg_relation(s, info['Ev'])
+
+
+	s = herd.sc_constraints(s, po, rf, fr, co, info['Ev'])
+	# s = herd.tso_constraints(s, po, rf, fr, co, info['Ev'])
+	# s = herd.pso_constraints(s, po, rf, fr, co, info['Ev'])
+
+	print '------ PS'
+	print herd.Not(herd.And(info['PS']))
+	s.add(herd.Not(herd.And(info['PS'])))
+	result = s.check()
+	print result
 
 def test():
 
@@ -275,7 +332,6 @@ def mp():
 			),
 		InstrSem(	# str r1, [x]
 			TempReg('val') << Register('r1'),
-			ParallelSem(TempReg('val1') << Register('val'), TempReg('val2') << Register('val')),
 			Location('x') << TempReg('val')
 			),
 		InstrSem(	# str r1, [y]
@@ -297,8 +353,12 @@ def mp():
 					TempReg('rt') << Register('r2')
 				),
 				ParallelSem(
-					Register('z') << i_if_exp(TempReg('rd') == TempReg('rt'), 1, 0),
-					Register('n') << i_if_exp(TempReg('rd') == TempReg('rt'), 0, 1),
+					SeqSem(
+						TempReg('val1') << ifExp(TempReg('rd') == TempReg('rt'), 1, 0),
+						Register('z') << TempReg('val1')),
+					SeqSem(
+						TempReg('val1') << ifExp(TempReg('rd') == TempReg('rt'), 0, 1),
+						Register('n') << TempReg('val1'))
 				)
 			)),
 			((Location('x') == 0) | (Location('x') == 1)) &
@@ -313,9 +373,12 @@ def mp():
 			),
 		Assertion(Register('r3') == 1)
 		)
+
+	print P2
 	P1 = invExtractor(P1, [Register('r2')])
 	P2 = invExtractor(P2, [Register('r2'), Register('r3'), Register('z'), Register('n'), Location('x'), Location('y')])
-
+	# P3 = invExtractor(P3, [Register('r2')], P3.__class__)
+	print '---- inv'
 	for i in P1:
 		# print i
 		for j in P2:
@@ -324,14 +387,30 @@ def mp():
 		break
 		# print i
 	print '----- ssa -----'
-	ssa_i = SSASem(i).ssa()
+	# ssa_i = SSASem(i).ssa()
+	# return 
 	ssa_j = SSASem(j).ssa()
-	print ssa_i
+	# print ssa_i
 	# print ssa_j
-	print '------ encode ------'
-	f = encode(ssa_i)
-	print f
 
+	print '------ encode ------'
+	# f = encode([ssa_i, ssa_j])
+	# print f
+	# print InstrSem(	# cmp r2, #1
+	# 			ParallelSem(
+	# 				TempReg('rd') << 1,
+	# 				TempReg('rt') << Register('r2')
+	# 			),
+	# 			ParallelSem(
+	# 				SeqSem(
+	# 					TempReg('val1') << ifExp(TempReg('rd') == TempReg('rt'), 1, 0),
+	# 					Register('z') << TempReg('val1')),
+	# 				SeqSem(
+	# 					TempReg('val1') << ifExp(TempReg('rd') == TempReg('rt'), 0, 1),
+	# 					Register('n') << TempReg('val1'))
+	# 			)
+	# 		)
+	
 
 if __name__ == '__main__':
 	mp()

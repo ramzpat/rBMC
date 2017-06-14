@@ -97,7 +97,7 @@ def new_loc(name):
 	id_loc += 1
 	return loc
 
-def new_read(name, location, val, pid = 0):
+def new_read(location, val, pid = 0):
 	global eidCnt
 	if is_reg(location):
 		read = ReadReg(eidCnt, location, val, pid) #Const(name, ReadReg)
@@ -112,7 +112,7 @@ def new_read(name, location, val, pid = 0):
 	return read
 	
 
-def new_write(name, location, val, pid = 0):
+def new_write(location, val, pid = 0):
 	global eidCnt
 	# if is_const(val):
 	# 	v = val
@@ -204,7 +204,7 @@ def program_order(s, PoSet = [], Ev = []):
 	# s.add(ForAll([x,y], po(x,y) == Or(po_rel(x,y), 
 	# 								Exists(z, And(po(x,z), po(z,y)))
 	# 								)))
-
+	# print PoSet
 	for (i,j) in PoSet:
 		s.add(po(i, j)) 
 	# s.add(ForAll([x,y,z], Implies(And(po(x,y), po(y,z)), po(x,z))))
@@ -329,6 +329,7 @@ def rf_reg_relation(s, Ev = []):
 	for e1 in Ev:
 		if isReadReg(e1):
 			cWrite = candidate_writes(e1, Ev)
+			print e1
 			assert(len(cWrite) == 1)
 			# there are only one correspond write in ssa form
 			s.add(rf_reg(cWrite[0], e1))
@@ -971,8 +972,8 @@ def mpLoopCheck1():
 	
 	# print x
 	# inital value
-	Wx0 = new_write('Wx0', x, 0)
-	Wy0 = new_write('Wy0', y, 0)
+	Wx0 = new_write(x, 0)
+	Wy0 = new_write(y, 0)
 
 	# Prepare Pid
 	pid1, pid2 = Consts('pid1 pid2', Proc)
@@ -986,18 +987,18 @@ def mpLoopCheck1():
 	r3 = Reg(2)
 
 	# mov r1, #1
-	Wr1 = new_write('Wr1_0', r1, 1, 1)
+	Wr1 = new_write(r1, 1, 1)
 
 	# str r1, [x]
 	Vr1_0 = Int('Temp1')
-	Rr1_0 = new_read('Rr1_0', r1, Vr1_0, 1)
-	Wx1 = new_write('Wx1_0', InitLoc(addrX), Vr1_0, 1)
+	Rr1_0 = new_read(r1, Vr1_0, 1)
+	Wx1 = new_write(InitLoc(addrX), Vr1_0, 1)
 
 	# str r1, [y]
 	Vr1_1 = Int('Temp4')
-	Rr1_1 = new_read('Rr1_1', r1, Vr1_1, 1)
+	Rr1_1 = new_read(r1, Vr1_1, 1)
 
-	Wy1 = new_write('Wy1_0', InitLoc(addrY), Vr1_1, 1)
+	Wy1 = new_write(InitLoc(addrY), Vr1_1, 1)
 	
 	Ev1 = [Wx0, Wy0, Wr1, Rr1_0, Rr1_1, Wx1, Wy1]
 
@@ -1007,17 +1008,17 @@ def mpLoopCheck1():
 	
 	# ldr r6, [y]
 	Vloc3 = Int('Temp6')
-	Rvr5 = new_read('Rvr5', InitLoc(addrY), Vloc3, 2) 
-	Wr6 = new_write('Wr6', r6, Vloc3, 2)
+	Rvr5 = new_read(InitLoc(addrY), Vloc3, 2) 
+	Wr6 = new_write(r6, Vloc3, 2)
 
 	# assert ( inv ) = ( r6 in {0,1} /\ [x] in {0,1} /\ [y] in {0,1})
 	# 				 = And( Or(Vloc3 == 0, Vloc3 == 1), 
 	# 						generateRead(x, valX) /\ Or(valX == 0, valX == 1),
 	# 						generateRead(y, valY) /\ Or(valY == 0, valY == 1))
 	valX_1 = Int('valX_1')
-	assertReadX_1 = new_read('asReadX_1', InitLoc(addrX), valX_1, 2)
+	assertReadX_1 = new_read(InitLoc(addrX), valX_1, 2)
 	valY_1 = Int('valY_1')
-	assertReadY_1 = new_read('asReadY_1', InitLoc(addrY), valY_1, 2)
+	assertReadY_1 = new_read(InitLoc(addrY), valY_1, 2)
 	PS2 += [ Or(valX_1 == 0, valX_1 == 1) ]
 	PS2 += [ Or(valY_1 == 0, valY_1 == 1) ]
 	PS2 += [ Or(Rvr5.val == 0, Rvr5.val == 1) ]
@@ -1026,31 +1027,31 @@ def mpLoopCheck1():
 
 	# havoc (Wx, Wy, r6)
 	hvocValX = Int('hvocValX')
-	havoc_Wx = new_write('havoc_Wx', InitLoc(addrX), hvocValX, 2)
+	havoc_Wx = new_write(InitLoc(addrX), hvocValX, 2)
 	hvocValY = Int('hvocValY')
-	havoc_Wy = new_write('havoc_Wy', InitLoc(addrY), hvocValY, 2)
+	havoc_Wy = new_write(InitLoc(addrY), hvocValY, 2)
 	hvoc_r6 = Int('hvoc_r6')
-	havoc_Wr6 = new_write('havoc_r6', r6, hvoc_r6, 2)
+	havoc_Wr6 = new_write(r6, hvoc_r6, 2)
 
 	# assume ( inv ) 
 	valX_2 = Int('valX_2')
-	assertReadX_2 = new_read('asReadX_2', InitLoc(addrX), valX_2, 2)
+	assertReadX_2 = new_read(InitLoc(addrX), valX_2, 2)
 	valY_2 = Int('valY_2')
-	assertReadY_2 = new_read('asReadY_2', InitLoc(addrY), valY_2, 2)
+	assertReadY_2 = new_read(InitLoc(addrY), valY_2, 2)
 	s.add( Or(valX_2 == 0, valX_2 == 1) )
 	s.add( Or(valY_2 == 0, valY_2 == 1) )
 	s.add( Or(hvoc_r6 == 0, hvoc_r6 == 1) )
 
 	# ldr r6, [y]
 	Vloc3_1 = Int('Temp6_1')
-	Rvr5_1 = new_read('Rvr5_1', InitLoc(addrY), Vloc3_1, 2) 
-	Wr6_1 = new_write('Wr6_1', r6, Vloc3_1, 2)
+	Rvr5_1 = new_read(InitLoc(addrY), Vloc3_1, 2) 
+	Wr6_1 = new_write(r6, Vloc3_1, 2)
 
 	# assert( inv )
 	valX_3 = Int('valX_3')
-	assertReadX_3 = new_read('asReadX_3', InitLoc(addrX), valX_3, 2)
+	assertReadX_3 = new_read(InitLoc(addrX), valX_3, 2)
 	valY_3 = Int('valY_3')
-	assertReadY_3 = new_read('asReadY_3', InitLoc(addrY), valY_3, 2)
+	assertReadY_3 = new_read(InitLoc(addrY), valY_3, 2)
 
 	PS2 += [ Or(valX_3 == 0, valX_3 == 1) ]
 	PS2 += [ Or(valY_3 == 0, valY_3 == 1) ]

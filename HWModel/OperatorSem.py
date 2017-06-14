@@ -35,6 +35,11 @@ class fenceStm(Operation):
 		pass
 	def __str__(self):
 		return 'fence()' 
+class branchOp(Operation):
+	def __init__(self):
+		pass 
+	def __str__(self):
+		return 'branch()'
 
 # ---------------- Execution on operations
 # sequential execution -> list ?
@@ -75,6 +80,31 @@ class SeqSem:
 
 	def __str__(self):
 		return self.strIndent()
+
+	def __lshift__(self, other):
+		clss = self.__class__
+		assert(isinstance(other, Operation) or isinstance(other, Assertion) or isinstance(other, Assume) or isinstance(other, SeqSem))
+
+		if isinstance(self, IfStm):
+			self.sem += [other]
+		elif isinstance(self, ParallelSem):
+			self.par += [other]
+		else:
+			self.seq += [other]
+
+		# if isinstance(other, SeqSem):
+		# 	if isinstance(other, ParallelSem) or isinstance(other, InstrSem) or isinstance(other, IfStm):
+		# 		seq = seq + [other]
+		# 		# clss = other.__class__
+		# 	elif isinstance(self, ParallelSem) or isinstance(self, InstrSem) or isinstance(self, IfStm):
+		# 		clss = SeqSem
+		# 		seq = [self.__class__(*seq),other]
+		# 	else:
+		# 		seq = seq + other.seq
+		# else:
+		# 	seq = seq + [other]
+		# return clss(*seq)
+
 	def __add__(self, other):
 		clss = self.__class__
 		assert(isinstance(other, Operation) or isinstance(other, Assertion) or isinstance(other, Assume) or isinstance(other, SeqSem))
@@ -172,29 +202,7 @@ class IfStm(SeqSem):
 		return list(self.sem)
 
 
-# --------- CodeBlock 
-class CodeBlock():
-	def __init__(self, seq, next = []):
-		self.body = seq
-		self.next = next	
-
-	def body(self):
-		return self.body
-
-	def __iter__(self):
-		if len(self.next) == 0:
-			yield self.body
-		else:
-			for i in self.next:
-				for p in i:
-					yield SeqSem(self.body, p)
-	def __getitem__(self, key):
-		return SeqSem(self.body, self.next[key].getSem())
-	def getSem(self, key = 0):
-		if self.next:
-			return self.body + self.next[key].getSem()
-		return self.body
-
+# --------- Code Structure
 class CodeStructure():
 	def __init__(self, seq, next = []):		
 		self.body = seq
@@ -230,7 +238,7 @@ class CodeStructure():
 		next = self.next
 		if isinstance(other, CodeStructure):
 			if next == []:
-				self.body += other.body
+				self.body << other.body
 				self.next = other.next
 				# self.next = [other]
 			else:

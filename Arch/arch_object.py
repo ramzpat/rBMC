@@ -289,6 +289,8 @@ class ifExp(Exp):
 		self.f_exp = f_exp
 	def __str__(self):
 		return "(" + str(self.cond) + ")? " + str(self.t_exp) + ":" + str(self.f_exp)
+	def __len__(self):
+		return 0
 
 class i_special (iSemantics):
 	pass
@@ -319,6 +321,9 @@ class Register(Exp):
 	def __hash__(self):
 		return hash(self.reg_name)
 
+	def __len__(self):
+		return 0
+
 class TempReg(Register):
 	def RegName(self, i):
 		return self.reg_name
@@ -326,7 +331,7 @@ class TempReg(Register):
 	def __lshift__(self, other):
 		if isinstance(other, Location):
 			return ReadAssn(self, other)
-		elif isinstance(other, Register):
+		elif isinstance(other, Register) and not isinstance(other, TempReg):
 			return ReadAssn(self, other)
 		else:
 			# return WriteAssn(self, other)

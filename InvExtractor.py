@@ -10,6 +10,7 @@ def invExtractor(P, vars = [], clss = SeqSem):
 	# assert(not isinstance(P, ParallelSem))
 	ret = CodeStructure(clss(), [])
 	# ret = emptyCS()
+	# print P
 	for p in P.list():
 		# if-Extractor
 		if isinstance(p, IfStm):
@@ -43,8 +44,8 @@ def invExtractor(P, vars = [], clss = SeqSem):
 				havoc(*vars),
 				Assume(p.inv)
 				)
-			loopBody2 << loopBody
-			loopBody2 << CodeStructure(SeqSem(), [
+			loopBody2 += loopBody
+			loopBody2 += CodeStructure(SeqSem(), [
 					CodeStructure( SeqSem(Assume(~(p.bInstr)), Assertion(p.Q)) ),
 					CodeStructure( SeqSem(Assertion(p.inv)) )
 				])

@@ -6,13 +6,15 @@ from HWModel.OperatorSem import *
 from InvExtractor import *
 
 def isVar(i):
-	return isinstance(i, Register)
+	# return isinstance(i, Register)
+	return isinstance(i, TempReg)
 
 def newExp(exp, lastVarName):
 	if isVar(exp):
 		clss = exp.__class__ 
 		return Exp( clss(lastVarName(str(exp))) )
-	elif isinstance(exp, i_if_exp):
+	elif isinstance(exp, ifExp):
+
 		return i_if_exp( newExp(exp.cond, lastVarName), 
 						 newExp(exp.t_exp, lastVarName),
 						 newExp(exp.f_exp, lastVarName) )
@@ -20,6 +22,7 @@ def newExp(exp, lastVarName):
 		return exp # nothing to do with an address  -- load(Addr)
 	elif isinstance(exp, i_rmw):
 		return i_rmw( newExp(exp.rt, lastVarName), exp.addr )
+
 	elif isinstance(exp, Exp):
 		if len(exp) > 2 and (exp[1] == EOpr['plus'] or exp[1] == EOpr['minus'] or exp[1] == EOpr['times'] or 
 			exp[1] == EOpr['divide'] or exp[1] == EOpr['eq'] or exp[1] == EOpr['lt'] or exp[1] == EOpr['gt'] or
@@ -142,8 +145,8 @@ class SSASem:
 		if isVar(exp):
 			clss = exp.__class__ 
 			return ( clss(self.__get_last_var(str(exp))) )
-		elif isinstance(exp, i_if_exp):
-			return i_if_exp( self.newExp(exp.cond), 
+		elif isinstance(exp, ifExp):
+			return ifExp( self.newExp(exp.cond), 
 							 self.newExp(exp.t_exp),
 							 self.newExp(exp.f_exp) )
 		elif isinstance(exp, Exp):
@@ -169,12 +172,12 @@ class SSASem:
 			# generate read ?
 			return Assume( self.newExp(p.cond) )
 		elif isinstance(p, WriteAssn):
-			var = p.var if (isinstance(p.var, Location)) else p.var.__class__(self.__new_var(p.var))
+			var = p.var if (isinstance(p.var, Location) or not isVar(p.var)) else p.var.__class__(self.__new_var(p.var))
 			exp = p.exp
 			return var << (self.newExp(exp))
 		elif isinstance(p, ReadAssn):
 			var = p.var
-			exp = p.exp if (isinstance(p.exp, Location)) else (self.newExp(p.exp))
+			exp = p.exp if (isinstance(p.exp, Location) or not isVar(p.exp)) else (self.newExp(p.exp))
 			return p.var.__class__(self.__new_var(var)) << exp
 		elif isinstance(p, Assignment) and not(isinstance(p.var, Location)):
 			var = p.var
@@ -186,6 +189,11 @@ class SSASem:
 			newPar = []
 			for i in p.list():
 				newPar += [self.__ssa(i)]
+			# print '---- debug parallel'
+			# print p
+			for i in newPar:
+				print i
+			# print '++++ debug parallel'
 			return ParallelSem(*newPar)
 		elif isinstance(p, IfStm):
 			newSeq = []
@@ -196,9 +204,12 @@ class SSASem:
 			return IfStm(p.cond, *newSeq)
 		elif isinstance(p, SeqSem):
 			newSeq = []
+			# print '------ debug SeqSem'
+			# print p
 			for i in p.list():
 				newSeq += [self.__ssa(i)]
 			# print SeqSem(*newSeq)
+			# print '++++++ debug SeqSem'
 			return p.__class__(*newSeq)
 		return p
 
@@ -229,6 +240,8 @@ class SSASem:
 	def getLocations(self, exp):
 		if isinstance(exp, Location):
 			return [exp]
+		elif isinstance(exp, Register):
+			return [exp]
 		elif isVar(exp):
 			return []
 		elif isinstance(exp, Exp):
@@ -243,6 +256,8 @@ class SSASem:
 
 	def updateCond(self, exp, dictLoc):
 		if isinstance(exp, Location):
+			return dictLoc[exp]
+		elif isinstance(exp, Register):
 			return dictLoc[exp]
 		elif isVar(exp):
 			return exp
@@ -266,7 +281,7 @@ class SSASem:
 			dictLoc = {}
 
 			for v in locVar:
-				dictLoc[v] = TempReg('val_'+str(v.address))
+				dictLoc[v] = TempReg('val_'+str(v.address if isinstance(v, Location) else v))
 			# print self.updateCond(p, dictLoc)
 			return [ dictLoc[v] << v for v in locVar] + [Assertion(self.updateCond(p.cond, dictLoc))]
 		elif isinstance(p, Assume):
@@ -274,7 +289,7 @@ class SSASem:
 			locVar = set(locVar)
 			dictLoc = {}
 			for v in locVar:
-				dictLoc[v] = TempReg('val_'+str(v.address))
+				dictLoc[v] = TempReg('val_'+str(v.address if isinstance(v, Location) else v))
 			# print self.updateCond(p, dictLoc)
 			return [ dictLoc[v] << v for v in locVar] + [Assume(self.updateCond(p.cond, dictLoc))]
 		elif isinstance(p, ParallelSem):
@@ -299,9 +314,10 @@ class SSASem:
 
 	def ssa(self):
 		# eliminate havoc annotation
+		# P = self.p
 		[P] = self.eliminateHavoc(self.p)
 
-		# # realize reads for assertion and assumption
+		# realize reads for assertion and assumption
 		[P] = self.additionalRead(P)
 
 		return self.__ssa(P)
