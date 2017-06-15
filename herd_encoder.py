@@ -54,9 +54,9 @@ def encodeExp(exp, info):
 # 		return encodeISem(p)
 # 	elif isinstance(p, ParallelSem):
 def encodeElement(e, info):
-	assert(isinstance(e, Exp) or isinstance(e, Register) or type(e) == int)
+	assert(isinstance(e, Exp) or isinstance(e, Register) or type(e) == int or type(e) == bool)
 	# print 'hey',herd.Int(str(e))
-	if type(e) == int:
+	if type(e) == int or type(e) == bool:
 		return (e, info)
 	elif isinstance(e, TempReg):
 		return (herd.Int(str(e)), info)
@@ -77,6 +77,8 @@ def encodeElement(e, info):
 	elif isinstance(e, undefinedExp):
 		return (herd.FreshInt(), info)
 	elif isinstance(e, Exp):
+
+
 		return (encodeExp(e,info), info)
 
 	return (None, info)
@@ -130,7 +132,7 @@ def encode(P = []):
 		elif isinstance(p, Assume):
 			(cs,info) = encodeElement(p.cond, info)
 			info['CS'] += [cs]
-			print cs
+			# print cs, 'test'
 			return ([],prev, info)
 		elif isinstance(p, Operation):
 
@@ -169,7 +171,11 @@ def encode(P = []):
 
 			info['iico'] += poRet
 			# print prev, poRet[0][0]
-			poRet = [ (pl, poRet[0][0]) for pl in prev] + poRet
+			# try:
+			if len(poRet) > 0:
+				poRet = [ (pl, poRet[0][0]) for pl in prev] + poRet
+			# except IndexError:
+			# 	print 'Bug', prev, poRet, p
 				
 			return (poRet, e, info)
 		elif isinstance(p, SeqSem):
@@ -209,6 +215,7 @@ def encode(P = []):
 		'Reg':{},
 		'Loc':{},
 	}
+	herd.reset_id()
 
 	# collect po, iico, Events(R,W,regRW)
 	# locations, facts assignment
@@ -222,8 +229,10 @@ def encode(P = []):
 		PoS += poS
 		info['Pid'] += 1
 
-	info['CS'] += [herd.Distinct(info['Ev'])]
-	info['CS'] += [herd.Distinct(info['Loc'].values())]
+	if len(info['Ev']) > 1:
+		info['CS'] += [herd.Distinct(info['Ev'])]
+	if len(info['Loc']) > 1:
+		info['CS'] += [herd.Distinct(info['Loc'].values())]
 	
 	# initial location = 0 ?
 	WriteInit = [herd.new_write(v, 0, 0) for v in info['Loc'].values()]
@@ -235,6 +244,8 @@ def encode(P = []):
 	s = herd.Solver()
 
 	s.add(herd.And(info['CS']))
+	# print info['CS']
+	# print 'CS', herd.simplify(herd.And(info['CS'][2:]))
 
 	# execution
 	(s, po, poS) = herd.program_order(s, PoS, info['Ev'])
@@ -248,6 +259,7 @@ def encode(P = []):
 
 	# Instruction semantics level
 	#  - iico : E x E relation
+	# print info['iico']
 	(s, iico, iicoSet) = herd.iico_relation(s, info['iico'], info['Ev'])
 	#  - rf-reg : W-reg x R-reg relation
 	(s, rf_reg, rf_regSet) = herd.rf_reg_relation(s, info['Ev'])
@@ -255,18 +267,19 @@ def encode(P = []):
 
 	s = herd.sc_constraints(s, po, rf, fr, co, info['Ev'])
 	# s = herd.tso_constraints(s, po, poS, rf, fr, co, info['Ev'])
-	# s = herd.pso_constraints(s, po, rf, fr, co, info['Ev'])
+	# s = herd.pso_constraints(s, po, poS, rf, fr, co, info['Ev'])
 
 	print '------ PS'
-	print simplify(herd.Not(herd.And(info['PS'])))
-	s.add(herd.Not(herd.And(info['PS'])))
+	# print simplify(herd.Not(herd.And(info['PS'])))
+	s.add(simplify(herd.Not(herd.And(info['PS']))))
 	result = s.check()
-	print result
-	m = s.model()
-	for r in [r for r in info['Ev'] if herd.isRead(r)]:
-		for w in [w for w in info['Ev'] if herd.isWrite(w) ]:
-			if herd.is_true(m.evaluate(rf(w,r))):
-				print r, w, m.evaluate(r.val)
+	return (result, s, info)
+	# print result
+	# m = s.model()
+	# for r in [r for r in info['Ev'] if herd.isRead(r)]:
+	# 	for w in [w for w in info['Ev'] if herd.isWrite(w) ]:
+	# 		if herd.is_true(m.evaluate(rf(w,r))):
+	# 			print r, w, m.evaluate(r.val)
 
 def test():
 
@@ -391,49 +404,157 @@ def mp():
 		)
 
 	# print P2
+	# havoc should analyze inside the loop!!
 	P1 = invExtractor(P1, [Register('r2')])
-	P2 = invExtractor(P2, [Register('r2'), Register('r3'), Register('z'), Register('n'), Location('x'), Location('y')])
+	P2 = invExtractor(P2, [Register('r2'), Register('z'), Register('n')])
 	# P3 = invExtractor(P3, [Register('r2')], P3.__class__)
-	print '---- inv'
+	# print '---- inv'
 	for i in P1:
 		# print i
 		for j in P2:
-			# print j
-			break
-		break
-		# print i
-	# j = P2[1]
-	# print j
-	print '----- ssa -----'
+
+			ssa_i = SSASem(i).ssa()
+			ssa_j = SSASem(j).ssa()
+			# print ssa_j
+
+			(result, s, info) = encode([ssa_i, ssa_j])
+			# break
+			if result == sat:
+				break
+	print result
 	
+def twoLoops():
+	# mov r1, #0 		# counter
+	# mov r2, #1		# flag
+	# L:
+	# str r1, [x]		# [x] := r1
+	# add r1, r1, #1	# r1 := r1 + 1
+	# cmp r1, #10		
+	# bne r1, L  		# r1 != 10, {inv: 0 <= [x] < 10 and 0 <= r1 < 10 }, {Q: r1 == 10}
+	# str r2, [y] 		# [y] := r2
 
-	ssa_i = SSASem(i).ssa()
-	# return 
-	ssa_j = SSASem(j).ssa()
-	# print ssa_i
-	print ssa_j
+	# L2:
+	# 	ldr r3, [y]
+	# 	cmp r3, #1
+	# bne L2			# r3 != 1, {inv: r3 = {0, 1}}, {Q: r3 == 1}
+	# ldr r4, [x]
+	# assert()
 
-	print '------ encode ------'
-	f = encode([ssa_i, ssa_j])
-	# print f
-	# print InstrSem(	# cmp r2, #1
-	# 			ParallelSem(
-	# 				TempReg('rd') << 1,
-	# 				TempReg('rt') << Register('r2')
-	# 			),
-	# 			ParallelSem(
-	# 				SeqSem(
-	# 					TempReg('val1') << ifExp(TempReg('rd') == TempReg('rt'), 1, 0),
-	# 					Register('z') << TempReg('val1')),
-	# 				SeqSem(
-	# 					TempReg('val1') << ifExp(TempReg('rd') == TempReg('rt'), 0, 1),
-	# 					Register('n') << TempReg('val1'))
-	# 			)
-	# 		)
+
+	P1 = SeqSem(
+		InstrSem(	# mov r1, #0
+			TempReg('val') << 0, 
+			Register('r1') << TempReg('val')
+			),
+		InstrSem(	# mov r2, #1
+			TempReg('val') << 1, 
+			Register('r2') << TempReg('val')
+			),
+		DoWhile(
+			SeqSem(
+				InstrSem(	# str r1, [x]
+					TempReg('val') << Register('r1'),
+					Location('x') << TempReg('val')
+					),
+				InstrSem(	# add r1, r1, #1
+					TempReg('val') << Register('r1'),
+					TempReg('val') << (TempReg('val') + 1),
+					Register('r1') << TempReg('val')	
+					),
+				InstrSem(	# cmp r1, #10
+					ParallelSem(
+						TempReg('rd') << 1,
+						TempReg('rt') << Register('r1')
+					),
+					ParallelSem(
+						SeqSem(
+							TempReg('val1') << ifExp(TempReg('rd') == TempReg('rt'), 1, 0),
+							Register('z') << TempReg('val1')),
+						SeqSem(
+							TempReg('val1') << ifExp(TempReg('rd') == TempReg('rt'), 0, 1),
+							Register('n') << TempReg('val1'))
+					)
+					)
+				),
+				( 
+					((Location('x') >= 0) & (Location('x') < 10)) & 
+					((Register('r1') >= 0) & (Register('r1') <= 10))
+				), # inv
+				(Register('r1') < 10), # cond
+				(Register('r1') == 0)  # Q
+			),
+		
+		InstrSem(	# str r1, [y]
+			TempReg('val') << Register('r1'),
+			Location('y') << TempReg('val')
+			)
+		)
+
+	P2 = SeqSem(
+		DoWhile(		# L:
+			SeqSem(
+			InstrSem(	# ldr r2, [y]
+				TempReg('val') << Location('y'),
+				Register('r2') << TempReg('val')
+				),
+			InstrSem(	# cmp r2, #1
+				ParallelSem(
+					TempReg('rd') << 1,
+					TempReg('rt') << Register('r2')
+				),
+				ParallelSem(
+					SeqSem(
+						TempReg('val1') << ifExp(TempReg('rd') == TempReg('rt'), 1, 0),
+						Register('z') << TempReg('val1')),
+					SeqSem(
+						TempReg('val1') << ifExp(TempReg('rd') == TempReg('rt'), 0, 1),
+						Register('n') << TempReg('val1'))
+				)
+			)),
+			# ((Location('x') >= 0) | (Location('x') < 10)) &
+			# ((Location('y') == 0) | (Location('y') == 1)) &
+			((Register('z') == 0) | (Register('z') == 1)) &
+			((Register('n') == 0) | (Register('n') == 1)) &
+			((Register('r2') == 0) | (Register('r2') == 1)) 
+			# ((Register('r3') == 0) | (Register('r3') == 1)) 
+			,						# { inv }
+			Register('z') == 0,			# bne L
+			Register('z') == 1			# { Q }
+		), 
+		InstrSem(	# ldr r3, [x]
+			TempReg('val') << Location('x'),
+			Register('r3') << TempReg('val')
+			),
+		# Assertion(True)
+		)
+
+	# print P2
+	# havoc should analyze inside the loop!!
+	P1 = invExtractor(P1, [Register('r1'), Location('x'), Register('z'), Register('n')])
+	P2 = invExtractor(P2, [Register('r2'), Register('z'), Register('n')])
+	# P3 = invExtractor(P3, [Register('r2')], P3.__class__)
+	# print '---- inv'
+	for i in P1:
+		# print i
+		for j in P2:
+
+			ssa_i = SSASem(i).ssa()
+			ssa_j = SSASem(j).ssa()
+			# print ssa_i
+			# print ssa_j
+
+			(result, s, info) = encode([ssa_i, ssa_j])
+			# break
+			if result == sat:
+				print result
+		# break
+	print result
 	
 
 if __name__ == '__main__':
-	mp()
+	# mp()
+	twoLoops()
+	pass
 
 
 

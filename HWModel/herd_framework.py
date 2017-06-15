@@ -88,6 +88,12 @@ def subsort_f(sort1, sort2):
 	return f_sort 
 
 id_loc = 0
+
+def reset_id():
+	global eidCnt
+	eidCnt = 0
+
+
 def new_loc(name):
 	global global_axioms
 	global id_loc
@@ -276,7 +282,7 @@ def read_from(s, Ev = []):
 			cWrite = candidate_writes(e1, Ev)
 			s.add(Or([rf(w, e1) for w in cWrite ]))
 			# rf-val
-			print e1, cWrite
+			# print e1, cWrite
 			s.add(And([
 				Implies(rf(w, e1), w.val == e1.val)
 				for w in cWrite
@@ -303,7 +309,8 @@ def iico_relation(s, S = [], Ev = []):
 	for (i, j) in S:
 		idS += [(i.eid, j.eid)]
 		EvID[i.eid] = i 
-		EvID[j.eid] = j
+		EvID[j.eid] = j	
+		
 	idS = transitive_closure(idS)
 
 	iico = Function('iico', Event, Event, BoolSort())
@@ -538,7 +545,7 @@ def tso_constraints(s, po, poSet, rf, fr, co, Ev):
 
 	return s
 
-def pso_constraints(s, po, rf, fr, co, Ev):
+def pso_constraints(s, po, poSet, rf, fr, co, Ev):
 	# tso-01.cat
 	# (* Communication relations that order events*)
 	# let com-tso = rfe | co | fr
@@ -563,8 +570,34 @@ def pso_constraints(s, po, rf, fr, co, Ev):
 	# acyclic ghb
 
 	(s, ghb) = acyclic(s, com_tso, po_tso)
-	return s
-	# show ghb
+	
+	# prepare for uniproc
+	po_loc = Function('po-loc', Event, Event, BoolSort())
+	po_locSet = [ (e1.eid, e2.eid) for e1 in Ev for e2 in Ev if (e1.eid, e2.eid) in poSet and (eq(e1.target, e2.target) if e1.target.sort() == e2.target.sort() else False) ]
+	s.add([po_loc(e1, e2) == And(po(e1, e2), (e1.target == e2.target) if e1.target.sort() == e2.target.sort() else False )  for e1 in Ev for e2 in Ev])
+
+	rfi = Function('rfi', Event, Event, BoolSort())
+	fri = Function('fri', Event, Event, BoolSort())
+	for e1 in Ev:
+		for e2 in Ev:
+			s.add(rfi(e1, e2) == And(rf(e1,e2), (e1.pid == e2.pid)))
+			s.add(fri(e1, e2) == And(fr(e1,e2), (e1.pid == e2.pid)))
+
+	# (* Uniproc check specialized for TSO *)
+	# irreflexive po-loc & (R*W); rfi as uniprocRW
+	# irreflexive po-loc & (W*R); fri as uniprocWR
+	uniprocRW = Function('uniprocRW', Event, Event, BoolSort())
+	uniprocWR = Function('uniprocWR', Event, Event, BoolSort())
+
+	po_loc_RW = Function('po-loc(RW)', Event, Event, BoolSort())
+	po_loc_WR = Function('po-loc(WR)', Event, Event, BoolSort())
+	s.add([po_loc_RW(e1, e2) == And(po_loc(e1, e2), True if isRead(e1) and isWrite(e2) else False )  for e1 in Ev for e2 in Ev])
+	s.add([po_loc_WR(e1, e2) == And(po_loc(e1, e2), True if isWrite(e1) and isRead(e2) else False )  for e1 in Ev for e2 in Ev])
+	e1, e2, e3 = Consts('e1 e2 e3', Event)
+	s.add(ForAll([e1, e2, e3], Implies(And(po_loc_RW(e1,e2), rfi(e2,e3)), uniprocRW(e1,e3))))
+	s.add(ForAll([e1, e2, e3], Implies(And(po_loc_WR(e1,e2), fri(e2,e3)), uniprocWR(e1,e3))))
+	s = irreflexive(s, uniprocRW)
+	s = irreflexive(s, uniprocWR)
 
 	return s
 
@@ -840,8 +873,8 @@ def mpCheck():
 	
 	# print x
 	# inital value
-	Wx0 = new_write('Wx0', x, 0)
-	Wy0 = new_write('Wy0', y, 0)
+	Wx0 = new_write(x, 0)
+	Wy0 = new_write(y, 0)
 
 	pid1, pid2 = Consts('pid1 pid2', Proc)
 	s.add(Distinct(pid1, pid2))
@@ -853,32 +886,32 @@ def mpCheck():
 	r3 = Reg(2)
 
 	# mov r1, #1
-	Wr1 = new_write('Wr1_0', r1, 1, 1)
+	Wr1 = new_write(r1, 1, 1)
 	# mov r2, x
-	Wr2 = new_write('Wr2_0', r2, addrX, 1)
+	Wr2 = new_write(r2, addrX, 1)
 	# mov r3, y
-	Wr3 = new_write('Wr3_0', r3, addrY, 1)
+	Wr3 = new_write(r3, addrY, 1)
 
 	# str r1, [r2/x]
 	tempAddr1 = Int('tempAddr1')
-	Rr2 = new_read('Rr2_0', r2, tempAddr1, 1)
+	Rr2 = new_read(r2, tempAddr1, 1)
 	# loc1 = Const('loc1', Loc)
 	# s.add(addrLoc(loc1) == TempAddr)
 
 	Vr1_0 = Int('Temp1')
-	Rr1_0 = new_read('Rr1_0', r1, Vr1_0, 1)
+	Rr1_0 = new_read(r1, Vr1_0, 1)
 	
-	Wx1 = new_write('Wx1_0', InitLoc(addrX), Vr1_0, 1)
+	Wx1 = new_write(InitLoc(addrX), Vr1_0, 1)
 
 	# str r1, [r3/y]
 	TempAddr2 = Int('Temp3')
-	Rr3 = new_read('Rr3_0', r3, TempAddr2, 1)
+	Rr3 = new_read(r3, TempAddr2, 1)
 	# loc2 = Const('loc2', Loc)
 	Vr1_1 = Int('Temp4')
-	Rr1_1 = new_read('Rr1_1', r1, Vr1_1, 1)
+	Rr1_1 = new_read(r1, Vr1_1, 1)
 	
 	# s.add(addrLoc(loc2) == TempAddr2)
-	Wy1 = new_write('Wy1_0', InitLoc(addrY), Vr1_1, 1)
+	Wy1 = new_write(InitLoc(addrY), Vr1_1, 1)
 	# print InitLoc(TempAddr2)
 	Ev1 = [Wx0, Wy0, Wr1, Wr2, Wr3, Rr1_0, Rr2, Rr3, Rr1_1, Wx1, Wy1]
 	# print [ev.sort() for ev in Ev1 if isWriteReg(ev) ]
@@ -887,23 +920,23 @@ def mpCheck():
 	r4, r5, r6, r7 = Reg(3), Reg(4), Reg(5), Reg(6)
 	
 	# mov r4, x
-	Wr4 = new_write('Wr4', r4, addrX, 2)
+	Wr4 = new_write(r4, addrX, 2)
 	# mov r5, y
-	Wr5 = new_write('Wr5', r5, addrY, 2)
+	Wr5 = new_write(r5, addrY, 2)
 
 	# ldr r6, [r5]
 	Vr5 = Int('Temp5')
-	Rr5 = new_read('Rr5', r5, Vr5, 2)
+	Rr5 = new_read(r5, Vr5, 2)
 	Vloc3 = Int('Temp6')
-	Rvr5 = new_read('Rvr5', InitLoc(addrY), Vloc3, 2) 
-	Wr6 = new_write('Wr6', r6, Vloc3, 2)
+	Rvr5 = new_read(InitLoc(addrY), Vloc3, 2) 
+	Wr6 = new_write(r6, Vloc3, 2)
 
 	# ldr r7, [r4]
 	Vr4 = Int('Temp7')
-	Rr4 = new_read('Rr4', r4, Vr4, 2)
+	Rr4 = new_read(r4, Vr4, 2)
 	Vloc4 = Int('Temp8')
-	Rvr4 = new_read('Rvr4', InitLoc(addrX), Vloc4, 2) 
-	Wr7 = new_write('Wr7', r7, (Vloc4), 2)
+	Rvr4 = new_read(InitLoc(addrX), Vloc4, 2) 
+	Wr7 = new_write(r7, (Vloc4), 2)
 	
 	Ev2 = [Wr4, Wr5, Rr5, Rvr5, Wr6, Rr4, Rvr4, Wr7]
 	# print [ev[0] for ev in Ev2 if ev[0].sort() == ReadOp or ev[0].sort() == WriteOp ]
@@ -943,8 +976,8 @@ def mpCheck():
 
 
 	# s = sc_constraints(s, po, rf, fr, co, Ev1 + Ev2)
-	s = tso_constraints(s, po, rf, fr, co, Ev1 + Ev2)
-	# s = pso_constraints(s, po, rf, fr, co, Ev1 + Ev2)
+	# s = tso_constraints(s, po, poS, rf, fr, co, Ev1 + Ev2)
+	s = pso_constraints(s, po, poS, rf, fr, co, Ev1 + Ev2)
 
 
 	EvID = [0 for e in Ev1 + Ev2 ]
@@ -1137,8 +1170,8 @@ def mpLoopCheck1():
 
 if __name__ == '__main__':
 	print 'hello world'
-	mpLoopCheck1()
-	# mpCheck()
+	# mpLoopCheck1()
+	mpCheck()
 
 
 

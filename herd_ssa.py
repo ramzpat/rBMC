@@ -180,11 +180,11 @@ class SSASem:
 			exp = p.exp if (isinstance(p.exp, Location) or not isVar(p.exp)) else (self.newExp(p.exp))
 			return p.var.__class__(self.__new_var(var)) << exp
 		elif isinstance(p, Assignment) and not(isinstance(p.var, Location)):
-			var = p.var
-			exp = p.exp
+			exp = self.newExp(p.exp)
+			var = p.var.__class__(self.__new_var(p.var))
 			# if var in self.dynamic_vars:
 			# 	print self.dynamic_vars[var]
-			return Assignment(p.var.__class__(self.__new_var(var)), (self.newExp(exp)))
+			return Assignment(var, exp)
 		elif isinstance(p, ParallelSem):
 			newPar = []
 			for i in p.list():
