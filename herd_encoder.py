@@ -231,6 +231,7 @@ def encode(P = []):
 
 	if len(info['Ev']) > 1:
 		info['CS'] += [herd.Distinct(info['Ev'])]
+		# print 'hey'
 	if len(info['Loc']) > 1:
 		info['CS'] += [herd.Distinct(info['Loc'].values())]
 	
@@ -273,13 +274,15 @@ def encode(P = []):
 	# print simplify(herd.Not(herd.And(info['PS'])))
 	s.add(simplify(herd.Not(herd.And(info['PS']))))
 	result = s.check()
-	return (result, s, info)
+	
 	# print result
-	# m = s.model()
-	# for r in [r for r in info['Ev'] if herd.isRead(r)]:
-	# 	for w in [w for w in info['Ev'] if herd.isWrite(w) ]:
-	# 		if herd.is_true(m.evaluate(rf(w,r))):
-	# 			print r, w, m.evaluate(r.val)
+	if result == sat:
+		m = s.model()
+		for r in [r for r in info['Ev'] if herd.isReadReg(r)]:
+			for w in [w for w in info['Ev'] if herd.isWriteReg(w) ]:
+				if herd.is_true(m.evaluate(rf_reg(w,r))):
+					print r, w, m.evaluate(r.val)
+	return (result, s, info)
 
 def test():
 
@@ -477,15 +480,15 @@ def twoLoops():
 					)
 				),
 				( 
-					((Location('x') >= 0) & (Location('x') < 10)) & 
+					((Location('x') >= 0) & (Location('x') <= 9)) & 
 					((Register('r1') >= 0) & (Register('r1') <= 10))
 				), # inv
 				(Register('r1') < 10), # cond
-				(Register('r1') == 0)  # Q
+				(Register('r1') >= 10)  # Q
 			),
 		
-		InstrSem(	# str r1, [y]
-			TempReg('val') << Register('r1'),
+		InstrSem(	# str r2, [y]
+			TempReg('val') << Register('r2'),
 			Location('y') << TempReg('val')
 			)
 		)
@@ -525,7 +528,7 @@ def twoLoops():
 			TempReg('val') << Location('x'),
 			Register('r3') << TempReg('val')
 			),
-		# Assertion(True)
+		Assertion(Register('r3') == 9)
 		)
 
 	# print P2
@@ -544,16 +547,25 @@ def twoLoops():
 			# print ssa_j
 
 			(result, s, info) = encode([ssa_i, ssa_j])
-			# break
 			if result == sat:
-				print result
-		# break
+				break
+		if result == sat:
+			print ssa_i
+			print ssa_j
+			print result
+			return 
+			# print ssa_j
+			# m = s.model()
+			# for r in [r for r in info['Ev'] if herd.isRead(r)]:
+			# 	for w in [w for w in info['Ev'] if herd.isWrite(w) ]:
+			# 		if herd.is_true(m.evaluate(herd.rf(w,r))):
+			# 			print r, w, m.evaluate(r.val)
 	print result
 	
 
 if __name__ == '__main__':
-	# mp()
-	twoLoops()
+	mp()
+	# twoLoops()
 	pass
 
 
