@@ -205,7 +205,6 @@ class IfStm(SeqSem):
 class AtmStm(SeqSem):
 	pass
 
-
 # --------- Code Structure
 class CodeStructure():
 	def __init__(self, seq, next = []):		
@@ -234,12 +233,23 @@ class CodeStructure():
 		if self.next:
 			return self.body + self.next[key].getSem()
 		return self.body
+	def addMergePoint(self, other):
+
+		if self == other:
+			return 
+			# assert(False)
+		if self.next == []:
+			self.next = [other]
+		else:
+			for n in self.next:
+				if not isinstance(n, terminateCS):
+					n.addMergePoint(other)
 
 	def __lshift__(self, other):
 		assert(isinstance(other, Operation) or isinstance(other, AnnotatedStatement) or isinstance(other, SeqSem) or 
 			isinstance(other, CodeStructure))
 		body = self.body
-		next = self.next
+		next = self.next[:]
 		if isinstance(other, CodeStructure):
 			if next == []:
 				self.body << other.body
@@ -250,6 +260,7 @@ class CodeStructure():
 				# print self.next[0]
 				# a << other
 				# print a
+				# print self.next[0]
 				self.next[0] << other
 				
 
@@ -259,7 +270,7 @@ class CodeStructure():
 
 			self.body += other
 		else: 
-			self.next[0] += other
+			self.next[0] << other
 
 	def __add__(self, other):
 
@@ -267,6 +278,7 @@ class CodeStructure():
 			isinstance(other, CodeStructure))
 		body = self.body
 		next = self.next[:]
+
 		if isinstance(other, CodeStructure):
 			if next == []:
 				body = body + other.body
@@ -285,6 +297,73 @@ class CodeStructure():
 		# elif isinstance(other, SeqSem):
 		# 	self.next[0] = SeqSem(self.next[0] + other)
 		# else:
+
+# idM = 0
+class mergePointCS(CodeStructure):
+	def __init__(self):		
+		# global idM
+		# self.id = idM
+		# idM += 1
+		self.body = SeqSem()
+		self.next = []
+		
+
+	def body(self):
+		return SeqSem()
+
+	# def __iter__(self):
+	# 	yield SeqSem()
+
+	# def __getitem__(self, key):
+	# 	return SeqSem()
+	# def __str__(self):
+	# 	return 'merge point'
+
+	def __lshift__(self, other):
+		# print 'lshift merge'
+		# print 'other', other
+		if self.next == []:
+			if isinstance(other, CodeStructure):
+				# body = other.body
+				# print 'CS'
+				self.next = [other]
+			else: 
+				# print other.__class__
+				self.next = [CodeStructure(SeqSem(other), [])]
+		else:
+			self.next[0] += other
+		# print other.__class__
+		# for u in self:
+		# 	print u
+		# print 'xxxxxxxx'
+
+	def __add__(self, other):
+		# print 'add merge'
+		assert(isinstance(other, Operation) or isinstance(other, AnnotatedStatement) or isinstance(other, SeqSem) or 
+			isinstance(other, CodeStructure))
+
+		next = self.next[:]
+		if self.next == []:
+			if isinstance(other, CodeStructure):
+				# body = other.body
+				# print 'CS'
+				next = [other]
+			else: 
+				# print other.__class__
+				next = [CodeStructure(SeqSem(other), [])]
+		else:
+			# for u in self:
+			# 	print u
+			# print next[0], other
+			# assert(False)
+			next[0] = next[0] + other
+
+		return CodeStructure(self.body, next)
+
+class terminateCS(CodeStructure):
+	def __init__(self):
+		self.body = SeqSem()
+		self.next = []
 
 class emptyCS(CodeStructure):
 	def __init__(self):		
@@ -334,11 +413,11 @@ if __name__ == '__main__':
 				ReadAssn('r', '3')), 
 			Assertion('test')
 			)
-	A = CodeBlock(SeqSem(ReadAssn('r', '4')))
-	B = CodeBlock(SeqSem(ReadAssn('r', '6'), havoc('r1', 'r2')))
-	t = CodeBlock(P, [A, B])
+	A = CodeStructure(SeqSem(ReadAssn('r', '4')))
+	B = CodeStructure(SeqSem(ReadAssn('r', '6'), havoc('r1', 'r2')))
+	t = CodeStructure(P, [A, B])
 	print t[1]
-	for p in CodeBlock(P, [A, B]):
+	for p in CodeStructure(P, [A, B]):
 		print p
 		print '-----'
 

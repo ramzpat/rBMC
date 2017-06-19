@@ -3,12 +3,57 @@ from HWModel.OperatorSem import *
 from Arch.arch_object import *
 
 
+def getAssnVars(p):
+	if isinstance(p, Assertion):
+		return []
+	elif isinstance(p, Assume):
+		return []
+	elif isinstance(p, Assignment) and not(isinstance(p.var, TempReg)):
+		return [p.var]
+	elif isinstance(p, ParallelSem):
+		newPar = []
+		for i in p.list():
+			newPar += getAssnVars(i)
+		return newPar
+	elif isinstance(p, IfStm):
+		assnVars = []
+		for i in p.list():
+			assnVars += getAssnVars(i)
+		# print SeqSem(*newSeq)
+		return assnVars
+	elif isinstance(p, SeqSem):
+		newSeq = []
+		for i in p.list():
+			newSeq += getAssnVars(i)
+		return newSeq
+	elif isinstance(p, CodeStructure):
+		v = []
+		for i in p:
+			v += getAssnVars(i)
+		return v
+	return []
+
 def invExtractor(P, vars = [], clss = SeqSem):
 	# build Code Structure
 
 	# 1 - extract Operations as linear ? except parallel ?
 	# assert(not isinstance(P, ParallelSem))
-	ret = CodeStructure(clss(), [])
+	clss = P.__class__
+	if clss == IfStm:
+		# ret = CodeStructure(IfStm(P.cond), [])
+		cond = P.cond
+		sem = invExtractor(SeqSem(*P.sem), vars, SeqSem)
+		# mergePoint = CodeStructure(SeqSem())
+		mergePoint = mergePointCS()
+		fCS = CodeStructure(SeqSem( Assume(~ cond)), [mergePoint])
+		tCS = (CodeStructure(SeqSem( Assume(cond))) + (sem))
+		tCS.addMergePoint(mergePoint)
+		separatePoint = CodeStructure(SeqSem(), [tCS, fCS])			
+
+		ret = separatePoint
+		return ret
+	else:
+		ret = CodeStructure(clss(), [])
 	# ret = emptyCS()
 	# print P
 	for p in P.list():
@@ -18,14 +63,20 @@ def invExtractor(P, vars = [], clss = SeqSem):
 			# sem = p.sem
 			sem = invExtractor(SeqSem(*p.sem), vars, SeqSem)
 			
-			mergePoint = CodeStructure(SeqSem())
+			mergePoint = mergePointCS()
+			# mergePoint = CodeStructure(SeqSem())
 
 			# print 'mPoint'
 			# print mergePoint
 			fCS = CodeStructure(SeqSem( Assume(~ cond)), [mergePoint])
-			tCS = CodeStructure(SeqSem( Assume(cond),*(sem)), [mergePoint])
-			separatePoint = CodeStructure(SeqSem(), [tCS, fCS])			
+			tCS = (CodeStructure(SeqSem( Assume(cond))) + (sem))
+			
+			tCS.addMergePoint(mergePoint)
 
+			# (CodeStructure(SeqSem( Assume(cond))) + (sem)) + mergePoint
+			separatePoint = CodeStructure(SeqSem(), [tCS, fCS])			
+			
+			
 			ret << separatePoint
 		elif isinstance(p, SeqSem):
 			i = p
@@ -38,7 +89,13 @@ def invExtractor(P, vars = [], clss = SeqSem):
 		elif isinstance(p, DoWhile):
 			# 'do-while'
 			# ret += CodeStructure(p)
+
 			loopBody = invExtractor(p.body, vars, p.body.__class__)
+			vars = getAssnVars(loopBody)
+			vars = list(set(vars))
+			# for v in vars:
+			# 	print v
+
 			loopBody2 = loopBody + SeqSem(
 				Assertion(p.inv),
 				havoc(*vars),
@@ -46,9 +103,15 @@ def invExtractor(P, vars = [], clss = SeqSem):
 				Assume(p.bInstr)
 				)
 			loopBody2 += loopBody
+
+			# print '****************'
+			# for i in loopBody2:
+			# 	print i
+			# # print loopBody2.next[0].next, loopBody2.next[1].next[0].next
+			# print '****************'
 			loopBody2 += CodeStructure(SeqSem(), [
 					CodeStructure( SeqSem(Assume(~(p.bInstr)), Assertion(p.Q)) ),
-					CodeStructure( SeqSem(Assertion(p.inv)) )
+					CodeStructure( SeqSem(Assertion(p.inv)), [terminateCS()] )
 				])
 			ret << loopBody2
 		elif isinstance(p,Operation):
@@ -60,10 +123,10 @@ def invExtractor(P, vars = [], clss = SeqSem):
 			ret << p
 
 		elif isinstance(p,AnnotatedStatement):
+
 			ret << p
 	# for p in ret.body:
 	# 	print p
-
 	return ret
 
 

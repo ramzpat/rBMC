@@ -266,7 +266,7 @@ def encode(P = []):
 	(s, rf_reg, rf_regSet) = herd.rf_reg_relation(s, info['Ev'])
 
 
-	s = herd.sc_constraints(s, po, rf, fr, co, info['Ev'])
+	# s = herd.sc_constraints(s, po, rf, fr, co, info['Ev'])
 	# s = herd.tso_constraints(s, po, poS, rf, fr, co, info['Ev'])
 	# s = herd.pso_constraints(s, po, poS, rf, fr, co, info['Ev'])
 
@@ -561,11 +561,193 @@ def twoLoops():
 			# 		if herd.is_true(m.evaluate(herd.rf(w,r))):
 			# 			print r, w, m.evaluate(r.val)
 	print result
+
 	
+def dekker():
+	# 	mov r1, #1		; true
+	# 	mov r2, #0		; false
+	# 	mov r5, #2		; j
+	# Lock: 
+	# 	str r1, [xi]	; x[i] = true
+	# While: 			; while(x[j]){
+	# 	ldr r3, [xj]	; 	x[j] (load to r3)
+	# 	cmp r3, #1		; 	x[j] = true ?
+	# 	assume(r3 <> #1)	; assume HERE*********
+	# 	bne CS			; 	!(x[j] = true) -> goto critical section
+	# If: 			; 	if( k == j(#2) )
+	# 	ldr r4, [k]		; 		k (load to r4)
+	# 	cmp r4, r5		;		k = j ?
+	# 	bne While  		; 		!(k = j) -> goto While
+	# 	str r2, [xi]	;		x[i] = false
+	# While2:			; 		while( k == j); ?
+	# 	ldr r4, [k]		;			k (load to r4)
+	# 	cmp	r4, r5		;			k = j ?
+	# 	beq While2		;			(k = 2) -> goto While2
+	# 	str r1, [xi]	;		x[i] = true
+	# 	b While 		; 	goto While
+	# 	CS:				; critical section:
+	
+	outer_inv = (
+					((Location('xi') == Register('false')) | (Location('xi') == Register('true'))) & 
+					((Location('xj') == Register('false')) | (Location('xj') == Register('true')))
+				)
+	inner_inv = (Location('turn') == 1) | (Location('turn') == 2)
+	inner_Q = (~ (Location('turn') == Register('r5')))
+	outer_Q = (Location('xj') == 1) 
+
+
+	P1 = SeqSem(
+		InstrSem(	# mov r1, #1	(true)
+			TempReg('val') << 1, 
+			Register('true') << TempReg('val')
+			),
+		InstrSem(	# mov r2, #0	(false)
+			TempReg('val') << 0, 
+			Register('false') << TempReg('val')
+			),
+		InstrSem(	# mov r5, #2	(j)
+			TempReg('val') << 2, 
+			Register('r5') << TempReg('val')
+			),
+		InstrSem(	# str true, [xi]
+			TempReg('val') << Register('true'), 
+			Location('xi') << TempReg('val')
+			),
+		IfStm(~(Location('xj') == 1),
+			DoWhile(
+				IfStm(~(Location('turn') == 1),
+				SeqSem(
+					InstrSem(	# str false, [xi]
+						TempReg('val') << Register('false'), 
+						Location('xi') << TempReg('val')
+					),
+					DoWhile(SeqSem(),
+						(inner_inv),
+						(~(Location('turn') == 1)),
+						(inner_Q)
+					),
+					InstrSem(	# str true, [xi]
+						TempReg('val') << Register('true'), 
+						Location('xi') << TempReg('val')
+					)),		
+				# )
+				),
+			(outer_inv), # inv
+			(~(Location('xj') == 1)), # cond
+			(outer_Q)  # Q
+			),
+		),
+		# Critical Section
+		InstrSem(	# str j, [turn]
+				TempReg('val') << Register('r5'), 
+				Location('turn') << TempReg('val')
+			),
+		InstrSem(	# str false, [xi]
+			TempReg('val') << Register('false'), 
+			Location('xi') << TempReg('val')
+			),
+		)
+
+	P2 = SeqSem(
+		InstrSem(	# mov r1, #1	(true)
+			TempReg('val') << 1, 
+			Register('true') << TempReg('val')
+			),
+		InstrSem(	# mov r2, #0	(false)
+			TempReg('val') << 0, 
+			Register('false') << TempReg('val')
+			),
+		InstrSem(	# mov r5, #1	(j)
+			TempReg('val') << 1, 
+			Register('r5') << TempReg('val')
+			),
+		InstrSem(	# str true, [xj]
+			TempReg('val') << Register('true'), 
+			Location('xj') << TempReg('val')
+			),
+		IfStm(~(Location('xi') == 1),
+			DoWhile(
+				IfStm(~(Location('turn') == 2),
+				SeqSem(
+					InstrSem(	# str false, [xj]
+						TempReg('val') << Register('false'), 
+						Location('xj') << TempReg('val')
+					),
+					DoWhile(SeqSem(),
+						(inner_inv),
+						(~(Location('turn') == 2)),
+						(inner_Q)
+					),
+					InstrSem(	# str true, [xj]
+						TempReg('val') << Register('true'), 
+						Location('xj') << TempReg('val')
+					)),		
+				# )
+				),
+			(outer_inv), # inv
+			(~(Location('xi') == 1)), # cond
+			(outer_Q)  # Q
+			),
+		),
+		# Critical Section
+		InstrSem(	# str j, [turn]
+				TempReg('val') << Register('r5'), 
+				Location('turn') << TempReg('val')
+			),
+		InstrSem(	# str false, [xj]
+			TempReg('val') << Register('false'), 
+			Location('xj') << TempReg('val')
+			),
+		)
+
+
+
+
+	# print P2
+	# havoc should analyze inside the loop!!
+	P1 = invExtractor(P1, [Register('r1'), Location('x'), Register('z'), Register('n')])
+	# o = 0
+	# for i in P1:
+	# 	ssa_i = SSASem(i).ssa()
+	# 	print ssa_i
+	# 	o += 1
+	# 	print '----------'
+	# print o
+	# return 
+	P2 = invExtractor(P2, [Register('r2'), Register('z'), Register('n')])
+	# P3 = invExtractor(P3, [Register('r2')], P3.__class__)
+	# print '---- inv'
+	for i in P1:
+		# print i
+		for j in P2:
+
+			ssa_i = SSASem(i).ssa()
+			ssa_j = SSASem(j).ssa()
+			# print ssa_i
+			# print ssa_j
+			# result = sat
+			# break
+			(result, s, info) = encode([ssa_i, ssa_j])
+			if result == sat:
+				break
+		if result == sat:
+			print ssa_i
+			print ssa_j
+			print result
+			return 
+			# print ssa_j
+			# m = s.model()
+			# for r in [r for r in info['Ev'] if herd.isRead(r)]:
+			# 	for w in [w for w in info['Ev'] if herd.isWrite(w) ]:
+			# 		if herd.is_true(m.evaluate(herd.rf(w,r))):
+			# 			print r, w, m.evaluate(r.val)
+	print result
+
 
 if __name__ == '__main__':
-	mp()
+	# mp()
 	# twoLoops()
+	dekker()
 	pass
 
 

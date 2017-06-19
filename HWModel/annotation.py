@@ -25,7 +25,8 @@ class havoc(AnnotatedStatement):
 		return self.vars
 	def __str__(self):
 		ret = 'havoc('
-		ret += str(self.vars[0])
+		if len(self.vars) > 0:
+			ret += str(self.vars[0])
 		for v in self.vars[1:]:
 			ret += ', ' + str(v)
 		return ret + ')'
