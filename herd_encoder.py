@@ -274,12 +274,14 @@ def encode(P = [], initLocation = {}):
 	# print initLocation.values()
 	WriteInit = [herd.new_write(v, 0, 0) for v in info['Loc'].values() if not (str(v) in initLocation.keys())]
 	WriteInit += initLocation.values()
-	PoS += [ (w, p) for (p,p2) in PoS for w in WriteInit]
+	# PoS += [ (w, p) for (p,p2) in PoS for w in WriteInit]
+
 	info['Ev'] += WriteInit
 
-	# print info['Ev']
+	# print WriteInit
 
 	s = herd.Solver()
+	s.add([herd.initLocVal(v) == 0 for v in info['Loc'].values()])
 
 	s.add(herd.And(info['CS']))
 	# print info['CS']
@@ -315,14 +317,14 @@ def encode(P = [], initLocation = {}):
 	# print result
 	if result == sat:
 		m = s.model()
-		for e1 in info['Ev']:
-			for e2 in info['Ev']:
-				if herd.is_true(m.evaluate(herd.mfence_g(e1, e2))):
-					print (e1, e2)
-		# for r in [r for r in info['Ev'] if herd.isReadReg(r)]:
-		# 	for w in [w for w in info['Ev'] if herd.isWriteReg(w) ]:
-		# 		if herd.is_true(m.evaluate(rf_reg(w,r))):
-		# 			print r, w, m.evaluate(r.val)
+		# for e1 in WriteInit:
+		# 	for e2 in info['Ev']:
+		# 		if herd.is_true(m.evaluate(herd.mfence_g(e1, e2))):
+		# 			print (e1, e2)
+		for r in [r for r in info['Ev'] if herd.isRead(r)]:
+			for w in [w for w in WriteInit if herd.isWrite(w) ]:
+				if herd.is_true(m.evaluate(fr(r,w))):
+					print r, w, m.evaluate(r.val)
 	return (result, s, info)
 
 def test():
@@ -883,7 +885,7 @@ def mp_fence():
 			TempReg('val') << 1, 
 			Register('r1') << TempReg('val')
 			),
-		MFENCE(),
+		# MFENCE(),
 		InstrSem(	# str r1, [x]
 			TempReg('val') << Register('r1'),
 			Location('x') << TempReg('val')
@@ -961,8 +963,8 @@ def mp_fence():
 
 if __name__ == '__main__':
 	# mp()
-	mp_fence()
-	# twoLoops()
+	# mp_fence()
+	twoLoops()
 	# dekker()
 	# atomicTest()
 	pass

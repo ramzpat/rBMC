@@ -29,6 +29,8 @@ Loc.declare('loc', ('addr', IntSort()))
 Loc = Loc.create()
 InitLoc = Loc.loc
 
+initLocVal = Function('initLocVal', Loc, IntSort())
+
 def is_reg(e):
 	return eq(e.decl(), Reg)
 def is_intVal(e):
@@ -88,6 +90,8 @@ def isBranch(e):
 def subsort_f(sort1, sort2):
 	f_sort = Function('wrap_'+str(sort1)+'_'+str(sort2), sort1, sort2)
 	return f_sort 
+def samePid(e1, e2):
+	return ((e1.pid == e2.pid) or (e1.pid == 0) or (e2.pid == 0))
 
 id_loc = 0
 
@@ -289,7 +293,7 @@ def conflict_order(s, Ev = []):
 						Not(co(e2, e1)),
 						e1.target == e2.target
 						)
-					if not(eq(e1.arg(0),e2.arg(0))) and isWrite(e1) and isWrite(e2) else False
+					if not(eq(e1.arg(0),e2.arg(0))) and isWrite(e1) and isWrite(e2) and e2.pid != 0 else False
 					)
 				)
 			# if not(eq(e1.arg(0),e2.arg(0))) and isWrite(e1) and isWrite(e2):
@@ -342,8 +346,14 @@ def read_from(s, Ev = []):
 			s.add(And([
 				Implies(rf(w, e1), w.val == e1.val)
 				for w in cWrite
-				])
-			)
+				]))
+			# read from initial state
+			# s.add(
+			# 	Implies(And([Not(rf(w,e1)) for w in cWrite]),
+			# 		e1.val == 0
+					
+			# 		)
+			# 	)
 			# rf-loc
 			# print Or([rf(w, e1) for w in cWrite ])
 			# print And([
@@ -639,7 +649,7 @@ def pso_constraints(s, po, poSet, rf, fr, co, Ev, RMW = []):
 	rfe = Function('rfe', Event, Event, BoolSort())
 	for e1 in Ev:
 		for e2 in Ev:
-			s.add(rfe(e1, e2) == And(rf(e1,e2), Not(e1.pid == e2.pid)))
+			s.add(rfe(e1, e2) == And(rf(e1,e2), Not(samePid(e1, e2))))
 			
 	com_tso = Function('com_tso', Event, Event, BoolSort())
 	for e1 in Ev:
@@ -656,9 +666,9 @@ def pso_constraints(s, po, poSet, rf, fr, co, Ev, RMW = []):
 
 	(s, mfence) = fencerel(s, mfence_t, Ev, poSet)
 
-	mfence_g = mfence
+	# mfence_g = mfence
 	(s, ghb) = acyclic(s, com_tso, po_tso, mfence)
-	# mfence_g = ghb
+	mfence_g = ghb
 	# prepare for uniproc
 	po_loc = Function('po-loc', Event, Event, BoolSort())
 	po_locSet = [ (e1.eid, e2.eid) for e1 in Ev for e2 in Ev if (e1.eid, e2.eid) in poSet and (eq(e1.target, e2.target) if None != e1.target and None != e2.target and e1.target.sort() == e2.target.sort() else False) ]
@@ -668,8 +678,8 @@ def pso_constraints(s, po, poSet, rf, fr, co, Ev, RMW = []):
 	fri = Function('fri', Event, Event, BoolSort())
 	for e1 in Ev:
 		for e2 in Ev:
-			s.add(rfi(e1, e2) == And(rf(e1,e2), (e1.pid == e2.pid)))
-			s.add(fri(e1, e2) == And(fr(e1,e2), (e1.pid == e2.pid)))
+			s.add(rfi(e1, e2) == And(rf(e1,e2), samePid(e1, e2)))
+			s.add(fri(e1, e2) == And(fr(e1,e2), samePid(e1, e2)))
 
 	# (* Uniproc check specialized for TSO *)
 	# irreflexive po-loc & (R*W); rfi as uniprocRW
