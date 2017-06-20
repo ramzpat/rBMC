@@ -49,10 +49,10 @@ Event.declare('undefined')
 Event.declare('event', 		('eid', IntSort()), ('pid', Proc))
 Event.declare('read',  		('eid', IntSort()), ('loc', Loc), ('dest', IntSort()), ('pid', Proc))
 Event.declare('write', 		('eid', IntSort()), ('loc', Loc), ('val', IntSort()), ('pid', Proc))
-Event.declare('fence', 		('eid', IntSort()), ('ftype', IntSort()))
 Event.declare('read_reg', 	('eid', IntSort()), ('reg', Val), ('dest', IntSort()), ('pid', Proc) )
 Event.declare('write_reg', 	('eid', IntSort()), ('reg', Val), ('val', IntSort()), ('pid', Proc))
 Event.declare('branch', ('eid', IntSort()), ('pid', Proc))
+Event.declare('fence', 		('eid', IntSort()), ('ftype', IntSort()))
 Event = Event.create()
 ConstEvent = Event.event
 ReadOp = Event.read
@@ -116,7 +116,14 @@ def new_read(location, val, pid = 0):
 	read.pid = pid
 	eidCnt += 1
 	return read
-	
+
+def new_branch(pid = 0):
+	global eidCnt
+	br = Branch(eidCnt, pid)
+	br.eid = eidCnt
+	br.pid = pid
+	eidCnt += 1
+	return br 
 
 def new_write(location, val, pid = 0):
 	global eidCnt
@@ -339,7 +346,13 @@ def rf_reg_relation(s, Ev = []):
 			cWrite = candidate_writes(e1, Ev)
 			# print e1, cWrite[0]
 			# print len(cWrite)
+			# try:
 			assert(len(cWrite) == 1)
+			# except AssertionError:
+			# 	print e1, cWrite[0]
+			# 	print len(cWrite)
+			# 	assert(False)
+
 			# there are only one correspond write in ssa form
 			s.add(rf_reg(cWrite[0], e1))
 			# rf-val
@@ -478,18 +491,38 @@ def empty(s, r):
 	s.add(ForAll([e1, e2], Not(e1, e2)))
 	return (s, r)
 
-def sc_constraints(s, po, rf, fr, co, Ev = []):
+def sc_constraints(s, po, rf, fr, co, Ev = [], RMW = []):
 	# sc.cat
 	# SC ----------
+	rmw = Function('rmw', Event, Event, BoolSort())			
+	s.add([(rmw(e1, e2) if (e1, e2) in RMW else Not(rmw(e1,e2)) ) for e1 in Ev for e2 in Ev])
+
+	rfe = Function('rfe', Event, Event, BoolSort())
+	rfi = Function('rfi', Event, Event, BoolSort())
+	fre = Function('fre', Event, Event, BoolSort())
+	coe = Function('coe', Event, Event, BoolSort())
+
+	for e1 in Ev:
+		for e2 in Ev:
+			s.add(rfe(e1, e2) == And(rf(e1,e2), Not(e1.pid == e2.pid)))
+			s.add(rfi(e1, e2) == And(rf(e1,e2), (e1.pid == e2.pid)))
+			s.add(fre(e1, e2) == And(fr(e1,e2), Not(e1.pid == e2.pid)))
+			s.add(coe(e1, e2) == And(co(e1,e2), Not(e1.pid == e2.pid)))
+
 	# (* Atomic *)
-	# empty rmw & (fre;coe) as atom  
-	# s.add(Not( ) )
+	# empty rmw & (fre;coe) as atomic
+	e1, e2, e3 = Consts('e1 e2 e3', Event)
+	frecoe = Function('fre;coe', Event, Event, BoolSort())
+	s.add( ForAll([e1, e2, e3], Implies( And(fre(e1, e3), coe(e3, e2)), frecoe(e1, e2) )) )
+	s.add( ForAll([e1, e2], Not( And( rmw(e1,e2), frecoe(e1, e2) ) )))
+
+	
 	# (* Sequential consistency *)
 	# acyclic po | fr | rf | co as sc
 	(s, trans) = (acyclic(s, po, fr, rf, co))
 	return s
 
-def tso_constraints(s, po, poSet, rf, fr, co, Ev):
+def tso_constraints(s, po, poSet, rf, fr, co, Ev, RMW = []):
 	# tso-01.cat
 	# (* Communication relations that order events*)
 	# let com-tso = rfe | co | fr
@@ -545,7 +578,7 @@ def tso_constraints(s, po, poSet, rf, fr, co, Ev):
 
 	return s
 
-def pso_constraints(s, po, poSet, rf, fr, co, Ev):
+def pso_constraints(s, po, poSet, rf, fr, co, Ev, RMW = []):
 	# tso-01.cat
 	# (* Communication relations that order events*)
 	# let com-tso = rfe | co | fr
@@ -601,7 +634,7 @@ def pso_constraints(s, po, poSet, rf, fr, co, Ev):
 
 	return s
 
-def arm_constraints(s, po, rf, fr, co, iico, rf_reg, poSet, iicoSet, rf_regSet, Ev):
+def arm_constraints(s, po, rf, fr, co, iico, rf_reg, poSet, iicoSet, rf_regSet, Ev, RMW = []):
 	
 	po_loc = Function('po-loc', Event, Event, BoolSort())
 	po_locSet = [ (e1.eid, e2.eid) for e1 in Ev for e2 in Ev if (e1.eid, e2.eid) in poSet and (eq(e1.target, e2.target) if e1.target.sort() == e2.target.sort() else False) ]

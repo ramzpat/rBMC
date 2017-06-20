@@ -52,6 +52,8 @@ def invExtractor(P, vars = [], clss = SeqSem):
 
 		ret = separatePoint
 		return ret
+	# elif clss == RmwStm:
+	# 	ret = CodeStructure(SeqSem(), [])
 	else:
 		ret = CodeStructure(clss(), [])
 	# ret = emptyCS()
@@ -66,11 +68,16 @@ def invExtractor(P, vars = [], clss = SeqSem):
 			mergePoint = mergePointCS()
 			# mergePoint = CodeStructure(SeqSem())
 
-			# print 'mPoint'
+
 			# print mergePoint
-			fCS = CodeStructure(SeqSem( Assume(~ cond)), [mergePoint])
-			tCS = (CodeStructure(SeqSem( Assume(cond))) + (sem))
-			
+			fCS = CodeStructure(SeqSem( Assume(~ cond), branchOp()), [mergePoint])
+			tCS = CodeStructure(SeqSem( Assume(cond), branchOp())) 
+			tCS << sem
+
+			# print 'mPoint', ret.__class__
+			# for u in tCS:
+			# 	print u
+			# print '------'
 			tCS.addMergePoint(mergePoint)
 
 			# (CodeStructure(SeqSem( Assume(cond))) + (sem)) + mergePoint
@@ -78,6 +85,9 @@ def invExtractor(P, vars = [], clss = SeqSem):
 			
 			
 			ret << separatePoint
+		elif isinstance(p, RmwStm):
+			# print ret.body.__class__
+			ret << CodeStructure(p)
 		elif isinstance(p, SeqSem):
 			i = p
 			i = invExtractor(p, vars, p.__class__)

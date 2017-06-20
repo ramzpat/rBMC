@@ -113,9 +113,11 @@ def encodeOpr(i, info):
 			info['CS'] += [ Implies(cond, var == tExp), 
 							Implies(Not(cond), var == fExp) ]
 	elif isinstance(i, fenceStm):
-		pass 
+		assert(False) 
 	elif isinstance(i, branchOp):
-		pass 
+		encodeOp = herd.new_branch(pid)
+	elif isinstance(i, RmwStm):
+		assert(False)
 	return (encodeOp, formulas, info)
 
 # result a set of formulas ?
@@ -151,6 +153,20 @@ def encode(P = [], initLocation = {}):
 
 			retE = [encodeOp] if encodeOp else prev
 			return (ret, retE, info)
+		elif isinstance(p, RmwStm):
+			# 1-get all operations that should be atomic 
+			poRet = []
+			for pl in p.list():
+				(po,e,info) = constructPO(pl, prev, info)
+				poRet += po
+				prev = e 
+			r = po[0][0]
+			w = po[0][1]
+			
+			# 2-add constraints for those operations (no another processor can interrupt)
+			info['RMW'] += [(r,w)]
+			return (poRet, prev, info)
+
 		elif isinstance(p, ParallelSem):
 			poRet = []
 			lastEle = []
@@ -176,7 +192,7 @@ def encode(P = [], initLocation = {}):
 				poRet = [ (pl, poRet[0][0]) for pl in prev] + poRet
 			# except IndexError:
 			# 	print 'Bug', prev, poRet, p
-				
+			
 			return (poRet, e, info)
 		elif isinstance(p, SeqSem):
 			poRet = []
@@ -214,6 +230,8 @@ def encode(P = [], initLocation = {}):
 		'RegCnt':0,
 		'Reg':{},
 		'Loc':{},
+
+		'RMW':[]
 	}
 	
 
@@ -269,9 +287,9 @@ def encode(P = [], initLocation = {}):
 	(s, rf_reg, rf_regSet) = herd.rf_reg_relation(s, info['Ev'])
 
 
-	s = herd.sc_constraints(s, po, rf, fr, co, info['Ev'])
-	# s = herd.tso_constraints(s, po, poS, rf, fr, co, info['Ev'])
-	# s = herd.pso_constraints(s, po, poS, rf, fr, co, info['Ev'])
+	s = herd.sc_constraints(s, po, rf, fr, co, info['Ev'], info['RMW'])
+	# s = herd.tso_constraints(s, po, poS, rf, fr, co, info['Ev'], info['RMW'])
+	# s = herd.pso_constraints(s, po, poS, rf, fr, co, info['Ev'], info['RMW'])
 
 	print '------ PS'
 	# print simplify(herd.Not(herd.And(info['PS'])))
@@ -775,10 +793,108 @@ def dekker():
 	print result
 
 
+def atomicTest():
+	# L1: 
+	#   ldstub [lock], r0
+	#   brnz,pn r0, L2
+	#   nop
+	#   ba L3
+	#   nop
+	# L2: 
+	#   ldub [lock], r1
+	#   brnz,pt r1, L2
+	#   nop 
+	#   ba,a,pt L1
+	#   nop
+	# L3:
+	# MEMBAR #StoreLoad
+	# assume(r0 = #1)
+	# ; critical
+
+
+	P1 = SeqSem(
+		InstrSem(	
+			RmwStm(
+				TempReg('val') << Location('lock'),
+				Location('lock') << 1
+				),
+			Register('r1') << TempReg('val')
+			),
+		Assume(Register('r1') == 0)	# can lock
+		)
+
+	P2 = SeqSem(
+		InstrSem(
+			RmwStm(
+				TempReg('val') << Location('lock'),
+				Location('lock') << 1
+				),
+			Register('r2') << TempReg('val')
+			),
+		Assertion(Register('r2') == 1)	# can't lock
+		)
+
+
+
+
+	P1 = invExtractor(P1, [Register('r1'), Location('x'), Register('z'), Register('n')])
+	o = 0
+	# for i in P1:
+	# 	# ssa_i = SSASem(i).ssa()
+	# 	print i
+	# 	o += 1
+	# 	print '----------'
+	# print o
+	# return 
+	P2 = invExtractor(P2, [Register('r2'), Register('z'), Register('n')])
+	# P3 = invExtractor(P3, [Register('r2')], P3.__class__)
+	# print '---- inv'
+	# for j in P2:
+	# 	print j
+	# 	print '--------'
+
+	# return
+	for i in P1:
+		# print i
+		for j in P2:
+			# print j
+			# result = unsat
+			# continue
+			herd.reset_id()
+			ssa_i = SSASem(i).ssa()
+			ssa_j = SSASem(j).ssa()
+			# print ssa_i
+			# print ssa_j
+			# result = sat
+			# break
+			n = FreshInt()
+			turn = Int('turn')
+			l_turn = herd.InitLoc(turn)
+			(result, s, info) = encode([ssa_i, ssa_j])
+
+			# (result, s, info) = encode([ssa_i, ssa_j], 
+			# 						{'loc(turn)':(herd.new_write(l_turn, n, 0))})
+			# s.add(Or(n == 1, n == 2))
+			if result == sat:
+				break
+		if result == sat:
+			print ssa_i
+			print ssa_j
+			print result
+			return 
+			# print ssa_j
+			# m = s.model()
+			# for r in [r for r in info['Ev'] if herd.isRead(r)]:
+			# 	for w in [w for w in info['Ev'] if herd.isWrite(w) ]:
+			# 		if herd.is_true(m.evaluate(herd.rf(w,r))):
+			# 			print r, w, m.evaluate(r.val)
+	print result
+
 if __name__ == '__main__':
-	mp()
+	# mp()
 	# twoLoops()
 	# dekker()
+	atomicTest()
 	pass
 
 

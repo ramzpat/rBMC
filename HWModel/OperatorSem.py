@@ -184,6 +184,9 @@ class IfStm(SeqSem):
 	def __init__(self, cond, *sem):
 		self.cond = cond
 		self.sem = list(sem)
+		self.isBranch = True
+	def isBranch(self, v):
+		self.isBranch = v
 
 	def strIndent(self, indent = 0):
 		ret = ''
@@ -201,9 +204,39 @@ class IfStm(SeqSem):
 	def list(self):
 		return list(self.sem)
 
-# atomic{ ... }
-class AtmStm(SeqSem):
-	pass
+# rmw{ ... } accepts only operations
+# requires the operations APPEAR as an atomic execution
+class RmwStm(SeqSem):
+	def __init__(self, r, w):
+		assert(isinstance(r, ReadAssn) and isinstance(w, WriteAssn))
+		self.seq = [r,w]
+		for i in self.seq:
+			assert( isinstance(i, Operation) )
+
+	def strIndent(self, indent = 0):
+		ret = ''
+		ret += (' '* indent) + 'rmw{ \n'
+		for i in self.seq:
+			iStr = ''
+			if isinstance(i, SeqSem):
+				iStr = i.strIndent(indent + 1)
+			else:
+				iStr = (' '*(indent+1)) +str(i)
+			ret += (' '* indent) + iStr + ',\n'
+		ret += (' '* indent) + '}'
+		return ret
+
+	def __lshift__(self, other):
+		clss = self.__class__
+		assert(isinstance(other, Operation))
+		self.seq += [other]
+
+	def __add__(self, other):
+		clss = self.__class__
+		assert(isinstance(other, Operation))
+		seq = self.seq
+		seq = seq + [other]
+		return clss(*seq)
 
 # --------- Code Structure
 class CodeStructure():
@@ -252,6 +285,8 @@ class CodeStructure():
 		next = self.next[:]
 		if isinstance(other, CodeStructure):
 			if next == []:
+				# print 'self.', self.body.__class__
+				# print other.next
 				self.body << other.body
 				self.next = other.next
 				# self.next = [other]
@@ -267,7 +302,6 @@ class CodeStructure():
 				# for i in self.next:
 				# 	i += other
 		elif next == []:
-
 			self.body += other
 		else: 
 			self.next[0] << other
