@@ -356,7 +356,7 @@ class mergePointCS(CodeStructure):
 			# 	print u
 			# print next[0], other
 			# assert(False)
-			next[0] = next[0] + other
+			next[0] << other
 
 		return CodeStructure(self.body, next)
 

@@ -98,9 +98,11 @@ def invExtractor(P, vars = [], clss = SeqSem):
 
 			loopBody2 = loopBody + SeqSem(
 				Assertion(p.inv),
+				branchOp(),
 				havoc(*vars),
 				Assume(p.inv),
-				Assume(p.bInstr)
+				Assume(p.bInstr),
+				branchOp()
 				)
 			loopBody2 += loopBody
 
@@ -109,8 +111,8 @@ def invExtractor(P, vars = [], clss = SeqSem):
 			# 	print i
 			# # print loopBody2.next[0].next, loopBody2.next[1].next[0].next
 			# print '****************'
-			loopBody2 += CodeStructure(SeqSem(), [
-					CodeStructure( SeqSem(Assume(~(p.bInstr)), Assertion(p.Q)) ),
+			loopBody2 << CodeStructure(SeqSem(), [
+					CodeStructure( SeqSem(Assume(~(p.bInstr)), branchOp(), Assertion(p.Q)) ),
 					CodeStructure( SeqSem(Assertion(p.inv)), [terminateCS()] )
 				])
 			ret << loopBody2

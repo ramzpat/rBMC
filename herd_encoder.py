@@ -119,7 +119,7 @@ def encodeOpr(i, info):
 	return (encodeOp, formulas, info)
 
 # result a set of formulas ?
-def encode(P = []):
+def encode(P = [], initLocation = {}):
 
 	def constructPO(p, prev = [], info = {}):
 		if isinstance(p, Assertion):
@@ -215,7 +215,7 @@ def encode(P = []):
 		'Reg':{},
 		'Loc':{},
 	}
-	herd.reset_id()
+	
 
 	# collect po, iico, Events(R,W,regRW)
 	# locations, facts assignment
@@ -236,7 +236,10 @@ def encode(P = []):
 		info['CS'] += [herd.Distinct(info['Loc'].values())]
 	
 	# initial location = 0 ?
-	WriteInit = [herd.new_write(v, 0, 0) for v in info['Loc'].values()]
+	# print [herd.new_write(v, 0, 0) for v in info['Loc'].values() if not (str(v) in initLocation.keys())]
+	# print initLocation.values()
+	WriteInit = [herd.new_write(v, 0, 0) for v in info['Loc'].values() if not (str(v) in initLocation.keys())]
+	WriteInit += initLocation.values()
 	PoS += [ (w, p) for (p,p2) in PoS for w in WriteInit]
 	info['Ev'] += WriteInit
 
@@ -266,7 +269,7 @@ def encode(P = []):
 	(s, rf_reg, rf_regSet) = herd.rf_reg_relation(s, info['Ev'])
 
 
-	# s = herd.sc_constraints(s, po, rf, fr, co, info['Ev'])
+	s = herd.sc_constraints(s, po, rf, fr, co, info['Ev'])
 	# s = herd.tso_constraints(s, po, poS, rf, fr, co, info['Ev'])
 	# s = herd.pso_constraints(s, po, poS, rf, fr, co, info['Ev'])
 
@@ -412,10 +415,15 @@ def mp():
 	P2 = invExtractor(P2, [Register('r2'), Register('z'), Register('n')])
 	# P3 = invExtractor(P3, [Register('r2')], P3.__class__)
 	# print '---- inv'
+
+	# for j in P2:
+	# 	print j
+	# 	print '-------'
+
 	for i in P1:
 		# print i
 		for j in P2:
-
+			herd.reset_id()
 			ssa_i = SSASem(i).ssa()
 			ssa_j = SSASem(j).ssa()
 			# print ssa_j
@@ -540,7 +548,7 @@ def twoLoops():
 	for i in P1:
 		# print i
 		for j in P2:
-
+			herd.reset_id()
 			ssa_i = SSASem(i).ssa()
 			ssa_j = SSASem(j).ssa()
 			# print ssa_i
@@ -593,9 +601,10 @@ def dekker():
 				)
 	inner_inv = (Location('turn') == 1) | (Location('turn') == 2)
 	inner_Q = (~ (Location('turn') == Register('r5')))
-	outer_Q = (Location('xj') == 1) 
+	outer_Q = (True) 
 
 
+	# eventually enter critical section 
 	P1 = SeqSem(
 		InstrSem(	# mov r1, #1	(true)
 			TempReg('val') << 1, 
@@ -613,39 +622,43 @@ def dekker():
 			TempReg('val') << Register('true'), 
 			Location('xi') << TempReg('val')
 			),
-		IfStm(~(Location('xj') == 1),
-			DoWhile(
-				IfStm(~(Location('turn') == 1),
-				SeqSem(
-					InstrSem(	# str false, [xi]
-						TempReg('val') << Register('false'), 
-						Location('xi') << TempReg('val')
-					),
-					DoWhile(SeqSem(),
-						(inner_inv),
-						(~(Location('turn') == 1)),
-						(inner_Q)
-					),
-					InstrSem(	# str true, [xi]
-						TempReg('val') << Register('true'), 
-						Location('xi') << TempReg('val')
-					)),		
-				# )
-				),
-			(outer_inv), # inv
-			(~(Location('xj') == 1)), # cond
-			(outer_Q)  # Q
-			),
-		),
+		# Assume((Location('xj') == 0) ),
+		# IfStm((Location('xj') == 1),
+		# 	DoWhile(
+		# 		IfStm(~(Location('turn') == 1),
+		# 		SeqSem(
+		# 			InstrSem(	# str false, [xi]
+		# 				TempReg('val') << Register('false'), 
+		# 				Location('xi') << TempReg('val')
+		# 			),
+		# 			DoWhile(SeqSem(),
+		# 				(inner_inv),
+		# 				(~(Location('turn') == 1)),
+		# 				(inner_Q)
+		# 			),
+		# 			InstrSem(	# str true, [xi]
+		# 				TempReg('val') << Register('true'), 
+		# 				Location('xi') << TempReg('val')
+		# 			),
+		# 			# Assume((Location('xj') == 1))
+		# 			),		
+		# 		# )
+		# 		),
+		# 	(outer_inv), # inv
+		# 	((Location('xj') == 1)), # cond
+		# 	(outer_Q)  # Q
+		# 	),
+		# ),
+		# Assume((Location('xj') == 0) ),
 		# Critical Section
-		InstrSem(	# str j, [turn]
-				TempReg('val') << Register('r5'), 
-				Location('turn') << TempReg('val')
-			),
-		InstrSem(	# str false, [xi]
-			TempReg('val') << Register('false'), 
-			Location('xi') << TempReg('val')
-			),
+		# InstrSem(	# str j, [turn]
+		# 		TempReg('val') << Register('r5'), 
+		# 		Location('turn') << TempReg('val')
+		# 	),
+		# InstrSem(	# str false, [xi]
+		# 	TempReg('val') << Register('false'), 
+		# 	Location('xi') << TempReg('val')
+		# 	),
 		)
 
 	P2 = SeqSem(
@@ -665,7 +678,7 @@ def dekker():
 			TempReg('val') << Register('true'), 
 			Location('xj') << TempReg('val')
 			),
-		IfStm(~(Location('xi') == 1),
+		IfStm((Location('xi') == 1),
 			DoWhile(
 				IfStm(~(Location('turn') == 2),
 				SeqSem(
@@ -676,7 +689,7 @@ def dekker():
 					DoWhile(SeqSem(),
 						(inner_inv),
 						(~(Location('turn') == 2)),
-						(inner_Q)
+						((Location('turn') == 2))
 					),
 					InstrSem(	# str true, [xj]
 						TempReg('val') << Register('true'), 
@@ -685,19 +698,22 @@ def dekker():
 				# )
 				),
 			(outer_inv), # inv
-			(~(Location('xi') == 1)), # cond
-			(outer_Q)  # Q
+			((Location('xi') == 1)), # cond
+			(~(Location('xi') == 1))  # Q
 			),
 		),
+		# Assume(Location('xi') != 1),
+		Assertion(False)
+		# Assertion(Location('xi') != 1),
 		# Critical Section
-		InstrSem(	# str j, [turn]
-				TempReg('val') << Register('r5'), 
-				Location('turn') << TempReg('val')
-			),
-		InstrSem(	# str false, [xj]
-			TempReg('val') << Register('false'), 
-			Location('xj') << TempReg('val')
-			),
+		# InstrSem(	# str j, [turn]
+		# 		TempReg('val') << Register('r5'), 
+		# 		Location('turn') << TempReg('val')
+		# 	),
+		# InstrSem(	# str false, [xj]
+		# 	TempReg('val') << Register('false'), 
+		# 	Location('xj') << TempReg('val')
+		# 	),
 		)
 
 
@@ -717,17 +733,32 @@ def dekker():
 	P2 = invExtractor(P2, [Register('r2'), Register('z'), Register('n')])
 	# P3 = invExtractor(P3, [Register('r2')], P3.__class__)
 	# print '---- inv'
+	# for j in P2:
+	# 	print j
+	# 	print '--------'
+
+	# return
 	for i in P1:
 		# print i
 		for j in P2:
-
+			# print j
+			# result = unsat
+			# continue
+			herd.reset_id()
 			ssa_i = SSASem(i).ssa()
 			ssa_j = SSASem(j).ssa()
 			# print ssa_i
 			# print ssa_j
 			# result = sat
 			# break
-			(result, s, info) = encode([ssa_i, ssa_j])
+			n = FreshInt()
+			turn = Int('turn')
+			l_turn = herd.InitLoc(turn)
+			# (result, s, info) = encode([ssa_i, ssa_j])
+
+			(result, s, info) = encode([ssa_i, ssa_j], 
+									{'loc(turn)':(herd.new_write(l_turn, n, 0))})
+			s.add(Or(n == 1, n == 2))
 			if result == sat:
 				break
 		if result == sat:
@@ -745,9 +776,9 @@ def dekker():
 
 
 if __name__ == '__main__':
-	# mp()
+	mp()
 	# twoLoops()
-	dekker()
+	# dekker()
 	pass
 
 
