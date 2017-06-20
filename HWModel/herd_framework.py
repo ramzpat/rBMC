@@ -36,6 +36,7 @@ def is_intVal(e):
 
 
 
+
 # Event =		DeclareSort('Event')
 
 # ReadOp = 	DeclareSort('ReadOp')			# Read access 	*A kind of memory operation(MemOp)
@@ -52,7 +53,7 @@ Event.declare('write', 		('eid', IntSort()), ('loc', Loc), ('val', IntSort()), (
 Event.declare('read_reg', 	('eid', IntSort()), ('reg', Val), ('dest', IntSort()), ('pid', Proc) )
 Event.declare('write_reg', 	('eid', IntSort()), ('reg', Val), ('val', IntSort()), ('pid', Proc))
 Event.declare('branch', ('eid', IntSort()), ('pid', Proc))
-Event.declare('fence', 		('eid', IntSort()), ('ftype', IntSort()))
+Event.declare('fence', 		('eid', IntSort()), ('ftype', IntSort()), ('pid', Proc))
 Event = Event.create()
 ConstEvent = Event.event
 ReadOp = Event.read
@@ -60,6 +61,7 @@ WriteOp = Event.write
 WriteReg = Event.write_reg
 ReadReg = Event.read_reg
 Branch = Event.branch
+Fence = Event.fence
 
 eidCnt = 0
 
@@ -94,6 +96,36 @@ def reset_id():
 	eidCnt = 0
 
 
+id_fenceType = 0
+fenceType = []
+
+# introduce for architecture
+def new_fenceType(name):
+	global id_fenceType
+	global fenceType
+	v = id_fenceType
+	fenceType += [name]
+	id_fenceType += 1
+	return v
+
+def new_fence(type, pid = 0):
+	global eidCnt 
+
+	fence = Fence(eidCnt, type, pid)
+	fence.eid = eidCnt
+	fence.type = type 
+	fence.pid = pid
+	fence.target = None
+	eidCnt += 1
+	return fence
+
+
+# ARM 		= DSB, DMB 
+# x86-tso 	= MFENCE
+
+mfence_t = new_fenceType('MFENCE')
+
+
 def new_loc(name):
 	global global_axioms
 	global id_loc
@@ -122,6 +154,7 @@ def new_branch(pid = 0):
 	br = Branch(eidCnt, pid)
 	br.eid = eidCnt
 	br.pid = pid
+	br.target = None
 	eidCnt += 1
 	return br 
 
@@ -271,6 +304,22 @@ def conflict_order(s, Ev = []):
 			# 		)
 			# 	)
 	return (s, co)
+
+def fencerel(s, fence_t, Ev = [], poSet = []):
+	global fenceType
+	fence = Function(fenceType[fence_t], Event, Event,BoolSort())
+	beforeFence = Function( fenceType[fence_t]+'_before', Event, Event,BoolSort())
+	afterFence = Function( fenceType[fence_t]+'_after', Event, Event,BoolSort())
+	x, y, z = Consts('x y z', Event);
+	for e1 in Ev:
+		for e2 in Ev:
+			s.add( beforeFence(e1,e2) if isFence(e2)  and (e1.eid, e2.eid) in poSet else Not(beforeFence(e1,e2)) )
+			s.add( afterFence(e1,e2) if isFence(e1)  and (e1.eid, e2.eid) in poSet else Not(afterFence(e1,e2)) )
+	s.add( ForAll([x,y,z], Implies(And(beforeFence(x,y), afterFence(y,z)), fence(x,z)) ) )
+	
+	# s.add([( ForAll(x, Implies(And(po(e1, x), po(x, e2)), fence(e1,e2)) ) if (e1.eid, e2.eid) in poSet else Not(fence(e1,e2))) for e1 in Ev for e2 in Ev])
+	return (s,fence)
+
 
 # rf - one to many
 def read_from(s, Ev = []):
@@ -540,18 +589,20 @@ def tso_constraints(s, po, poSet, rf, fr, co, Ev, RMW = []):
 	po_tso = Function('po_tso', Event, Event, BoolSort())
 	for e1 in Ev:
 		for e2 in Ev:
-			s.add((po_tso(e1, e2) == po(e1,e2)) if isRead(e1) or isWrite(e2) else Not(po_tso(e1, e2)) )
+			s.add((po_tso(e1, e2) == po(e1,e2)) if (isRead(e1) or isWrite(e2)) and isRW(e1) and isRW(e2) else Not(po_tso(e1, e2)) )
 
 	# (* TSP global-happens-before *)
-	# let ghb = po-tso | com-tso
+	# let ghb = po-tso | com-tso | mfence
 	# acyclic ghb
 
-	(s, ghb) = acyclic(s, com_tso, po_tso)
+	(s, mfence) = fencerel(s, mfence_t, Ev, poSet)
+
+	(s, ghb) = acyclic(s, com_tso, po_tso, mfence)
 
 	# prepare for uniproc
 	po_loc = Function('po-loc', Event, Event, BoolSort())
-	po_locSet = [ (e1.eid, e2.eid) for e1 in Ev for e2 in Ev if (e1.eid, e2.eid) in poSet and (eq(e1.target, e2.target) if e1.target.sort() == e2.target.sort() else False) ]
-	s.add([po_loc(e1, e2) == And(po(e1, e2), (e1.target == e2.target) if e1.target.sort() == e2.target.sort() else False )  for e1 in Ev for e2 in Ev])
+	po_locSet = [ (e1.eid, e2.eid) for e1 in Ev for e2 in Ev if (e1.eid, e2.eid) in poSet and (eq(e1.target, e2.target) if None != e1.target and None != e2.target and e1.target.sort() == e2.target.sort() else False) ]
+	s.add([po_loc(e1, e2) == And(po(e1, e2), (e1.target == e2.target) if None != e1.target and None != e2.target and  e1.target.sort() == e2.target.sort() else False )  for e1 in Ev for e2 in Ev])
 
 	rfi = Function('rfi', Event, Event, BoolSort())
 	fri = Function('fri', Event, Event, BoolSort())
@@ -577,8 +628,9 @@ def tso_constraints(s, po, poSet, rf, fr, co, Ev, RMW = []):
 	s = irreflexive(s, uniprocWR)
 
 	return s
-
+mfence_g = None 
 def pso_constraints(s, po, poSet, rf, fr, co, Ev, RMW = []):
+	global mfence_g
 	# tso-01.cat
 	# (* Communication relations that order events*)
 	# let com-tso = rfe | co | fr
@@ -596,18 +648,21 @@ def pso_constraints(s, po, poSet, rf, fr, co, Ev, RMW = []):
 	po_tso = Function('po_tso', Event, Event, BoolSort())
 	for e1 in Ev:
 		for e2 in Ev:
-			s.add((po_tso(e1, e2) == po(e1,e2)) if isRead(e1) else Not(po_tso(e1, e2)) )
+			s.add((po_tso(e1, e2) == po(e1,e2)) if isRead(e1) and isRW(e2) else Not(po_tso(e1, e2)) )
 
 	# (* TSP global-happens-before *)
 	# let ghb = po-tso | com-tso
 	# acyclic ghb
 
-	(s, ghb) = acyclic(s, com_tso, po_tso)
-	
+	(s, mfence) = fencerel(s, mfence_t, Ev, poSet)
+
+	mfence_g = mfence
+	(s, ghb) = acyclic(s, com_tso, po_tso, mfence)
+	# mfence_g = ghb
 	# prepare for uniproc
 	po_loc = Function('po-loc', Event, Event, BoolSort())
-	po_locSet = [ (e1.eid, e2.eid) for e1 in Ev for e2 in Ev if (e1.eid, e2.eid) in poSet and (eq(e1.target, e2.target) if e1.target.sort() == e2.target.sort() else False) ]
-	s.add([po_loc(e1, e2) == And(po(e1, e2), (e1.target == e2.target) if e1.target.sort() == e2.target.sort() else False )  for e1 in Ev for e2 in Ev])
+	po_locSet = [ (e1.eid, e2.eid) for e1 in Ev for e2 in Ev if (e1.eid, e2.eid) in poSet and (eq(e1.target, e2.target) if None != e1.target and None != e2.target and e1.target.sort() == e2.target.sort() else False) ]
+	s.add([po_loc(e1, e2) == And(po(e1, e2), (e1.target == e2.target) if None != e1.target and None != e2.target and e1.target.sort() == e2.target.sort() else False )  for e1 in Ev for e2 in Ev])
 
 	rfi = Function('rfi', Event, Event, BoolSort())
 	fri = Function('fri', Event, Event, BoolSort())

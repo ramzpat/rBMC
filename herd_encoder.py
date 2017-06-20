@@ -9,6 +9,21 @@ locationAddr = []
 
 MemOp = []
 
+# # ARM 		= DSB, DMB 
+# # x86-tso 	= MFENCE
+
+# mfence_t = herd.new_fenceType('MFENCE')
+
+class MFENCE(fenceStm):
+	def __str__(self):
+		return 'mfence()'
+
+def specialEncode(i, info):
+	pid = info['Pid']
+	if isinstance(i, MFENCE):
+		return herd.new_fence(herd.mfence_t, pid)
+	return None
+
 def encodeExp(exp, info):
 	if isinstance(exp, int) or isinstance(exp, bool):
 		return exp
@@ -113,7 +128,8 @@ def encodeOpr(i, info):
 			info['CS'] += [ Implies(cond, var == tExp), 
 							Implies(Not(cond), var == fExp) ]
 	elif isinstance(i, fenceStm):
-		assert(False) 
+		encodeOp = specialEncode(i, info)
+		# print '&&&', encodeOp, i.__class__
 	elif isinstance(i, branchOp):
 		encodeOp = herd.new_branch(pid)
 	elif isinstance(i, RmwStm):
@@ -122,7 +138,7 @@ def encodeOpr(i, info):
 
 # result a set of formulas ?
 def encode(P = [], initLocation = {}):
-
+	# global herd.mfence_g
 	def constructPO(p, prev = [], info = {}):
 		if isinstance(p, Assertion):
 			# print 'assertion:::'
@@ -287,9 +303,9 @@ def encode(P = [], initLocation = {}):
 	(s, rf_reg, rf_regSet) = herd.rf_reg_relation(s, info['Ev'])
 
 
-	s = herd.sc_constraints(s, po, rf, fr, co, info['Ev'], info['RMW'])
+	# s = herd.sc_constraints(s, po, rf, fr, co, info['Ev'], info['RMW'])
 	# s = herd.tso_constraints(s, po, poS, rf, fr, co, info['Ev'], info['RMW'])
-	# s = herd.pso_constraints(s, po, poS, rf, fr, co, info['Ev'], info['RMW'])
+	s = herd.pso_constraints(s, po, poS, rf, fr, co, info['Ev'], info['RMW'])
 
 	print '------ PS'
 	# print simplify(herd.Not(herd.And(info['PS'])))
@@ -299,10 +315,14 @@ def encode(P = [], initLocation = {}):
 	# print result
 	if result == sat:
 		m = s.model()
-		for r in [r for r in info['Ev'] if herd.isReadReg(r)]:
-			for w in [w for w in info['Ev'] if herd.isWriteReg(w) ]:
-				if herd.is_true(m.evaluate(rf_reg(w,r))):
-					print r, w, m.evaluate(r.val)
+		for e1 in info['Ev']:
+			for e2 in info['Ev']:
+				if herd.is_true(m.evaluate(herd.mfence_g(e1, e2))):
+					print (e1, e2)
+		# for r in [r for r in info['Ev'] if herd.isReadReg(r)]:
+		# 	for w in [w for w in info['Ev'] if herd.isWriteReg(w) ]:
+		# 		if herd.is_true(m.evaluate(rf_reg(w,r))):
+		# 			print r, w, m.evaluate(r.val)
 	return (result, s, info)
 
 def test():
@@ -794,23 +814,6 @@ def dekker():
 
 
 def atomicTest():
-	# L1: 
-	#   ldstub [lock], r0
-	#   brnz,pn r0, L2
-	#   nop
-	#   ba L3
-	#   nop
-	# L2: 
-	#   ldub [lock], r1
-	#   brnz,pt r1, L2
-	#   nop 
-	#   ba,a,pt L1
-	#   nop
-	# L3:
-	# MEMBAR #StoreLoad
-	# assume(r0 = #1)
-	# ; critical
-
 
 	P1 = SeqSem(
 		InstrSem(	
@@ -820,6 +823,7 @@ def atomicTest():
 				),
 			Register('r1') << TempReg('val')
 			),
+		MFENCE(),
 		Assume(Register('r1') == 0)	# can lock
 		)
 
@@ -835,25 +839,9 @@ def atomicTest():
 		)
 
 
-
-
 	P1 = invExtractor(P1, [Register('r1'), Location('x'), Register('z'), Register('n')])
-	o = 0
-	# for i in P1:
-	# 	# ssa_i = SSASem(i).ssa()
-	# 	print i
-	# 	o += 1
-	# 	print '----------'
-	# print o
-	# return 
 	P2 = invExtractor(P2, [Register('r2'), Register('z'), Register('n')])
-	# P3 = invExtractor(P3, [Register('r2')], P3.__class__)
-	# print '---- inv'
-	# for j in P2:
-	# 	print j
-	# 	print '--------'
-
-	# return
+	
 	for i in P1:
 		# print i
 		for j in P2:
@@ -889,12 +877,94 @@ def atomicTest():
 			# 		if herd.is_true(m.evaluate(herd.rf(w,r))):
 			# 			print r, w, m.evaluate(r.val)
 	print result
+def mp_fence():
+	P1 = SeqSem(
+		InstrSem(	# mov r1, #1
+			TempReg('val') << 1, 
+			Register('r1') << TempReg('val')
+			),
+		MFENCE(),
+		InstrSem(	# str r1, [x]
+			TempReg('val') << Register('r1'),
+			Location('x') << TempReg('val')
+			),
+		MFENCE(),
+		InstrSem(	# str r1, [y]
+			TempReg('val') << Register('r1'),
+			Location('y') << TempReg('val')
+			)
+		)
+
+	P2 = SeqSem(
+		DoWhile(		# L:
+			SeqSem(
+			InstrSem(	# ldr r2, [y]
+				TempReg('val') << Location('y'),
+				Register('r2') << TempReg('val')
+				),
+			InstrSem(	# cmp r2, #1
+				ParallelSem(
+					TempReg('rd') << 1,
+					TempReg('rt') << Register('r2')
+				),
+				ParallelSem(
+					SeqSem(
+						TempReg('val1') << ifExp(TempReg('rd') == TempReg('rt'), 1, 0),
+						Register('z') << TempReg('val1')),
+					SeqSem(
+						TempReg('val1') << ifExp(TempReg('rd') == TempReg('rt'), 0, 1),
+						Register('n') << TempReg('val1'))
+				)
+			)),
+			((Location('x') == 0) | (Location('x') == 1)) &
+			((Location('y') == 0) | (Location('y') == 1)) &
+			((Register('z') == 0) | (Register('z') == 1)) &
+			((Register('n') == 0) | (Register('n') == 1)) &
+			((Register('r2') == 0) | (Register('r2') == 1)) 
+			# ((Register('r3') == 0) | (Register('r3') == 1)) 
+			,						# { inv }
+			Register('z') == 0,			# bne L
+			Register('z') == 1			# { Q }
+		), 
+		InstrSem(	# ldr r3, [x]
+			TempReg('val') << Location('x'),
+			Register('r3') << TempReg('val')
+			),
+		Assertion(Register('r3') == 1)
+		)
+
+	# print P2
+	# havoc should analyze inside the loop!!
+	P1 = invExtractor(P1, [Register('r2')])
+	P2 = invExtractor(P2, [Register('r2'), Register('z'), Register('n')])
+	# P3 = invExtractor(P3, [Register('r2')], P3.__class__)
+	# print '---- inv'
+
+	# for j in P2:
+	# 	print j
+	# 	print '-------'
+
+	for i in P1:
+		# print i
+		for j in P2:
+			herd.reset_id()
+			ssa_i = SSASem(i).ssa()
+			ssa_j = SSASem(j).ssa()
+			# print ssa_j
+
+			(result, s, info) = encode([ssa_i, ssa_j])
+			# break
+			if result == sat:
+				break
+	print result
+
 
 if __name__ == '__main__':
 	# mp()
+	mp_fence()
 	# twoLoops()
 	# dekker()
-	atomicTest()
+	# atomicTest()
 	pass
 
 
