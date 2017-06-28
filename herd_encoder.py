@@ -305,9 +305,9 @@ def encode(P = [], initLocation = {}):
 	(s, rf_reg, rf_regSet) = herd.rf_reg_relation(s, info['Ev'])
 
 
-	# s = herd.sc_constraints(s, po, rf, fr, co, info['Ev'], info['RMW'])
+	s = herd.sc_constraints(s, po, rf, fr, co, info['Ev'], info['RMW'])
 	# s = herd.tso_constraints(s, po, poS, rf, fr, co, info['Ev'], info['RMW'])
-	s = herd.pso_constraints(s, po, poS, rf, fr, co, info['Ev'], info['RMW'])
+	# s = herd.pso_constraints(s, po, poS, rf, fr, co, info['Ev'], info['RMW'])
 
 	print '------ PS'
 	# print simplify(herd.Not(herd.And(info['PS'])))
@@ -964,9 +964,9 @@ def mp_fence():
 if __name__ == '__main__':
 	# mp()
 	# mp_fence()
-	twoLoops()
+	# twoLoops()
 	# dekker()
-	# atomicTest()
+	atomicTest()
 	pass
 
 

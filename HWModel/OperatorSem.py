@@ -435,25 +435,176 @@ class emptyCS(CodeStructure):
 		# 	self.next[0] = SeqSem(self.next[0] + other)
 		# else:
 
+# Definition of Operation Structure
+class Ops:
+	# nothing
+	def __init__(self):
+		self.elements = []
+	def strIndent(self, indent = 0):
+		ret = 'EmptyOps'
+		return ret
 
+	def __str__(self):
+		return self.strIndent()
+
+class SeqOps(Ops):
+	def __init__(self, *seq):
+		self.elements = list(seq)
+	def __add__(self, other):
+		if isinstance(other, SeqOps):
+			elements = self.elements + other.elements
+			return SeqOps(*elements)
+		elif isinstance(other, Ops):
+			elements = self.elements + [other]
+			return SeqOps(*elements)
+		else:
+			assert(False)
+	def strIndent(self, indent = 0):
+		ret = ''
+		ret += (' '* indent) + 'seq[ \n'
+		for i in self.elements:
+			iStr = ''
+			if isinstance(i, Ops):
+				iStr = i.strIndent(indent + 1)
+			else:
+				iStr = (' '*(indent+1)) +str(i)
+			ret += (' '* indent) + iStr + ',\n'
+		ret += (' '* indent) + ']'
+		return ret
+
+	def __str__(self):
+		return self.strIndent()
+
+
+class ParOps(Ops):
+	def __init__(self, *seq):
+		self.elements = list(seq)
+	def append(self, other):
+		self.elements += other
+	def __add__(self, other):
+		if isinstance(other, Ops):
+			elements = [self] + [other]
+			return SeqOps(*elements)
+		else:
+			assert(False)
+	def strIndent(self, indent = 0):
+		ret = ''
+		ret += (' '* indent) + 'par[ \n'
+		for i in self.elements:
+			iStr = ''
+			if isinstance(i, Ops):
+				iStr = i.strIndent(indent + 1)
+			else:
+				iStr = (' '*(indent+1)) +str(i)
+			ret += (' '* indent) + iStr + ',\n'
+		ret += (' '* indent) + ']'
+		return ret
+
+	def __str__(self):
+		return self.strIndent()
+class InstrOps(Ops):
+	def __init__(self, *seq):
+		self.elements = list(seq)
+	def append(self, other):
+		if isinstance(other, SeqOps):
+			self.elements += other.elements
+		else:
+			assert(False)
+			self.elements += [other]
+
+
+	def __add__(self, other):
+		if isinstance(other, Ops):
+			elements = [self] + [other]
+			return SeqOps(*elements)
+		else:
+			assert(False)
+	def strIndent(self, indent = 0):
+		ret = ''
+		ret += (' '* indent) + 'instr[ \n'
+		for i in self.elements:
+			iStr = ''
+			if isinstance(i, Ops):
+				iStr = i.strIndent(indent + 1)
+			else:
+				iStr = (' '*(indent+1)) +str(i)
+			ret += (' '* indent) + iStr + ',\n'
+		ret += (' '* indent) + ']'
+		return ret
+
+	def __str__(self):
+		return self.strIndent()
+
+class CondOps(Ops):
+	def __init__(self, cond, s):
+		self.cond = cond
+		self.elements = [s]
+	def append(self, other):
+		self.elements += other 
+	def __add__(self, other):
+		if isinstance(other, Ops):
+			elements = [self] + [other]
+			return SeqOps(*elements)
+		else:
+			assert(False)		
+
+	def strIndent(self, indent = 0):
+		ret = ''
+		ret += (' '* indent) + 'if('+ str(self.cond) +')[ \n'
+		for i in self.elements:
+			iStr = ''
+			if isinstance(i, Ops):
+				iStr = i.strIndent(indent + 1)
+			else:
+				iStr = (' '*(indent+1)) +str(i)
+			ret += (' '* indent) + iStr + ',\n'
+		ret += (' '* indent) + ']'
+		return ret
+
+	def __str__(self):
+		return self.strIndent()
+
+class OpsNode:
+	def __init__(self, ops, next = []):
+		self.ops = ops 
+		self.next = next 
+
+	def __lshift__(self, other):
+		if self.next == []:
+			self.next = [other]
+		else:
+			for i in self.next:
+				i << other 
+
+	def __add__(self, other):
+		ops = self.ops 
+		next = self.next[:]
+		if next == []:
+			next = [other]
+		else:
+			n = len(next)
+			for i in range(0, n):
+				next[i] = next[i] + other 
+		return OpsNode(ops, next)
+
+class TerminateNode(OpsNode):
+	def __init__(self):
+		self.ops = Ops()
+		self.next = []
+	def __lshift__(self, other):
+		return self
+	def __add__(self, other):
+		return self
 
 if __name__ == '__main__':
-	print 'hello operation semantics'
+	print 'hello operation structure'
 
-	P = InstrSem(
-			ReadAssn('r', '1'), 
-			ParallelSem(
-				ReadAssn('r', '2'),
-				ReadAssn('r', '3')), 
-			Assertion('test')
-			)
-	A = CodeStructure(SeqSem(ReadAssn('r', '4')))
-	B = CodeStructure(SeqSem(ReadAssn('r', '6'), havoc('r1', 'r2')))
-	t = CodeStructure(P, [A, B])
-	print t[1]
-	for p in CodeStructure(P, [A, B]):
-		print p
-		print '-----'
+	print P1
 
-	# for e in P:
-	# 	print str(e)
+
+
+
+
+
+
+
