@@ -16,6 +16,12 @@ class Assume(AnnotatedStatement):
 	def __str__(self):
 		return 'assume(' + str(self.cond) + ')'
 
+class LabelStm(AnnotatedStatement):
+	def __init__(self, label):
+		self.label_id = label
+	def __str__(self):
+		return 'label(' + str(self.label_id) + ')'
+
 # Havoc operator for inductive invariant
 # havoc( {<var>}+ )
 class havoc(AnnotatedStatement):

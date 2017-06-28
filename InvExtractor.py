@@ -141,6 +141,48 @@ def invExtractor(P, vars = [], clss = SeqSem):
 	# 	print p
 	return ret
 
+def branchExtractor(P):
+	assert(isinstance(P, OpsNode))
+
+	# collect label
+	def exploreLabel(p, ret = {}):
+		assert(isinstance(p, OpsNode))
+		# ret = {}
+		if isinstance(p.ops, LabelStm):
+			ret[str(p.ops)] = p
+		for i in p.next:
+			ret = exploreLabel(i, ret)
+		return ret 
+	labels = exploreLabel(P)
+	
+	# link it
+	def editBranchNode(p, labels):
+		assert(isinstance(p, OpsNode))
+		next = p.next 
+		if isinstance(p.ops, Ops) and p.ops.isBranch():
+			b = p.ops.getBranch()
+			# print labels.keys()[0]
+			pTrue = p.__class__(p.ops, [labels[str(b.label)]])
+			pFalse = p.__class__(p.ops, p.next)
+			tBranch = OpsNode(Assume(b.cond), [pTrue])
+			fBranch = OpsNode(Assume(~(b.cond)), [pFalse])
+
+			p.ops = Ops()
+			p.next = [tBranch, fBranch]
+		for i in next:
+			editBranchNode(i, labels)
+	editBranchNode(P, labels)
+	# print P.__class__
+	# P2 = P.__class__(P.ops)
+	# print P, P2
+
+	# for i in P.ops.elements:
+	# 	if isinstance(i, branchOp):
+	# 		pass
+	# consider in next
+
+	return P
+
 
 def mp():
 	P1 = SeqSem(
@@ -201,6 +243,86 @@ def mp():
 		print '----'
 	pass 
 
+def mp2():
+	P1 = seqOpsNode(
+			InstrOps(	# mov r1, #1
+				TempReg('val') << 1, 
+				Register('r1') << TempReg('val')
+				),
+			InstrOps(	# str r1, [x]
+				TempReg('val') << Register('r1'),
+				ParOps(TempReg('val1') << Register('r2'), TempReg('val2') << Register('r2')),
+				Location('x') << TempReg('val')
+				),
+			InstrOps(	# str r1, [y]
+				TempReg('val') << Register('r1'),
+				Location('y') << TempReg('val')
+				)
+			)
+
+	P2 = SeqSem(
+		DoWhile(		# L:
+			SeqSem(
+				DoWhile(
+					InstrSem(	# ldr r2, [y]
+						TempReg('xal') << Location('y'),
+						Register('X2') << TempReg('val')
+						),
+						(Register('z') == 0),						# { inv }
+					Register('z') == 0,			# bne L
+					Register('z') == 1			# { Q }
+				), 
+
+			InstrSem(	# cmp r2, #1
+				ParallelSem(
+					TempReg('rd') << 1,
+					TempReg('rt') << Register('r2')
+				),
+				ParallelSem(
+					Register('z') << i_if_exp(TempReg('rd') == TempReg('rt'), 1, 0),
+					Register('n') << i_if_exp(TempReg('rd') == TempReg('rt'), 0, 1),
+				)
+			)),
+			(Register('z') == 0),						# { inv }
+			Register('z') == 0,			# bne L
+			Register('z') == 1			# { Q }
+		), 
+		InstrSem(	# ldr r3, [x]
+			TempReg('val') << Location('x'),
+			Register('r3') << TempReg('val')
+			),
+		Assertion(Register('r3') == 1)
+		)
+
+	LabelNode = OpsNode(LabelStm('A'), [])
+	BranchNode = OpsNode(
+						InstrOps(
+							branchOp(Register('r1') == 1, LabelStm('A'))
+						),[
+
+						OpsNode(InstrOps(	# str r1, [y]
+				TempReg('val') << Register('r1'),
+				Location('y') << TempReg('val')
+				))
+						# TerminateNode()
+						# , LabelNode
+						])
+	# print P1
+	P1 << BranchNode
+	LabelNode.next = [P1]	
+	# print dominate(LabelNode, BranchNode, LabelNode)
+		
+	print '+++++++'
+	
+	LabelNode = branchExtractor(LabelNode)
+	for p in LabelNode:
+		print p
+		print '----'
+	# for p in P1:
+	# 	print p
+	# 	print '----'
+	pass 
+
 if __name__ == '__main__':
-	mp()
+	mp2()
 	pass 

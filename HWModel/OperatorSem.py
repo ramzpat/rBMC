@@ -36,10 +36,11 @@ class fenceStm(Operation):
 	def __str__(self):
 		return 'fence()' 
 class branchOp(Operation):
-	def __init__(self):
-		pass 
+	def __init__(self, cond, label):
+		self.cond = cond
+		self.label = label
 	def __str__(self):
-		return 'branch()'
+		return 'branch(' + str(self.cond) + ', ' + str(self.label) + ')'
 
 # ---------------- Execution on operations
 # sequential execution -> list ?
@@ -440,12 +441,37 @@ class Ops:
 	# nothing
 	def __init__(self):
 		self.elements = []
+		
 	def strIndent(self, indent = 0):
 		ret = 'EmptyOps'
 		return ret
 
 	def __str__(self):
 		return self.strIndent()
+
+	def isBranch(self):
+		for e in self.elements:
+			if isinstance(e, branchOp):
+				return True
+			elif isinstance(e, Ops):
+				if e.isBranch():
+					return True
+		return False 
+	def getBranch(self):
+		for e in self.elements:
+			if isinstance(e, branchOp):
+				return e
+			elif isinstance(e, Ops):
+				return e.getBranch()
+		return None
+	def isCond(self):
+		for e in self.elements:
+			if isinstance(e, CondOps):
+				return True
+			elif isinstance(e, Ops):
+				if e.isCond():
+					return True
+		return False 
 
 class SeqOps(Ops):
 	def __init__(self, *seq):
@@ -457,7 +483,11 @@ class SeqOps(Ops):
 		elif isinstance(other, Ops):
 			elements = self.elements + [other]
 			return SeqOps(*elements)
+		elif isinstance(other, AnnotatedStatement):
+			elements = self.elements + [other]
+			return SeqOps(*elements)
 		else:
+			print other.__class__
 			assert(False)
 	def strIndent(self, indent = 0):
 		ret = ''
@@ -521,7 +551,7 @@ class InstrOps(Ops):
 			assert(False)
 	def strIndent(self, indent = 0):
 		ret = ''
-		ret += (' '* indent) + 'instr[ \n'
+		ret += (' '* indent) + 'instr[' +  ' \n' 
 		for i in self.elements:
 			iStr = ''
 			if isinstance(i, Ops):
@@ -564,8 +594,23 @@ class CondOps(Ops):
 	def __str__(self):
 		return self.strIndent()
 
+
+
+def dominate(inNode, u, v):
+	return inNode.reach(u) and inNode.reach(v) and u.reach(v)
+
+def seqOpsNode(*seq):
+	seq = list(seq)
+	prev = []
+	for i in range(len(seq)-1, -1, -1):
+
+		e = OpsNode(seq[i], prev)
+		prev = [e]
+	return e
+
 class OpsNode:
 	def __init__(self, ops, next = []):
+		assert(isinstance(ops, InstrOps) or isinstance(ops, AnnotatedStatement))
 		self.ops = ops 
 		self.next = next 
 
@@ -586,6 +631,31 @@ class OpsNode:
 			for i in range(0, n):
 				next[i] = next[i] + other 
 		return OpsNode(ops, next)
+	def __iter__(self):
+		ret = SeqOps(self.ops)
+		if self.next == []:
+			yield ret
+		for i in self.next:
+			if i.reach(self) and len(self.next) > 1:
+				yield ret + i.ops
+			else:
+				for p in i:
+					yield ret + p
+
+	def reach(self, other, tmp = []):
+		# Is this terminate ?
+		assert(isinstance(other, OpsNode))
+		if self in tmp:
+			return False 
+		elif other in self.next:
+			return True
+		else:
+			for i in self.next:
+				if i.reach(other, tmp + [self]):
+					return True
+		return False 
+
+
 
 class TerminateNode(OpsNode):
 	def __init__(self):
@@ -595,10 +665,24 @@ class TerminateNode(OpsNode):
 		return self
 	def __add__(self, other):
 		return self
+	def __iter__(self):
+		yield Ops()
 
 if __name__ == '__main__':
 	print 'hello operation structure'
 
+	P1 = InstrOps('0')
+	P1.append( 
+		SeqOps(
+		'A',
+		ParOps('B', 'C'),
+		CondOps('cond1',
+			SeqOps(
+				'D',
+				'E'
+				)
+			)
+		))
 	print P1
 
 
