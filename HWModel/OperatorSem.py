@@ -464,6 +464,7 @@ class Ops:
 			elif isinstance(e, Ops):
 				return e.getBranch()
 		return None
+	 
 	def isCond(self):
 		for e in self.elements:
 			if isinstance(e, CondOps):
@@ -472,6 +473,14 @@ class Ops:
 				if e.isCond():
 					return True
 		return False 
+
+	def getCond(self):
+		for e in self.elements:
+			if isinstance(e, CondOps):
+				return e
+			elif isinstance(e, Ops):
+				return e.getCond()
+		return None
 
 class SeqOps(Ops):
 	def __init__(self, *seq):
@@ -551,7 +560,7 @@ class InstrOps(Ops):
 			assert(False)
 	def strIndent(self, indent = 0):
 		ret = ''
-		ret += (' '* indent) + 'instr[' +  ' \n' 
+		ret += (' '* indent) + 'instr[' + ' \n' 
 		for i in self.elements:
 			iStr = ''
 			if isinstance(i, Ops):
@@ -633,6 +642,7 @@ class OpsNode:
 		return OpsNode(ops, next)
 	def __iter__(self):
 		ret = SeqOps(self.ops)
+
 		if self.next == []:
 			yield ret
 		for i in self.next:
@@ -655,7 +665,13 @@ class OpsNode:
 					return True
 		return False 
 
-
+	def isLoopBranch(self):
+		
+		if isinstance(self.ops, Ops) and len(self.next) > 1:
+			for i in self.next:
+				if i.reach(self):
+					return True 
+		return False
 
 class TerminateNode(OpsNode):
 	def __init__(self):

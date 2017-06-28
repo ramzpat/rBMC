@@ -172,14 +172,47 @@ def branchExtractor(P):
 		for i in next:
 			editBranchNode(i, labels)
 	editBranchNode(P, labels)
-	# print P.__class__
-	# P2 = P.__class__(P.ops)
-	# print P, P2
 
-	# for i in P.ops.elements:
-	# 	if isinstance(i, branchOp):
-	# 		pass
-	# consider in next
+
+	def eliminateCond(p):
+		assert(isinstance(p, Ops))
+		for i in range(0, len(p.elements)):
+			if isinstance(p.elements[i], CondOps):
+				p.elements[i] = Ops()
+			elif isinstance(p.elements[i], Ops):
+				eliminateCond(p.elements[i])
+
+	def realizeCond(p):
+		assert(isinstance(p, Ops))
+		for i in range(0, len(p.elements)):
+			if isinstance(p.elements[i], CondOps):
+				# print 'realize',p.elements[i].elements[0] 
+				p.elements[i] = p.elements[i].elements[0]
+			elif isinstance(p.elements[i], Ops):
+				realizeCond(p.elements[i])
+
+
+	# condition elimination 
+	def editConditionNode(p):
+		assert(isinstance(p, OpsNode))
+		next = p.next 
+		if isinstance(p.ops, Ops) and p.ops.isCond():
+			e = p.ops.getCond()
+			ops1 = p.ops.__class__(*p.ops.elements)
+			ops2 = p.ops.__class__(*p.ops.elements)
+			pTrue = p.__class__(ops1, next)
+			pFalse = p.__class__(ops2, next)
+			realizeCond(pTrue.ops)
+			eliminateCond(pFalse.ops)
+			tBranch = OpsNode(Assume(e.cond), [pTrue])
+			fBranch = OpsNode(Assume(~(e.cond)), [pFalse])
+
+			p.ops = Ops()
+			p.next = [tBranch, fBranch]
+		for i in next:
+			editConditionNode(i)
+
+	editConditionNode(P)
 
 	return P
 
@@ -256,7 +289,14 @@ def mp2():
 				),
 			InstrOps(	# str r1, [y]
 				TempReg('val') << Register('r1'),
-				Location('y') << TempReg('val')
+				Location('y') << TempReg('val'),
+				CondOps(TempReg('val') == 1, 
+					SeqOps(
+						TempReg('val') << Register('r1'),
+						Location('y') << TempReg('val')
+						)
+					)
+
 				)
 			)
 
@@ -297,18 +337,19 @@ def mp2():
 	LabelNode = OpsNode(LabelStm('A'), [])
 	BranchNode = OpsNode(
 						InstrOps(
-							branchOp(Register('r1') == 1, LabelStm('A'))
+							branchOp(Register('r1') == 1, LabelStm('B'))
 						),[
 
 						OpsNode(InstrOps(	# str r1, [y]
-				TempReg('val') << Register('r1'),
-				Location('y') << TempReg('val')
-				))
+							TempReg('val') << Register('r1'),
+							Location('y') << TempReg('val')
+							))
 						# TerminateNode()
 						# , LabelNode
 						])
 	# print P1
 	P1 << BranchNode
+	P1 << OpsNode(LabelStm('B'))
 	LabelNode.next = [P1]	
 	# print dominate(LabelNode, BranchNode, LabelNode)
 		
