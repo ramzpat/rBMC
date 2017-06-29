@@ -443,7 +443,7 @@ class Ops:
 		self.elements = []
 		
 	def strIndent(self, indent = 0):
-		ret = 'EmptyOps'
+		ret = (' '* indent) + 'emptyOps'
 		return ret
 
 	def __str__(self):
@@ -556,6 +556,9 @@ class InstrOps(Ops):
 		if isinstance(other, Ops):
 			elements = [self] + [other]
 			return SeqOps(*elements)
+		elif isinstance(other, AnnotatedStatement):
+			elements = [self] + [other]
+			return SeqOps(*elements)
 		else:
 			assert(False)
 	def strIndent(self, indent = 0):
@@ -618,10 +621,12 @@ def seqOpsNode(*seq):
 	return e
 
 class OpsNode:
+
 	def __init__(self, ops, next = []):
 		assert(isinstance(ops, InstrOps) or isinstance(ops, AnnotatedStatement))
 		self.ops = ops 
 		self.next = next 
+		self.isLoop = False
 
 	def __lshift__(self, other):
 		if self.next == []:
@@ -665,11 +670,17 @@ class OpsNode:
 					return True
 		return False 
 
-	def isLoopBranch(self):
-		
+	def getConseq(self):
+		assert(len(self.next) > 0)
+		for i in self.next:
+			if not dominate(inNode, i, self):
+				return i
+		return self.next[0]
+
+	def isLoopBranch(self, inNode):
 		if isinstance(self.ops, Ops) and len(self.next) > 1:
 			for i in self.next:
-				if i.reach(self):
+				if dominate(inNode, i, self):
 					return True 
 		return False
 

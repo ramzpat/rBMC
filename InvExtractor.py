@@ -162,8 +162,10 @@ def branchExtractor(P):
 		if isinstance(p.ops, Ops) and p.ops.isBranch():
 			b = p.ops.getBranch()
 			# print labels.keys()[0]
-			pTrue = p.__class__(p.ops, [labels[str(b.label)]])
-			pFalse = p.__class__(p.ops, p.next)
+			ops1 = p.ops.__class__(p.ops)
+			ops2 = p.ops.__class__(p.ops)
+			pTrue = p.__class__(ops1, [labels[str(b.label)]])
+			pFalse = p.__class__(ops2, p.next)
 			tBranch = OpsNode(Assume(b.cond), [pTrue])
 			fBranch = OpsNode(Assume(~(b.cond)), [pFalse])
 
@@ -213,8 +215,48 @@ def branchExtractor(P):
 			editConditionNode(i)
 
 	editConditionNode(P)
-
 	return P
+
+def unwindLoop(p, inNode, k = 0):
+	assert(isinstance(p, OpsNode))
+	ret = SeqOps(p.ops)
+	if p.isLoopBranch(inNode):
+		if k > 0: 	# in bound for loop
+			for i in p.next:
+				for u in unwindLoop(i, inNode, k-1):
+					yield ret + u
+		else:		# out bound for loop
+			x = p.getConseq()
+			for u in unwindLoop(x, inNode, 0):
+				yield ret + u
+	else:
+		if len(p.next) == 0:
+			# print p.ops
+			yield ret
+		else:
+			for i in p.next:
+				for u in unwindLoop(i, inNode, k):
+					# print p.ops
+					yield ret + u
+def unrollCombination(P, k = 0):
+	def exploreExecution(U):
+		if len(U) >= 1:
+			E = []
+			for u in U[0]:
+				
+				E += [u]
+			for es in exploreExecution(U[1:]):
+				for e in E:
+					yield [e] + es
+		else: 
+			yield []
+
+	if not isinstance(P, list):
+		P = [P]
+	U = []
+  	for p in P:
+  		U += [unwindLoop(p, p, k)]
+  	return exploreExecution(U)
 
 
 def mp():
@@ -356,9 +398,14 @@ def mp2():
 	print '+++++++'
 	
 	LabelNode = branchExtractor(LabelNode)
-	for p in LabelNode:
+	# U = unwindLoop(LabelNode, LabelNode, 1)
+	U = unrollCombination([LabelNode], 0)
+	# i = 0
+	for p in U:
 		print p
+		
 		print '----'
+	# print i
 	# for p in P1:
 	# 	print p
 	# 	print '----'
