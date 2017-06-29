@@ -502,6 +502,8 @@ class SeqOps(Ops):
 		for e in self.elements:
 			new_elements += [e.clone()]
 		return self.__class__(*new_elements)
+	def append(self, other):
+		self.elements += [other]
 	def __add__(self, other):
 		if isinstance(other, SeqOps):
 			elements = self.elements + other.elements
@@ -541,7 +543,7 @@ class ParOps(Ops):
 			new_elements += [e.clone()]
 		return self.__class__(*new_elements)
 	def append(self, other):
-		self.elements += other
+		self.elements += [other]
 	def __add__(self, other):
 		if isinstance(other, Ops):
 			elements = [self] + [other]
@@ -574,7 +576,17 @@ class InstrOps(Ops):
 	def append(self, other):
 		if isinstance(other, SeqOps):
 			self.elements += other.elements
+		elif isinstance(other, Operation):
+			self.elements += [other]
+		elif isinstance(other, ParOps):
+			self.elements += [other]
+		elif isinstance(other, InstrOps):
+			self.elements += [other]
+		elif isinstance(other, Ops):
+			# self.elements += []
+			pass
 		else:
+			print other
 			assert(False)
 			self.elements += [other]
 

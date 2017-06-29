@@ -7,53 +7,6 @@ from Arch.arch_object import *
 def isVar(i):
 	return isinstance(i, Register)
 
-
-
-def newExp(exp, lastVarName):
-	if isVar(exp):
-		clss = exp.__class__ 
-		return Exp( clss(lastVarName(str(exp))) )
-	elif isinstance(exp, i_if_exp):
-		return i_if_exp( newExp(exp.cond, lastVarName), 
-						 newExp(exp.t_exp, lastVarName),
-						 newExp(exp.f_exp, lastVarName) )
-	elif isinstance(exp, i_read):
-		return exp # nothing to do with an address  -- load(Addr)
-	elif isinstance(exp, i_rmw):
-		return i_rmw( newExp(exp.rt, lastVarName), exp.addr )
-	elif isinstance(exp, Exp):
-		if len(exp) > 2 and (exp[1] == EOpr['plus'] or exp[1] == EOpr['minus'] or exp[1] == EOpr['times'] or 
-			exp[1] == EOpr['divide'] or exp[1] == EOpr['eq'] or exp[1] == EOpr['lt'] or exp[1] == EOpr['gt'] or
-			exp[1] == EOpr['and'] or exp[1] == EOpr['or']  ):
-			return Exp( newExp(exp[0], lastVarName),
-						exp[1],
-						newExp(exp[2], lastVarName))
-		elif len(exp) == 2 and exp[0] == EOpr['not'] :
-			return Exp(EOpr['not'],(newExp(exp[1], lastVarName)))
-		# else:
-		# 	return newExp(exp[0], lastVarName)
-	return exp
-
-def newInstr(instr, newVarName, lastVarName):
-	if isinstance(instr, i_assignment) :
-		clss = instr.var.__class__
-		return clss( newVarName(str(instr.var)) ) << newExp(instr.expression, lastVarName)
-	elif isinstance(instr, InstrAssume): 
-		return InstrAssume( newExp(instr.cond, lastVarName) )
-	elif isinstance(instr, InstrAssert): 
-		return InstrAssert( newExp(instr.cond, lastVarName) )
-	elif isinstance(instr, i_if):
-		newS = []
-		for e in instr.statement:
-			newS = newS + [newInstr(e, newVarName, lastVarName)]
-		return i_if( newExp(instr.cond, lastVarName), newS)
-	elif isinstance(instr, i_write):
-		return i_write( newExp(instr.rt, lastVarName), instr.addr )
-
-	return instr
-
-
-
 def ssa_form(P):
 	if not isinstance(P, list):
 		P = [P]
@@ -101,9 +54,9 @@ def ssa_form(P):
 				exp[1] == EOpr['and'] or exp[1] == EOpr['or']  ):
 				return Exp( new_exp(exp[0], state),
 							exp[1],
-							newExp(exp[2], state))
+							new_exp(exp[2], state))
 			elif len(exp) == 2 and exp[0] == EOpr['not'] :
-				return Exp(EOpr['not'],(newExp(exp[1], state)))
+				return Exp(EOpr['not'],(new_exp(exp[1], state)))
 			# else:
 			# 	return newExp(exp[0], lastVarName)
 		return exp
@@ -111,7 +64,8 @@ def ssa_form(P):
 	def newOpr(e, state):
 		assert(isinstance(e, Operation) or isinstance(e, Ops) or isinstance(e, AnnotatedStatement))
 		if isinstance(e, AnnotatedStatement):
-			return state
+			if isinstance(e, Assertion) or isinstance(e, Assume):
+				e.cond = new_exp(e.cond, state)
 		elif isinstance(e, Operation):
 			if isinstance(e, Assignment):
 				var = e.var
@@ -135,9 +89,92 @@ def ssa_form(P):
 
 		return state 
 
+
+	# [P] = self.additionalRead(P)
+	def getLocations(exp):
+		if isinstance(exp, Location):
+			return [exp]
+		elif isinstance(exp, Register):
+			return [exp]
+		elif isVar(exp):
+			return []
+		elif isinstance(exp, Exp):
+			if len(exp) > 2 and (exp[1] == EOpr['plus'] or exp[1] == EOpr['minus'] or exp[1] == EOpr['times'] or 
+				exp[1] == EOpr['divide'] or exp[1] == EOpr['eq'] or exp[1] == EOpr['lt'] or exp[1] == EOpr['gt'] or
+				exp[1] == EOpr['and'] or exp[1] == EOpr['or']  ):
+
+				return getLocations(exp[0]) + getLocations(exp[2])
+			elif len(exp) == 2 and exp[0] == EOpr['not'] :
+				return getLocations(exp[1])
+		return []
+
+	def updateCond(exp, dictLoc):
+		if isinstance(exp, Location):
+			return dictLoc[exp]
+		elif isinstance(exp, Register):
+			return dictLoc[exp]
+		elif isVar(exp):
+			return exp
+		elif isinstance(exp, Exp):
+			if len(exp) > 2 and (exp[1] == EOpr['plus'] or exp[1] == EOpr['minus'] or exp[1] == EOpr['times'] or 
+				exp[1] == EOpr['divide'] or exp[1] == EOpr['eq'] or exp[1] == EOpr['lt'] or exp[1] == EOpr['gt'] or
+				exp[1] == EOpr['and'] or exp[1] == EOpr['or']  ):
+
+				return Exp( updateCond(exp[0], dictLoc),
+							exp[1],
+							updateCond(exp[2], dictLoc))
+			elif len(exp) == 2 and exp[0] == EOpr['not'] :
+				return Exp(EOpr['not'],(updateCond(exp[1], dictLoc)))
+		return exp
+
+	def additionalRead(p):
+		if isinstance(p, Assertion):
+			locVar = getLocations(p.cond)
+			locVar = set(locVar)
+			dictLoc = {}
+
+			for v in locVar:
+				dictLoc[v] = TempReg('val_'+str(v.address if isinstance(v, Location) else v))
+			# print self.updateCond(p, dictLoc)
+			return SeqOps( *([dictLoc[v] << v for v in locVar] + [Assertion(updateCond(p.cond, dictLoc))]) )
+		elif isinstance(p, Assume):
+			locVar = getLocations(p.cond)
+			locVar = set(locVar)
+			dictLoc = {}
+			for v in locVar:
+				dictLoc[v] = TempReg('val_'+str(v.address if isinstance(v, Location) else v))
+			# print self.updateCond(p, dictLoc)
+			return SeqOps( *([ dictLoc[v] << v for v in locVar] + [Assume(updateCond(p.cond, dictLoc))]))
+		elif isinstance(p, Operation):
+			return p
+		elif isinstance(p, SeqOps):
+			new_elements = SeqOps()
+			for i in p.elements:
+				new_elements.append(additionalRead(i))
+			return new_elements
+
+		elif isinstance(p, ParOps):
+			new_elements = ParOps()
+			for i in p.elements:
+				new_elements.append(additionalRead(i))
+			return new_elements
+		elif isinstance(p, InstrOps):
+			new_elements = InstrOps()
+			for i in p.elements:
+				new_elements.append(additionalRead(i))
+			return new_elements
+		elif isinstance(p, AnnotatedStatement):
+			return p
+		elif isinstance(p, Ops):
+			return p
+		assert(False)
+
 	def ssa_seq(P, state = {}):
 		assert(isinstance(P, SeqOps))
 		P = P.clone()
+
+		P = additionalRead(P)
+
 		for i in P.elements:
 			state = newOpr(i, state)
 		return (P, state)
@@ -157,3 +194,4 @@ def ssa_form(P):
 
 class encodingFW:
 	pass
+

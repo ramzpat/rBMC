@@ -381,13 +381,12 @@ def mp2():
 						InstrOps(
 							branchOp(Register('r1') == 1, LabelStm('B'))
 						),[
-
-						OpsNode(InstrOps(	# str r1, [y]
-							TempReg('val') << Register('r1'),
-							Location('y') << TempReg('val')
-							))
-						# TerminateNode()
-						# , LabelNode
+							OpsNode(InstrOps(	# str r1, [y]
+								TempReg('val') << Register('r1'),
+								Location('y') << TempReg('val')
+								))
+							# TerminateNode()
+							# , LabelNode
 						])
 	# print P1
 	P1 << BranchNode
