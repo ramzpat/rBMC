@@ -301,6 +301,8 @@ class i_special (iSemantics):
 # -- Register
 class Register(Exp):
 
+	def clone(self):
+		return self.__class__(self.reg_name)
 	def RegName(self, i):
 		return self.reg_name
 		# return 'undefined_reg'
@@ -325,6 +327,9 @@ class Register(Exp):
 		return 0
 
 class TempReg(Register):
+
+	def clone(self):
+		return self.__class__(self.reg_name)
 	def RegName(self, i):
 		return self.reg_name
 
@@ -341,6 +346,9 @@ class Location(Exp):
 	def __init__(self, address = 0):
 		# self.name = name
 		self.address = address # exp
+
+	def clone(self):
+		return self.__class__(self.address)
 
 	def __str__(self):
 		return "[" + str(self.address) + "]"

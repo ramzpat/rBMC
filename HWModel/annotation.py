@@ -7,18 +7,24 @@ class AnnotatedStatement():
 class Assertion(AnnotatedStatement):
 	def __init__(self, cond):
 		self.cond = cond
+	def clone(self):
+		return self.__class__(self.cond)
 	def __str__(self):
 		return 'assert(' + str(self.cond) + ')'
 
 class Assume(AnnotatedStatement):
 	def __init__(self, cond):
 		self.cond = cond
+	def clone(self):
+		return self.__class__(self.cond)
 	def __str__(self):
 		return 'assume(' + str(self.cond) + ')'
 
 class LabelStm(AnnotatedStatement):
 	def __init__(self, label):
 		self.label_id = label
+	def clone(self):
+		return self.__class__(self.label_id)
 	def __str__(self):
 		return 'label(' + str(self.label_id) + ')'
 

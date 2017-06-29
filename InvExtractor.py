@@ -1,7 +1,7 @@
 
 from HWModel.OperatorSem import *
 from Arch.arch_object import *
-
+from SMTEncoder import *
 
 def getAssnVars(p):
 	if isinstance(p, Assertion):
@@ -326,7 +326,7 @@ def mp2():
 				),
 			InstrOps(	# str r1, [x]
 				TempReg('val') << Register('r1'),
-				ParOps(TempReg('val1') << Register('r2'), TempReg('val2') << Register('r2')),
+				ParOps(TempReg('val1') << Register('r1'), TempReg('val2') << Register('r1')),
 				Location('x') << TempReg('val')
 				),
 			InstrOps(	# str r1, [y]
@@ -402,7 +402,9 @@ def mp2():
 	U = unrollCombination([LabelNode], 0)
 	# i = 0
 	for p in U:
-		print p
+		# print p
+		for i in ssa_form(p):
+			print i
 		
 		print '----'
 	# print i

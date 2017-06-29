@@ -7,9 +7,12 @@ from annotation import *
 
 
 # ----------------- Operations
-class Operation(AnnotatedStatement):
+# class Operation(AnnotatedStatement):
+class Operation():
 	def __init__(self):
 		pass 
+	def clone(self):
+		return self.__class__()
 
 # <var> := <exp>
 # <var> ::= <reg> | <loc> | <symbolic var>
@@ -17,6 +20,8 @@ class Assignment(Operation):
 	def __init__(self, var, exp):
 		self.var = var
 		self.exp = exp
+	def clone(self):
+		return self.__class__(self.var.clone(), self.exp)
 
 	def __str__(self):
 		return str(self.var) + " := " + str(self.exp) + ' (' + str(self.__class__) + ')' 
@@ -33,12 +38,16 @@ class ReadAssn(Assignment):
 class fenceStm(Operation):
 	def __init__(self):
 		pass
+	def clone(self):
+		return self.__class__()
 	def __str__(self):
 		return 'fence()' 
 class branchOp(Operation):
 	def __init__(self, cond, label):
 		self.cond = cond
 		self.label = label
+	def clone(self):
+		return self.__class__(self.cond, self.label)
 	def __str__(self):
 		return 'branch(' + str(self.cond) + ', ' + str(self.label) + ')'
 
@@ -441,6 +450,9 @@ class Ops:
 	# nothing
 	def __init__(self):
 		self.elements = []
+
+	def clone(self):
+		return self.__class__()
 		
 	def strIndent(self, indent = 0):
 		ret = (' '* indent) + 'emptyOps'
@@ -485,6 +497,11 @@ class Ops:
 class SeqOps(Ops):
 	def __init__(self, *seq):
 		self.elements = list(seq)
+	def clone(self):
+		new_elements = []
+		for e in self.elements:
+			new_elements += [e.clone()]
+		return self.__class__(*new_elements)
 	def __add__(self, other):
 		if isinstance(other, SeqOps):
 			elements = self.elements + other.elements
@@ -518,6 +535,11 @@ class SeqOps(Ops):
 class ParOps(Ops):
 	def __init__(self, *seq):
 		self.elements = list(seq)
+	def clone(self):
+		new_elements = []
+		for e in self.elements:
+			new_elements += [e.clone()]
+		return self.__class__(*new_elements)
 	def append(self, other):
 		self.elements += other
 	def __add__(self, other):
@@ -544,6 +566,11 @@ class ParOps(Ops):
 class InstrOps(Ops):
 	def __init__(self, *seq):
 		self.elements = list(seq)
+	def clone(self):
+		new_elements = []
+		for e in self.elements:
+			new_elements += [e.clone()]
+		return self.__class__(*new_elements)
 	def append(self, other):
 		if isinstance(other, SeqOps):
 			self.elements += other.elements
@@ -581,6 +608,9 @@ class CondOps(Ops):
 	def __init__(self, cond, s):
 		self.cond = cond
 		self.elements = [s]
+	def clone(self):
+
+		return self.__class__(self.cond, self.elements[0].clone())
 	def append(self, other):
 		self.elements += other 
 	def __add__(self, other):
