@@ -4,6 +4,10 @@
 from HWModel.OperatorSem import *
 from Arch.arch_object import *
 
+from encodingFW import *
+from InvExtractor import *
+import gharachorloo_framework  as gFW 
+
 def isVar(i):
 	return isinstance(i, Register)
 
@@ -42,10 +46,11 @@ def ssa_form(P):
 
 	def new_exp(exp, state):
 		if isVar(exp):
+			# print exp, exp.__class__
 			clss = exp.__class__ 
 			return Exp( clss(get_last_var(str(exp), state)) )
-		elif isinstance(exp, i_if_exp):
-			return i_if_exp( new_exp(exp.cond, state), 
+		elif isinstance(exp, ifExp):
+			return ifExp( new_exp(exp.cond, state), 
 							 new_exp(exp.t_exp, state),
 							 new_exp(exp.f_exp, state) )
 		elif isinstance(exp, Exp):
@@ -71,7 +76,7 @@ def ssa_form(P):
 				var = e.var
 				exp = e.exp 
 				var_name = str(var)
-				nExp = exp if (isinstance(var, Location)) else new_exp(exp, state)
+				nExp = exp if (isinstance(exp, Location)) else new_exp(exp, state)
 				(nVar,state) = (var.address,state) if (isinstance(var, Location)) else new_var(var_name, state)
 				e.var = var.__class__(nVar)
 				e.exp = nExp 
@@ -94,6 +99,8 @@ def ssa_form(P):
 	def getLocations(exp):
 		if isinstance(exp, Location):
 			return [exp]
+		elif isinstance(exp, TempReg):
+			return []
 		elif isinstance(exp, Register):
 			return [exp]
 		elif isVar(exp):
@@ -111,6 +118,8 @@ def ssa_form(P):
 	def updateCond(exp, dictLoc):
 		if isinstance(exp, Location):
 			return dictLoc[exp]
+		elif isinstance(exp, TempReg):
+			return exp
 		elif isinstance(exp, Register):
 			return dictLoc[exp]
 		elif isVar(exp):
@@ -190,8 +199,105 @@ def ssa_form(P):
 		ssa += [e]
 	return ssa 
 
+# return z3 formulas 
+def encode(P, encoder):
+	if isinstance(encoder, encodingFW):
+		formulas = encoder.encode(P)
+		return formulas
 
+def mp2():
+	P1 = seqOpsNode(
+			InstrOps(	# mov r1, #1
+				TempReg('val') << 1, 
+				Register('r1') << TempReg('val')
+				),
+			InstrOps(	# str r1, [x]
+				TempReg('val') << Register('r1'),
+				ParOps(TempReg('val1') << Register('r1'), TempReg('val2') << Register('r1')),
+				Location('x') << TempReg('val')
+				),
+			InstrOps(	# str r1, [y]
+				TempReg('val') << Register('r1'),
+				TempReg('y') << ifExp(TempReg('val') == TempReg('r1'), 1, 0),
+				CondOps(TempReg('val') == 1, 
+					SeqOps(
+						TempReg('val') << Register('r1'),
+						Location('y') << TempReg('val')
+						)
+					)
 
-class encodingFW:
-	pass
+				)
+			)
 
+	P2 = SeqSem(
+		DoWhile(		# L:
+			SeqSem(
+				DoWhile(
+					InstrSem(	# ldr r2, [y]
+						TempReg('xal') << Location('y'),
+						Register('X2') << TempReg('val')
+						),
+						(Register('z') == 0),						# { inv }
+					Register('z') == 0,			# bne L
+					Register('z') == 1			# { Q }
+				), 
+
+			InstrSem(	# cmp r2, #1
+				ParallelSem(
+					TempReg('rd') << 1,
+					TempReg('rt') << Register('r2')
+				),
+				ParallelSem(
+					Register('z') << i_if_exp(TempReg('rd') == TempReg('rt'), 1, 0),
+					Register('n') << i_if_exp(TempReg('rd') == TempReg('rt'), 0, 1),
+				)
+			)),
+			(Register('z') == 0),						# { inv }
+			Register('z') == 0,			# bne L
+			Register('z') == 1			# { Q }
+		), 
+		InstrSem(	# ldr r3, [x]
+			TempReg('val') << Location('x'),
+			Register('r3') << TempReg('val')
+			),
+		Assertion(Register('r3') == 1)
+		)
+
+	LabelNode = OpsNode(LabelStm('A'), [])
+	BranchNode = OpsNode(
+						InstrOps(
+							branchOp(Register('r1') == 1, LabelStm('B'))
+						),[
+							OpsNode(InstrOps(	# str r1, [y]
+								TempReg('val') << Register('r1'),
+								Location('y') << TempReg('val')
+								))
+							# TerminateNode()
+							# , LabelNode
+						])
+	# print P1
+	P1 << BranchNode
+	P1 << OpsNode(LabelStm('B'))
+	LabelNode.next = [P1]	
+	# print dominate(LabelNode, BranchNode, LabelNode)
+		
+	print '+++++++'
+	
+	LabelNode = branchExtractor(LabelNode)
+	# U = unwindLoop(LabelNode, LabelNode, 1)
+	U = unrollCombination([LabelNode], 0)
+	# i = 0
+	for p in U:
+		# print p
+		[i] = ssa_form(p)
+		print i
+		print encode([i], gFW.encoder('SC'))
+			# print i
+		
+		print '----'
+	# print i
+	# for p in P1:
+	# 	print p
+	# 	print '----'
+if __name__ == '__main__':
+	mp2()

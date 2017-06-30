@@ -853,7 +853,7 @@ def atomicTest():
 			herd.reset_id()
 			ssa_i = SSASem(i).ssa()
 			ssa_j = SSASem(j).ssa()
-			# print ssa_i
+			print ssa_i
 			# print ssa_j
 			# result = sat
 			# break

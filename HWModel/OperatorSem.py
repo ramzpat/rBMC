@@ -503,7 +503,12 @@ class SeqOps(Ops):
 			new_elements += [e.clone()]
 		return self.__class__(*new_elements)
 	def append(self, other):
-		self.elements += [other]
+		if isinstance(other, SeqOps):
+			self.elements += other.elements
+		elif isinstance(other, Ops) and other.elements == []:
+			pass
+		else:
+			self.elements += [other]
 	def __add__(self, other):
 		if isinstance(other, SeqOps):
 			elements = self.elements + other.elements
@@ -599,6 +604,7 @@ class InstrOps(Ops):
 			elements = [self] + [other]
 			return SeqOps(*elements)
 		else:
+			print other 
 			assert(False)
 	def strIndent(self, indent = 0):
 		ret = ''
