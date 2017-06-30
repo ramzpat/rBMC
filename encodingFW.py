@@ -75,6 +75,39 @@ class encodingFW:
 				e = self.encodeElement(exp[0])
 				return e
 
+	def program_order(self, PoSet = []):
+
+		# http://stackoverflow.com/questions/8673482/transitive-closure-python-tuples
+		# transitive-closure-python-tuples
+		def transitive_closure(a):
+			closure = set(a)
+			while True:
+				new_relations = set((x,w) for x,y in closure for q,w in closure if q == y)
+
+				closure_until_now = closure | new_relations
+
+				if closure_until_now == closure:
+					break
+
+				closure = closure_until_now
+			return closure
+
+		Ev = self.info['Ev']
+		
+		# for (i,j) in PoSet:
+		# 	s.add(po(i, j)) 
+		newPo = []
+		EvID = [0 for i in range(0, self.info['EventCnt'])]
+		for (i,j) in PoSet:
+			newPo += [(i.eid, j.eid)]
+			EvID[i.eid] = i
+			EvID[j.eid] = j
+		newPo = transitive_closure(newPo)
+
+		# for x in Ev:
+		# 	for y in Ev:
+		# 		s.add(po(x,y) if (x.eid,y.eid) in newPo else Not(po(x,y)) )
+		return newPo
 
 	def encode(self, P, init_cond = [], init_location = True):
 		# The set of events
@@ -114,6 +147,9 @@ class encodingFW:
 		if len(self.info['Loc']) > 1:
 			self.info['CS'] += [Distinct(self.info['Loc'].values())]
 		
+		poS = self.program_order(PoS)
+		self.info['poS'] = poS
+
 		# initial location = 0 ?
 		# if(init_location):
 		# 	WriteInit = [self.new_write(v, 0, 0) for v in self.info['Loc'].values()]
@@ -172,7 +208,7 @@ class encodingFW:
 				(po, e) = self.constructPO(pl, prev)
 				lastEle += e 
 				poRet += po
-			return (poRet, lastEle)
+			return (poRet, lastEle if lastEle != [] else prev)
 		elif isinstance(p, InstrOps):
 			poRet = []
 			iico = []
@@ -181,26 +217,30 @@ class encodingFW:
 			for pl in p.elements:
 				(po, e) = self.constructPO(pl, prev2)
 				poRet += po
-				prev2 = e
+				prev2 = e if e != [] else prev2
 
 			self.info['iico'] += poRet
 			# print prev, poRet[0][0]
 			# try:
+			
 			if len(poRet) > 0:
 				poRet = [ (pl, poRet[0][0]) for pl in prev] + poRet
+			elif prev2 != []:
+				poRet += [(pl, pl2) for pl in prev for pl2 in prev2]
+
 			# except IndexError:
 			# 	print 'Bug', prev, poRet, p
-			
-			return (poRet, e)
+			# print prev2, 'pr2', p
+			return (poRet, prev2 if prev2 != [] else prev)
 		elif isinstance(p, SeqOps):
 			poRet = []
 			for pl in p.elements:
 				(po, e) = self.constructPO(pl, prev)
 				
 				poRet += po
-				prev = e 
-
+				if e != []:
+					prev = e 
 			return (poRet, prev)
-		print p
+		# print p
 		assert(False)
 

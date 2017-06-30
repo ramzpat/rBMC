@@ -277,6 +277,7 @@ def mp2():
 						])
 	# print P1
 	P1 << BranchNode
+
 	P1 << OpsNode(LabelStm('B'))
 	LabelNode.next = [P1]	
 	# print dominate(LabelNode, BranchNode, LabelNode)
@@ -284,6 +285,10 @@ def mp2():
 	print '+++++++'
 	
 	LabelNode = branchExtractor(LabelNode)
+	# for i in LabelNode:
+	# 	print i
+	# print '*******'
+	# return 
 	# U = unwindLoop(LabelNode, LabelNode, 1)
 	U = unrollCombination([LabelNode], 0)
 	# i = 0

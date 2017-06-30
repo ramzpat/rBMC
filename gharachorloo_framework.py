@@ -79,8 +79,10 @@ class encoder(encodingFW):
 
 	def new_write(self, var, exp, pid):
 		name = 'write_' + str(self.info['EventCnt'])
-		self.info['EventCnt'] = self.info['EventCnt'] + 1
 		write = Const(name, WriteOp)
+		write.eid = self.info['EventCnt']
+		self.info['EventCnt'] = self.info['EventCnt'] + 1
+
 
 		pid = Const('P'+str(pid), Proc)
 		self.info['CS'] += [
@@ -92,8 +94,10 @@ class encoder(encodingFW):
 		return write
 	def new_read(self, var, exp, pid):
 		name = 'read_' + str(self.info['EventCnt'])
-		self.info['EventCnt'] = self.info['EventCnt'] + 1
 		read = Const(name, ReadOp)
+		read.eid = self.info['EventCnt']
+		self.info['EventCnt'] = self.info['EventCnt'] + 1
+		
 
 		pid = Const('P'+str(pid), Proc)
 		print var , return_val(read)
@@ -176,14 +180,137 @@ class encoder(encodingFW):
 		return encodeOp
 
 	def encodeSpecific(self):
-		# print self.info['CS']
-
-		# create sub-opr
-		# xo on sub-opr 
 		
+		# realize po
+		for x in self.info['Ev']:
+			for y in self.info['Ev']:
+				self.info['CS'] += [ po(x,y) if (x.eid,y.eid) in self.info['poS'] else Not(po(x,y)) ]
+
+		# initial_location
+		for L in self.info['Loc'].values():
+			self.info['CS'] += [initial_value(L) == 0]
+
+		# underlying axioms
+		# axioms = self.based_axioms()
 
 
 		return And(self.info['CS'])
+
+	def based_axioms(self):
+
+		# Conflict 
+		def conflict_def(w1, w2):
+			(wA, locA, pA) = w1
+			(wB, locB, pB) = w2
+			if wA.sort() == WriteOp or wB.sort() == WriteOp:
+				return (hw.conflict(wA, wB) == eq(locA,locB))
+			else: 
+				return (Not(hw.conflict(wA, wB)))
+
+		conflict_manual_def = []
+		write = info['MemOp']['write']
+		read = info['MemOp']['read']
+		rmwList = info['MemOp']['rmw']
+		memOp = write + read
+		# for (a, loc, p) in rmwList:
+		# 	memOp += [(hw.atomic_write(a),loc,p), (hw.atomic_read(a), loc, p)]
+		conflict_manual_def += [ conflict_def(w1, w2) for (w1, w2) in itertools.permutations(memOp, 2)]
+		
+		# -co-> definition
+		def co_def(w1, w2):
+			(wA, locA, pA) = w1
+			(wB, locB, pB) = w2
+			i = Const('i', Proc)
+			if (wA.sort() == WriteOp or wB.sort() == WriteOp) and (locA == locB):
+				return (hw.co(wA, wB) == Exists([i],xo(subOpr(wA,i), subOpr(wB,i))))
+			else:
+				return Not(hw.co(wA, wB))
+
+		# -co'-> definition
+		def ico_def(w1, w2):
+			(wA, locA, pA) = w1
+			(wB, locB, pB) = w2
+			i = Const('i', Proc)
+			if (wA.sort() == WriteOp or wB.sort() == WriteOp) and (locA == locB) and not eq(pA,pB):
+				return (hw.ico(wA, wB) == Exists([i],xo(subOpr(wA,i), subOpr(wB,i))))
+			else:
+				return Not(hw.ico(wA, wB))
+
+		conflict_manual_def += [ co_def(w1, w2) for (w1, w2) in itertools.permutations(memOp, 2)]
+		conflict_manual_def += [ ico_def(w1, w2) for (w1, w2) in itertools.permutations(memOp, 2)]
+
+		# print conflict_manual_def
+
+
+		rw1, rw2 = Consts('rw1 rw2', MemOp)
+		# rmw = Const('rmw', AtomicOp)
+		# rmw1, rmw2 = Consts('rmw1 rmw2', AtomicOp)
+		w = Const('w', WriteOp)
+		r1, r2 = Consts('r1 r2', ReadOp)
+		i, j = Consts('i j', Proc)
+		
+		def __atomicExce(subAtomR, subAtomW, subW):
+		# return And( xo(subAtomR, subW), xo(subAtomW, subW) )
+			return Xor( 
+					And( xo(subAtomR, subW), xo(subAtomW, subW) ),
+					And( xo(subW, subAtomR), xo(subW, subAtomW) ))
+
+		# Cond 3 : read-modify-write behaviors
+		axioms_atomic = []
+		for ((rmw_r, loc, pi), (rmw_w, loc, pi)) in rmwList:
+			axioms_atomic += [
+				ForAll(w, 
+						Implies(
+							And(conflict(rmw_w, w)),
+							__atomicExce(
+								subOpr(rmw_r, pi), 
+								subOpr(rmw_w, pi), 
+								subOpr(w, pi)
+								)
+							)
+					)
+			]
+
+		# Partial order axioms 
+		def DeclareList(sort):
+		    List = Datatype('List_of_%s' % sort.name())
+		    List.declare('cons', ('car', sort), ('cdr', List))
+		    List.declare('nil')
+		    return List.create()
+
+		def partial_order_axioms(func):	
+			assert(func.domain(0) == func.domain(1))
+			x, y, z  = Consts('x y z', func.domain(0))
+			irreflexive_axiom = ForAll([x,y], Implies(func(x,y), x != y) )
+			# asymetric_axiom = ForAll([x,y], Implies( func(x,y), Not( func(y,x) )))
+			transitivity_axiom = ForAll([x,y,z], Implies( And(func(x,y), func(y,z)), func(x,z) ))
+			return [
+				irreflexive_axiom, 
+				# asymetric_axiom, 
+				transitivity_axiom
+				]
+
+		# asymetric for xo
+		x, y = Consts('x y', SubOpr)
+		a, b = Consts('a b', MemOp)
+		i, j = Consts('i j', Proc)
+		addition_order = [
+			ForAll([x,y], Implies( xo(x,y), Not( xo(y,x) ))),
+			ForAll([a,b], Implies(issue_proc(a) != issue_proc(b), Not(po(a,b)) )),
+			ForAll([a,b], Implies(And(issue_proc(a) == issue_proc(b), po(a,b)), Not(po(b,a) )))
+		]
+		
+		return (
+			conflict_manual_def
+			# + conflict_def_axiom
+			# + inconflict_def_axiom 
+			+ partial_order_axioms(po) 
+			+ partial_order_axioms(xo)
+			+ addition_order
+			+ axioms_atomic 
+			)
+		
+
 
 
 

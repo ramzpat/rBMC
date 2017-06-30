@@ -161,9 +161,10 @@ def branchExtractor(P):
 		next = p.next 
 		if isinstance(p.ops, Ops) and p.ops.isBranch():
 			b = p.ops.getBranch()
+
 			# print labels.keys()[0]
-			ops1 = p.ops.__class__(p.ops)
-			ops2 = p.ops.__class__(p.ops)
+			ops1 = p.ops.clone()
+			ops2 = p.ops.clone()
 			pTrue = p.__class__(ops1, [labels[str(b.label)]])
 			pFalse = p.__class__(ops2, p.next)
 			tBranch = OpsNode(Assume(b.cond), [pTrue])
