@@ -671,6 +671,7 @@ def seqOpsNode(*seq):
 class OpsNode:
 
 	def __init__(self, ops, next = []):
+		# print ops.__class__
 		assert(isinstance(ops, InstrOps) or isinstance(ops, AnnotatedStatement))
 		self.ops = ops 
 		self.next = next 
@@ -718,7 +719,7 @@ class OpsNode:
 					return True
 		return False 
 
-	def getConseq(self):
+	def getConseq(self, inNode):
 		assert(len(self.next) > 0)
 		for i in self.next:
 			if not dominate(inNode, i, self):

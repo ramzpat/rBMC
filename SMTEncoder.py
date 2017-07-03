@@ -213,23 +213,40 @@ def mp2():
 				),
 			InstrOps(	# str r1, [x]
 				TempReg('val') << Register('r1'),
-				ParOps(TempReg('val1') << Register('r1'), TempReg('val2') << Register('r1')),
 				Location('x') << TempReg('val')
 				),
 			InstrOps(	# str r1, [y]
 				TempReg('val') << Register('r1'),
-				TempReg('y') << ifExp(TempReg('val') == TempReg('r1'), 1, 0),
-				CondOps(TempReg('val') == 1, 
-					SeqOps(
-						TempReg('val') << Register('r1'),
-						Location('y') << TempReg('val')
-						)
-					)
+				Location('y') << TempReg('val')
+			))
 
+	P2 = seqOpsNode(
+			LabelStm('A'),
+			InstrOps(	# ldr r2, [y]
+				TempReg('val') << Location('y'),
+				Register('r2') << TempReg('val')
+				),
+			InstrOps(	# cmp r2, #1
+				ParOps(
+					TempReg('rd') << 1,
+					TempReg('rt') << Register('r2')
+				),
+				ParOps(
+					Register('z') << ifExp(TempReg('rd') == TempReg('rt'), 1, 0),
+					Register('n') << ifExp(TempReg('rd') == TempReg('rt'), 0, 1),
 				)
-			)
+			),
+			InstrOps(	# bne A 
+				branchOp(Register('n') == 1, LabelStm('A'))
+			),
+			InstrOps(	# ldr r1, [x]
+				TempReg('val') << Location('x'),
+				Register('r1') << TempReg('val')
+			),
+			Assertion(Register('r1') == 1)
+		)
 
-	P2 = SeqSem(
+	SeqSem(
 		DoWhile(		# L:
 			SeqSem(
 				DoWhile(
@@ -270,34 +287,40 @@ def mp2():
 						),[
 							OpsNode(InstrOps(	# str r1, [y]
 								TempReg('val') << Register('r1'),
-								Location('y') << TempReg('val')
+								Location('x') << TempReg('val'),
+								TempReg('val') << Location('x')
+
 								))
 							# TerminateNode()
 							# , LabelNode
 						])
 	# print P1
-	P1 << BranchNode
+	# P1 << BranchNode
 
-	P1 << OpsNode(LabelStm('B'))
-	LabelNode.next = [P1]	
+	# P1 << OpsNode(LabelStm('B'))
+	# LabelNode.next = [P1]	
 	# print dominate(LabelNode, BranchNode, LabelNode)
 		
 	print '+++++++'
 	
-	LabelNode = branchExtractor(LabelNode)
-	# for i in LabelNode:
+	P1 = branchExtractor(P1)
+	P2 = branchExtractor(P2)
+	# for i in P2:
 	# 	print i
 	# print '*******'
 	# return 
 	# U = unwindLoop(LabelNode, LabelNode, 1)
-	U = unrollCombination([LabelNode], 0)
+	U = unrollCombination([P1, P2], 1)
 	# i = 0
 	for p in U:
 		# print p
-		[i] = ssa_form(p)
-		print i
-		print encode([i], gFW.encoder('SC'))
-			# print i
+		[i, j] = ssa_form(p)
+		# print j
+		formula = encode([i, j], gFW.encoder('PSO'))
+		s = Solver()
+		s.add(formula)
+		print s.check()
+		# print formula
 		
 		print '----'
 	# print i

@@ -154,27 +154,6 @@ def branchExtractor(P):
 			ret = exploreLabel(i, ret)
 		return ret 
 	labels = exploreLabel(P)
-	
-	# link it
-	def editBranchNode(p, labels):
-		assert(isinstance(p, OpsNode))
-		next = p.next 
-		if isinstance(p.ops, Ops) and p.ops.isBranch():
-			b = p.ops.getBranch()
-
-			# print labels.keys()[0]
-			ops1 = p.ops.clone()
-			ops2 = p.ops.clone()
-			pTrue = p.__class__(ops1, [labels[str(b.label)]])
-			pFalse = p.__class__(ops2, p.next)
-			tBranch = OpsNode(Assume(b.cond), [pTrue])
-			fBranch = OpsNode(Assume(~(b.cond)), [pFalse])
-
-			p.ops = Ops()
-			p.next = [tBranch, fBranch]
-		for i in next:
-			editBranchNode(i, labels)
-	editBranchNode(P, labels)
 
 
 	def eliminateCond(p):
@@ -216,6 +195,29 @@ def branchExtractor(P):
 			editConditionNode(i)
 
 	editConditionNode(P)
+	
+	# link it
+	def editBranchNode(p, labels):
+		assert(isinstance(p, OpsNode))
+		next = p.next 
+		if isinstance(p.ops, Ops) and p.ops.isBranch():
+			b = p.ops.getBranch()
+
+			# print labels.keys()[0]
+			ops1 = p.ops.clone()
+			ops2 = p.ops.clone()
+			pTrue = p.__class__(ops1, [labels[str(b.label)]])
+			pFalse = p.__class__(ops2, p.next)
+			tBranch = OpsNode(Assume(b.cond), [pTrue])
+			fBranch = OpsNode(Assume(~(b.cond)), [pFalse])
+
+			p.ops = Ops()
+			p.next = [tBranch, fBranch]
+		for i in next:
+			editBranchNode(i, labels)
+	editBranchNode(P, labels)
+
+
 	return P
 
 def unwindLoop(p, inNode, k = 0):
@@ -227,7 +229,7 @@ def unwindLoop(p, inNode, k = 0):
 				for u in unwindLoop(i, inNode, k-1):
 					yield ret + u
 		else:		# out bound for loop
-			x = p.getConseq()
+			x = p.getConseq(inNode)
 			for u in unwindLoop(x, inNode, 0):
 				yield ret + u
 	else:
