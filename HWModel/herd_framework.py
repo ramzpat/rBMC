@@ -67,8 +67,6 @@ Fence = Event.fence
 
 eidCnt = 0
 
-
-
 def isWrite(e):
 	return eq(e.decl(), WriteOp)
 def isRead(e):
@@ -197,13 +195,13 @@ def restrict(e, sets = []):
 	return Or([e == i for i in sets ])
 
 # Relation defifnition
-def relation(r_name, Dom, Set = []):
-	e = []
-	r = Function(r_name, Dom, Dom, BoolSort())
-	x = Const('x', Dom)
-	y = Const('y', Dom)
+# def relation(r_name, Dom, Set = []):
+# 	e = []
+# 	r = Function(r_name, Dom, Dom, BoolSort())
+# 	x = Const('x', Dom)
+# 	y = Const('y', Dom)
 
-	return (r, [ForAll([x,y], r(x,y) ==  Or([And(x == Dom.cast(i), y == Dom.cast(j)) for (i,j) in Set]))])
+# 	return (r, [ForAll([x,y], r(x,y) ==  Or([And(x == Dom.cast(i), y == Dom.cast(j)) for (i,j) in Set]))])
 
 	# r = Function(r_name, Dom, Dom, BoolSort())
 	# x, y = Consts('x y', Dom)

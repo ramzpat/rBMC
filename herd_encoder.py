@@ -962,11 +962,11 @@ def mp_fence():
 
 
 if __name__ == '__main__':
-	# mp()
+	mp()
 	# mp_fence()
 	# twoLoops()
 	# dekker()
-	atomicTest()
+	# atomicTest()
 	pass
 
 

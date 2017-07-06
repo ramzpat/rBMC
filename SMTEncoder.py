@@ -6,7 +6,8 @@ from Arch.arch_object import *
 
 from encodingFW import *
 from InvExtractor import *
-import gharachorloo_framework  as gFW 
+import gharachorloo_framework  as gFW
+import herd_encodingFw as hFW 
 
 def isVar(i):
 	return isinstance(i, Register)
@@ -232,6 +233,154 @@ def mp2():
 					TempReg('rt') << Register('r2')
 				),
 				ParOps(
+					SeqOps(
+						TempReg('val_z') << ifExp(TempReg('rd') == TempReg('rt'), 1, 0),
+						Register('z') << TempReg('val_z')
+					),
+					SeqOps(
+						TempReg('val_n') << ifExp(TempReg('rd') == TempReg('rt'), 0, 1),
+						Register('n') << TempReg('val_n')
+					)
+				)
+			),
+			InstrOps(	# bne A 
+				branchOp(Register('n') == 1, LabelStm('A'))
+			),
+			InstrOps(	# ldr r1, [x]
+				TempReg('val') << Location('x'),
+				Register('r1') << TempReg('val')
+			),
+			Assertion(Register('r1') == 1)
+		)
+
+	# SeqSem(
+	# 	DoWhile(		# L:
+	# 		SeqSem(
+	# 			DoWhile(
+	# 				InstrSem(	# ldr r2, [y]
+	# 					TempReg('xal') << Location('y'),
+	# 					Register('X2') << TempReg('val')
+	# 					),
+	# 					(Register('z') == 0),						# { inv }
+	# 				Register('z') == 0,			# bne L
+	# 				Register('z') == 1			# { Q }
+	# 			), 
+
+	# 		InstrSem(	# cmp r2, #1
+	# 			ParallelSem(
+	# 				TempReg('rd') << 1,
+	# 				TempReg('rt') << Register('r2')
+	# 			),
+	# 			ParallelSem(
+	# 				Register('z') << i_if_exp(TempReg('rd') == TempReg('rt'), 1, 0),
+	# 				Register('n') << i_if_exp(TempReg('rd') == TempReg('rt'), 0, 1),
+	# 			)
+	# 		)),
+	# 		(Register('z') == 0),						# { inv }
+	# 		Register('z') == 0,			# bne L
+	# 		Register('z') == 1			# { Q }
+	# 	), 
+	# 	InstrSem(	# ldr r3, [x]
+	# 		TempReg('val') << Location('x'),
+	# 		Register('r3') << TempReg('val')
+	# 		),
+	# 	Assertion(Register('r3') == 1)
+	# 	)
+
+	# LabelNode = OpsNode(LabelStm('A'), [])
+	# BranchNode = OpsNode(
+	# 					InstrOps(
+	# 						branchOp(Register('r1') == 1, LabelStm('B'))
+	# 					),[
+	# 						OpsNode(InstrOps(	# str r1, [y]
+	# 							TempReg('val') << Register('r1'),
+	# 							Location('x') << TempReg('val'),
+	# 							TempReg('val') << Location('x')
+
+	# 							))
+	# 						# TerminateNode()
+	# 						# , LabelNode
+	# 					])
+	# # print P1
+	# # P1 << BranchNode
+
+	# # P1 << OpsNode(LabelStm('B'))
+	# # LabelNode.next = [P1]	
+	# # print dominate(LabelNode, BranchNode, LabelNode)
+		
+	print '+++++++'
+	
+	P1 = branchExtractor(P1)
+	P2 = branchExtractor(P2)
+	# for i in P2:
+	# 	print i
+	# print '*******'
+	# return 
+	# U = unwindLoop(LabelNode, LabelNode, 1)
+	U = unrollCombination([P1, P2], 2)
+	# i = 0
+	for p in U:
+		# print p
+		[i, j] = ssa_form(p)
+		# print i
+		# print j
+		formula = encode([i, j], gFW.encoder('SC'))
+		ss = hFW.encoder('SC')
+		formula = encode([i, j], ss)
+
+		s = Solver()
+		s.add(formula)
+		result = s.check()
+		print result
+		# if result == sat:
+		# 	m = s.model()
+		# 	for e in ss.info['Ev']:
+		# 		if hFW.isRead(e) or hFW.isReadReg(e):
+		# 			print e, m.evaluate(e.val)
+		# 	for e1 in ss.info['Ev']:
+		# 		for e2 in ss.info['Ev']:
+		# 			if is_true(m.evaluate( ss.info['rel_po'](e1,e2) )) and hFW.isRW(e2) and hFW.isRW(e1):
+		# 				print e1,e2
+		# 	for e1 in ss.info['Ev']:
+		# 		for e2 in ss.info['Ev']:
+		# 			if is_true(m.evaluate( ss.info['rel_rf'](e1,e2) )):
+		# 				print e1,e2
+		# 		# print m.evaluate(ss.info['rel_co']())
+		# # print formula
+		
+		print '----'
+	# print i
+	# for p in P1:
+	# 	print p
+	# 	print '----'
+
+def mp():
+	P1 = seqOpsNode(
+			InstrOps(	# mov r1, #1
+				TempReg('val') << 1, 
+				Register('r1') << TempReg('val')
+				),
+			InstrOps(	# str r1, [x]
+				TempReg('val') << Register('r1'),
+				Location('x') << TempReg('val')
+				),
+			InstrOps(	# str r1, [y]
+				TempReg('val') << Register('r1'),
+				Location('y') << TempReg('val')
+			))
+
+	P2 = seqOpsNode(
+			LabelStm('A'),
+			InstrOps(	# ldr r2, [y]
+				TempReg('val') << Location('y'),
+				Register('r2') << TempReg('val')
+				),
+			InstrOps(	# cmp r2, #1
+				ParOps(
+					TempReg('rd') << 1,
+					TempReg('rt') << Register('r2')
+				),
+				ParOps(
 					Register('z') << ifExp(TempReg('rd') == TempReg('rt'), 1, 0),
 					Register('n') << ifExp(TempReg('rd') == TempReg('rt'), 0, 1),
 				)
@@ -246,86 +395,5 @@ def mp2():
 			Assertion(Register('r1') == 1)
 		)
 
-	SeqSem(
-		DoWhile(		# L:
-			SeqSem(
-				DoWhile(
-					InstrSem(	# ldr r2, [y]
-						TempReg('xal') << Location('y'),
-						Register('X2') << TempReg('val')
-						),
-						(Register('z') == 0),						# { inv }
-					Register('z') == 0,			# bne L
-					Register('z') == 1			# { Q }
-				), 
-
-			InstrSem(	# cmp r2, #1
-				ParallelSem(
-					TempReg('rd') << 1,
-					TempReg('rt') << Register('r2')
-				),
-				ParallelSem(
-					Register('z') << i_if_exp(TempReg('rd') == TempReg('rt'), 1, 0),
-					Register('n') << i_if_exp(TempReg('rd') == TempReg('rt'), 0, 1),
-				)
-			)),
-			(Register('z') == 0),						# { inv }
-			Register('z') == 0,			# bne L
-			Register('z') == 1			# { Q }
-		), 
-		InstrSem(	# ldr r3, [x]
-			TempReg('val') << Location('x'),
-			Register('r3') << TempReg('val')
-			),
-		Assertion(Register('r3') == 1)
-		)
-
-	LabelNode = OpsNode(LabelStm('A'), [])
-	BranchNode = OpsNode(
-						InstrOps(
-							branchOp(Register('r1') == 1, LabelStm('B'))
-						),[
-							OpsNode(InstrOps(	# str r1, [y]
-								TempReg('val') << Register('r1'),
-								Location('x') << TempReg('val'),
-								TempReg('val') << Location('x')
-
-								))
-							# TerminateNode()
-							# , LabelNode
-						])
-	# print P1
-	# P1 << BranchNode
-
-	# P1 << OpsNode(LabelStm('B'))
-	# LabelNode.next = [P1]	
-	# print dominate(LabelNode, BranchNode, LabelNode)
-		
-	print '+++++++'
-	
-	P1 = branchExtractor(P1)
-	P2 = branchExtractor(P2)
-	# for i in P2:
-	# 	print i
-	# print '*******'
-	# return 
-	# U = unwindLoop(LabelNode, LabelNode, 1)
-	U = unrollCombination([P1, P2], 1)
-	# i = 0
-	for p in U:
-		# print p
-		[i, j] = ssa_form(p)
-		# print j
-		formula = encode([i, j], gFW.encoder('PSO'))
-		s = Solver()
-		s.add(formula)
-		print s.check()
-		# print formula
-		
-		print '----'
-	# print i
-	# for p in P1:
-	# 	print p
-	# 	print '----'
 if __name__ == '__main__':
 	mp2()
