@@ -4,6 +4,7 @@ from z3 import *
 import itertools
 
 from annotation import *
+from sets import Set
 
 
 # ----------------- Operations
@@ -671,12 +672,28 @@ def seqOpsNode(*seq):
 
 class OpsNode:
 
+
 	def __init__(self, ops, next = []):
 		# print ops.__class__
 		assert(isinstance(ops, InstrOps) or isinstance(ops, AnnotatedStatement))
 		self.ops = ops 
 		self.next = next 
 		self.isLoop = False
+
+		self.dominator = set([])
+
+		self.pred = set([])
+		for i in next:
+
+			i.pred = i.pred.union(set([self]))
+			# print i.pred
+
+		self.reachList = Set([self])
+		for i in next:
+			# print 'beforeAdd',self.reachList, i.reachList
+			self.reachList.add(i.reachList)
+			# print 'afterAdd',self.reachList
+		# print self.reachList 
 
 	def __lshift__(self, other):
 		if self.next == []:
@@ -707,31 +724,62 @@ class OpsNode:
 				for p in i:
 					yield ret + p
 
+	def exploreNodes(self, visited = []):
+		if not ( self in visited ):
+			yield self
+			for i in self.next:
+				for p in i.exploreNodes(visited + [self]):
+					yield p
+
+	def dominates(self, other):
+		if self.dominator == set([]):
+			assert(False)
+		return self in other.dominator
+
+
 	def reach(self, other, tmp = []):
 		# Is this terminate ?
 		assert(isinstance(other, OpsNode))
-		if self in tmp:
-			return False 
-		elif other in self.next:
+		# print tmp
+		if other.ops in self.reachList:
 			return True
-		else:
-			for i in self.next:
-				if i.reach(other, tmp + [self]):
-					return True
+		return False
+
+		for i in self.next:
+			if i.reach(other):
+				self.reachList.union(i.reachList)	
+				return True 
+					
+
+			# self.reachList = list(set(self.reachList))
+
+			# if not(i in tmp) and i.reach(other, tmp + [self]):
+			# 	return True
 		return False 
 
 	def getConseq(self, inNode):
 		assert(len(self.next) > 0)
 		for i in self.next:
-			if not dominate(inNode, i, self):
+			# if not dominate(inNode, i, self):
+			if not(i.dominates(self)):
 				return i
+		assert(False)
 		return self.next[0]
 
 	def isLoopBranch(self, inNode):
 		if isinstance(self.ops, Ops) and len(self.next) > 1:
-			for i in self.next:
-				if dominate(inNode, i, self):
-					return True 
+			# return True
+			return self.isLoop
+		# 	for i in self.next:
+		# 		# if dominate(inNode, i, self):
+		# 		# print i.ops, i.dominates(self)
+		# 		# print '-----'
+		# 		# for d in i.dominator:
+		# 		# 	print d.ops
+		# 		# print '00000'
+		# 		if i.dominates(self):
+		# 			return True 
+		# 	assert(False)
 		return False
 
 class TerminateNode(OpsNode):

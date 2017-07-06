@@ -141,6 +141,38 @@ def invExtractor(P, vars = [], clss = SeqSem):
 	# 	print p
 	return ret
 
+
+def prepareDominators(p):
+	nodes = set([i for i in p.exploreNodes()])
+	rNodes = nodes - set([p])
+
+	p.dominator = set([p])
+	for n in rNodes:
+		n.dominator = nodes
+	isChange = True
+	while isChange:
+		isChange = False
+		for n in rNodes:
+
+			if len(n.pred) > 0:
+				newN = set(nodes)
+				for pr in n.pred:
+					newN &= pr.dominator
+			else:
+				newN = set([])
+			domN = set([n]).union( newN )
+
+			if n.dominator - domN  != set([]):
+				isChange = True 
+			n.dominator = domN
+
+	# for n in nodes:
+	# 	print n.ops, n.dominator
+	# print '------------'
+	# for i in P:
+		# print i.ops
+		# i.ops = Ops()
+
 def branchExtractor(P):
 	assert(isinstance(P, OpsNode))
 
@@ -191,6 +223,8 @@ def branchExtractor(P):
 
 			p.ops = Ops()
 			p.next = [tBranch, fBranch]
+			fBranch.pred = fBranch.pred.union(set([p]))
+			tBranch.pred = tBranch.pred.union(set([p]))
 		for i in next:
 			editConditionNode(i)
 
@@ -202,6 +236,8 @@ def branchExtractor(P):
 		next = p.next 
 		if isinstance(p.ops, Ops) and p.ops.isBranch():
 			b = p.ops.getBranch()
+			if labels[str(b.label)].dominates(p):
+				p.isLoop = True
 
 			# print labels.keys()[0]
 			ops1 = p.ops.clone()
@@ -212,13 +248,17 @@ def branchExtractor(P):
 			fBranch = OpsNode(Assume(~(b.cond)), [pFalse])
 
 			p.ops = Ops()
-			p.next = [tBranch, fBranch]
+			p.next = [fBranch, tBranch]
+			fBranch.pred = fBranch.pred.union(set([p]))
+			tBranch.pred = tBranch.pred.union(set([p]))
 		for i in next:
 			editBranchNode(i, labels)
+	prepareDominators(P)
 	editBranchNode(P, labels)
 
 
 	return P
+
 
 def unwindLoop(p, inNode, k = 0):
 	assert(isinstance(p, OpsNode))
@@ -258,6 +298,12 @@ def unrollCombination(P, k = 0):
 		P = [P]
 	U = []
   	for p in P:
+  		# prepare dominator 
+  		prepareDominators(p)
+  		# for i in p:
+  		# 	print i
+  		# 	print '----'
+  		# return []
   		U += [unwindLoop(p, p, k)]
   	return exploreExecution(U)
 

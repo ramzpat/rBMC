@@ -28,6 +28,15 @@ class LabelStm(AnnotatedStatement):
 	def __str__(self):
 		return 'label(' + str(self.label_id) + ')'
 
+class Atomic(AnnotatedStatement):
+	def __init__(self, opr):
+		self.opr = opr
+	def clone(self):
+		return self.__class__(self.opr)
+	def __str__(self):
+		return 'atom(' + str(self.opr) + ')'
+
+
 # Havoc operator for inductive invariant
 # havoc( {<var>}+ )
 class havoc(AnnotatedStatement):
