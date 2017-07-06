@@ -42,6 +42,7 @@ class fenceStm(Operation):
 		return self.__class__()
 	def __str__(self):
 		return 'fence()' 
+		
 class branchOp(Operation):
 	def __init__(self, cond, label):
 		self.cond = cond

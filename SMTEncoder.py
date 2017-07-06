@@ -381,8 +381,14 @@ def mp():
 					TempReg('rt') << Register('r2')
 				),
 				ParOps(
-					Register('z') << ifExp(TempReg('rd') == TempReg('rt'), 1, 0),
-					Register('n') << ifExp(TempReg('rd') == TempReg('rt'), 0, 1),
+					SeqOps(
+						TempReg('val_z') << ifExp(TempReg('rd') == TempReg('rt'), 1, 0),
+						Register('z') << TempReg('val_z')
+					),
+					SeqOps(
+						TempReg('val_n') << ifExp(TempReg('rd') == TempReg('rt'), 0, 1),
+						Register('n') << TempReg('val_n')
+					)
 				)
 			),
 			InstrOps(	# bne A 
@@ -395,5 +401,103 @@ def mp():
 			Assertion(Register('r1') == 1)
 		)
 
+
+	P1 = branchExtractor(P1)
+	P2 = branchExtractor(P2)
+	U = unrollCombination([P1, P2], 1)
+	for p in U:
+		# print p
+		[i, j] = ssa_form(p)
+		# print i
+		# print j
+		formula = encode([i, j], gFW.encoder('SC'))
+		ss = hFW.encoder('SC')
+		formula = encode([i, j], ss)
+
+		s = Solver()
+		s.add(formula)
+		result = s.check()
+		print result
+		if result == sat:
+			return 
+		
+		print '----'
+
+def mp_fence():
+	P1 = seqOpsNode(
+			InstrOps(	# mov r1, #1
+				TempReg('val') << 1, 
+				Register('r1') << TempReg('val')
+				),
+			InstrOps(	# str r1, [x]
+				TempReg('val') << Register('r1'),
+				Location('x') << TempReg('val')
+				),
+			# fence ?
+			InstrOps(	# STBar 
+				# hFW.STBarFence()
+				gFW.STBarFence()
+				),
+			InstrOps(	# str r1, [y]
+				TempReg('val') << Register('r1'),
+				Location('y') << TempReg('val')
+			))
+
+	P2 = seqOpsNode(
+			LabelStm('A'),
+			InstrOps(	# ldr r2, [y]
+				TempReg('val') << Location('y'),
+				Register('r2') << TempReg('val')
+				),
+			InstrOps(	# cmp r2, #1
+				ParOps(
+					TempReg('rd') << 1,
+					TempReg('rt') << Register('r2')
+				),
+				ParOps(
+					SeqOps(
+						TempReg('val_z') << ifExp(TempReg('rd') == TempReg('rt'), 1, 0),
+						Register('z') << TempReg('val_z')
+					),
+					SeqOps(
+						TempReg('val_n') << ifExp(TempReg('rd') == TempReg('rt'), 0, 1),
+						Register('n') << TempReg('val_n')
+					)
+				)
+			),
+			InstrOps(	# bne A 
+				branchOp(Register('n') == 1, LabelStm('A'))
+			),
+			InstrOps(	# ldr r1, [x]
+				TempReg('val') << Location('x'),
+				Register('r1') << TempReg('val')
+			),
+			Assertion(Register('r1') == 1)
+		)
+
+
+	P1 = branchExtractor(P1)
+	P2 = branchExtractor(P2)
+	U = unrollCombination([P1, P2], 1)
+	for p in U:
+		# print p
+		[i, j] = ssa_form(p)
+		print i
+		# print j
+		formula = encode([i, j], gFW.encoder('PSO'))
+		# ss = hFW.encoder('SC')
+		# formula = encode([i, j], ss)
+
+		s = Solver()
+		s.add(formula)
+		result = s.check()
+		print result
+		if result == sat:
+			return 
+		
+		print '----'
+
+
+
 if __name__ == '__main__':
-	mp2()
+	mp_fence()

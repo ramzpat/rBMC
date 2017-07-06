@@ -15,6 +15,17 @@ MemOp = 	DeclareSort('MemOp')			# Memory operation
 # AtomicOp =	DeclareSort('AtomicOp')			# Atomic operation 	
 FenceOp =	DeclareSort('FenceOp')			# Fence operation 	
 
+# Additional Op
+MembarWR =	DeclareSort('MEMBAR(WR)')				# MEMBER(WR) operation in TSO+ (spac v8+) 
+STBar = DeclareSort('STBar')
+membarOp = Function('f_membar', MembarWR, FenceOp)	# a wrapper function
+stbarOp = Function('f_stbar', STBar, FenceOp)	# a wrapper function
+FenceOp.cast = (lambda val:
+	val if (val.sort() == FenceOp)
+	else stbarOp(val) if (val.sort() == STBar)
+	else membarOp(val)
+)
+
 ReadOp = 	DeclareSort('ReadOp')			# Read access 	*A kind of memory operation(MemOp)
 WriteOp = 	DeclareSort('WriteOp')			# Write access 	*A kind of memory operation(MemOp) 
 
@@ -84,6 +95,24 @@ ConseqXO.domain = 	(lambda i: MemOp)
 WPO.domain = (lambda i: MemOp)
 WXO.domain = (lambda i: MemOp if i < 2 else Proc )
 
+
+
+def enum(*sequential, **named):
+    enums = dict(zip(sequential, range(len(sequential))), **named)
+    return type('Enum', (), enums)
+
+FenceType = enum('STBar', 'MEMBAR_WR')
+
+
+# additional fence
+class STBarFence(fenceStm):
+	def __str__(self):
+		return 'stbar()' 
+
+class MEM_WR_Fence(fenceStm):
+	def __str__(self):
+		return 'MEMBAR(WR)'
+
 # Utilities function
 # Emulate w \in writes 
 def restrict(w, writes = []):
@@ -91,6 +120,9 @@ def restrict(w, writes = []):
 	for m in writes:
 		ret += [(w == m)]
 	return Or(ret)
+
+def is_RW(rw):
+	return rw.sort() == WriteOp or rw.sort() == ReadOp or rw.sort() == MemOp 
 
 # check two operators are conflict 
 def is_conflict(w1, w2):
@@ -235,17 +267,8 @@ def TSO_model(info = {}):
 	pass 
 
 def PSO_model(info = {}):
-	# Additional Op
-	MembarWR =	DeclareSort('MEMBAR(WR)')				# MEMBER(WR) operation in TSO+ (spac v8+) 
-	STBar = DeclareSort('STBar')
 
-	membarOp = Function('f_membar', MembarWR, FenceOp)	# a wrapper function
-	stbarOp = Function('f_stbar', STBar, FenceOp)	# a wrapper function
-	FenceOp.cast = (lambda val:
-		val if (val.sort() == FenceOp)
-		else stbarOp(val) if (val.sort() == STBar)
-		else membarOp(val)
-	)
+	
 
 	# Relations
 	spo = Function('spo', Opr, Opr, BoolSort()) 	# Significant program order
@@ -463,7 +486,12 @@ class encoder(encodingFW):
 		return ['SC', 'TSO', 'PSO']
 	
 	def getEvent(self, op):
-		return MemOp.cast(op)
+		if op.sort() == STBar:
+			# print Opr.cast(FenceOp.cast(op))
+			# return Opr.cast(FenceOp.cast(op))
+			return None
+		else:
+			return (MemOp.cast(op))
 	def new_write(self, var, exp, pid):
 		name = 'write_' + str(self.info['EventCnt'])
 		write = Const(name, WriteOp)
@@ -508,6 +536,24 @@ class encoder(encodingFW):
 	def new_branch(self, pid):
 		# raise NotImplementedError()
 		return None
+
+	def specialEncode(self, i, pid):
+		if isinstance(i, STBarFence):
+			eidCnt = self.info['EventCnt']
+			# fence = Fence(eidCnt, FenceType.STBar, pid)
+			fence = Const('fence_'+str(eidCnt), STBar)
+			self.info['EventCnt'] = self.info['EventCnt'] + 1
+			fence.eid = eidCnt
+			fence.pid = pid
+			return fence
+		elif isinstance(i, MEM_WR_Fence):
+			eidCnt = self.info['EventCnt']
+			fence = Const('fence_'+str(eidCnt), MembarWR)
+			fence.eid = eidCnt
+			fence.pid = pid
+			self.info['EventCnt'] = self.info['EventCnt'] + 1
+			return fence
+		return None 
 
 	def encodeElement(self, e):
 
@@ -565,7 +611,7 @@ class encoder(encodingFW):
 				self.info['CS'] += [ Implies(cond, var == tExp), 
 								Implies(Not(cond), var == fExp) ]
 		elif isinstance(i, fenceStm):
-			encodeOp = self.specialEncode(i)
+			encodeOp = self.specialEncode(i, pid)
 			# print '&&&', encodeOp, i.__class__
 		elif isinstance(i, branchOp):
 			encodeOp = self.new_branch(pid)
@@ -614,9 +660,9 @@ class encoder(encodingFW):
 		# read = info['MemOp']['read']
 		rmwList = self.info['RMW']
 
-		memOp = self.info['Ev']
-		conflict_manual_def += [ conflict_def(w1, w2) for (w1, w2) in itertools.permutations(memOp, 2)]
-		conflict_manual_def += [ Not(conflict(w1,w1)) for w1 in memOp ]
+		memOp = [e for e in self.info['Ev'] if is_RW(e)]
+		conflict_manual_def += [ conflict_def(w1, w2) for (w1, w2) in itertools.permutations(memOp, 2) if is_RW(w1) and is_RW(w2)]
+		conflict_manual_def += [ Not(conflict(w1,w1)) for w1 in memOp  if is_RW(w1) ]
 	
 		
 		# -co-> definition

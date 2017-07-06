@@ -145,7 +145,7 @@ class encodingFW:
 			self.info['Pid'] += 1
 
 		if len(self.info['Ev']) > 1:
-			self.info['CS'] += [Distinct([ self.getEvent(e) for e in self.info['Ev']])]
+			self.info['CS'] += [Distinct([ self.getEvent(e) for e in self.info['Ev'] if self.getEvent(e) != None ])]
 			# print 'hey'
 		if len(self.info['Loc']) > 1:
 			self.info['CS'] += [Distinct(self.info['Loc'].values())]

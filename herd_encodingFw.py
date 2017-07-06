@@ -49,7 +49,29 @@ ReadReg = Event.read_reg
 Branch = Event.branch
 Fence = Event.fence
 
+def enum(*sequential, **named):
+    enums = dict(zip(sequential, range(len(sequential))), **named)
+    return type('Enum', (), enums)
 
+FenceType = enum('STBar', 'MEMBAR_WR', 'DMB', 'DSB')
+
+
+# additional fence
+class STBarFence(fenceStm):
+	def __str__(self):
+		return 'stbar()' 
+
+class MEM_WR_Fence(fenceStm):
+	def __str__(self):
+		return 'MEMBAR(WR)'
+
+class DMB(fenceStm):
+	def __str__(self):
+		return 'DMB()'
+
+class DSB(fenceStm):
+	def __str__(self):
+		return 'DSB()'
 
 def isWrite(e):
 	return eq(e.decl(), WriteOp)
@@ -726,6 +748,23 @@ class encoder(encodingFW):
 		self.info['EventCnt'] = self.info['EventCnt'] + 1
 		return br 
 
+	def specialEncode(self, i, pid):
+		if isinstance(i, STBarFence):
+			eidCnt = self.info['EventCnt']
+			fence = Fence(eidCnt, FenceType.STBar, pid)
+			self.info['EventCnt'] = self.info['EventCnt'] + 1
+			fence.eid = eidCnt
+			fence.pid = pid
+			return fence
+		elif isinstance(i, MEM_WR_Fence):
+			eidCnt = self.info['EventCnt']
+			fence = Fence(eidCnt, FenceType.MEMBAR_WR, pid)
+			fence.eid = eidCnt
+			fence.pid = pid
+			self.info['EventCnt'] = self.info['EventCnt'] + 1
+			return fence
+		return None 
+
 	def encodeElement(self, e):
 		assert(isinstance(e, Exp) or isinstance(e, Register) or type(e) == int or type(e) == bool)
 		
@@ -780,7 +819,7 @@ class encoder(encodingFW):
 				self.info['CS'] += [ Implies(cond, var == tExp), 
 								Implies(Not(cond), var == fExp) ]
 		elif isinstance(i, fenceStm):
-			encodeOp = self.specialEncode(i)
+			encodeOp = self.specialEncode(i, pid)
 			# print '&&&', encodeOp, i.__class__
 		elif isinstance(i, branchOp):
 			encodeOp = self.new_branch(pid)
