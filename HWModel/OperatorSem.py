@@ -589,6 +589,9 @@ class InstrOps(Ops):
 			self.elements += [other]
 		elif isinstance(other, InstrOps):
 			self.elements += [other]
+		elif isinstance(other, Atomic):
+			# assert(False)
+			self.elements += [other]
 		elif isinstance(other, Ops):
 			# self.elements += []
 			pass

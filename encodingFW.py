@@ -10,6 +10,8 @@ class encodingFW:
 		if not model in self.supportedModels():
 			raise KeyError('There are no such model')
 		self.model = model
+
+
 	def supportedModels(self):
 		return []
 
@@ -174,6 +176,31 @@ class encodingFW:
 			return ([], prev)
 		elif isinstance(p, LabelStm):
 			return ([], prev)
+
+		elif isinstance(p, Atomic):
+			opr = p.opr 
+			encodeOp = self.encodeOpr(opr)
+
+			if isinstance(opr, ReadAssn):
+				self.prevRead = encodeOp 
+			elif isinstance(opr, WriteAssn):
+				self.info['RMW'] += [(self.prevRead, encodeOp)]
+			else:
+				assert(False)
+
+			# prepare program order 
+			ret = []
+			if encodeOp:
+				for i in prev:
+					ret += [(i, encodeOp)]
+
+			# prepare a set of operations
+			if encodeOp:
+				self.info['Ev'] += [encodeOp]	
+
+			retE = [encodeOp] if encodeOp else prev
+			return (ret, retE)
+
 		elif isinstance(p, Operation):
 			# encode each operation... 
 			encodeOp = self.encodeOpr(p)

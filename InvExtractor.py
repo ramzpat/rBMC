@@ -219,7 +219,11 @@ def branchExtractor(P):
 			realizeCond(pTrue.ops)
 			eliminateCond(pFalse.ops)
 			tBranch = OpsNode(Assume(e.cond), [pTrue])
-			fBranch = OpsNode(Assume(~(e.cond)), [pFalse])
+			if e.cond == True:
+				negCond = False
+			else:
+				negCond = ~(e.cond)
+			fBranch = OpsNode(Assume(negCond), [pFalse])
 
 			p.ops = Ops()
 			p.next = [tBranch, fBranch]
@@ -245,7 +249,11 @@ def branchExtractor(P):
 			pTrue = p.__class__(ops1, [labels[str(b.label)]])
 			pFalse = p.__class__(ops2, p.next)
 			tBranch = OpsNode(Assume(b.cond), [pTrue])
-			fBranch = OpsNode(Assume(~(b.cond)), [pFalse])
+			if b.cond == True:
+				negCond = False
+			else:
+				negCond = ~(b.cond)
+			fBranch = OpsNode(Assume(negCond), [pFalse])
 
 			p.ops = Ops()
 			p.next = [fBranch, tBranch]

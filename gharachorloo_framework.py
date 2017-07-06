@@ -704,7 +704,8 @@ class encoder(encodingFW):
 		# Cond 3 : read-modify-write behaviors
 		axioms_atomic = []
 		for (rmw_r, rmw_w) in rmwList:
-			(loc, pi) = (rmw_r.loc, rmw_r.pi)
+			(loc, pi ) = (rmw_r.loc, rmw_r.pid)
+			pi = Const('P' + str(pi), Proc)
 			axioms_atomic += [
 				ForAll(w, 
 						Implies(

@@ -32,7 +32,7 @@ class Atomic(AnnotatedStatement):
 	def __init__(self, opr):
 		self.opr = opr
 	def clone(self):
-		return self.__class__(self.opr)
+		return self.__class__(self.opr.clone())
 	def __str__(self):
 		return 'atom(' + str(self.opr) + ')'
 

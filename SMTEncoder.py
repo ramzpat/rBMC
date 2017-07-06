@@ -72,6 +72,8 @@ def ssa_form(P):
 		if isinstance(e, AnnotatedStatement):
 			if isinstance(e, Assertion) or isinstance(e, Assume):
 				e.cond = new_exp(e.cond, state)
+			if isinstance(e, Atomic):
+				state = newOpr(e.opr, state)
 		elif isinstance(e, Operation):
 			if isinstance(e, Assignment):
 				var = e.var
@@ -572,27 +574,85 @@ def spin_SPARC():
 
 	P1 = branchExtractor(P1)
 	P2 = branchExtractor(P2)
-	U = unrollCombination([P1], 0)
+	U = unrollCombination([P1, P2], 0)
 	for p in U:
-	# 	# print p
+
 		[i, j] = ssa_form(p)
-		print i
+		
 	# 	# print j
-	# 	formula = encode([i, j], gFW.encoder('PSO'))
-	# 	# ss = hFW.encoder('SC')
-	# 	# formula = encode([i, j], ss)
+		# formula = encode([i, j], gFW.encoder('PSO'))
+		# ss = hFW.encoder('SC')
+		# formula = encode([i, j], ss)
 
 	# 	s = Solver()
-	# 	s.add(formula)
-	# 	result = s.check()
-	# 	print result
-	# 	if result == sat:
-	# 		return 
+		# s.add(formula)
+		# result = s.check()
+		# print result
+		# if result == sat:
+		# 	return 
+		
+	# 	print '----'
+
+def atomicTest():
+
+
+	P2 = SeqSem(
+		InstrSem(
+			RmwStm(
+				TempReg('val') << Location('lock'),
+				Location('lock') << 1
+				),
+			Register('r2') << TempReg('val')
+			),
+		Assertion(Register('r2') == 1)	# can't lock
+		)
+
+	P1 = seqOpsNode(
+			InstrOps(	
+				Atomic(TempReg('val') << Location('lock')), 
+				Register('r5') << TempReg('val'),
+				Atomic(Location('lock') << 1),
+				),
+			Assume(Register('r5') == 0)
+			)
+
+	# for i in P1:
+	# 	print i
+	P2 = seqOpsNode(
+			InstrOps(	# ldstub [lock], r5
+				Atomic(TempReg('val') << Location('lock')), 
+				Register('r5') << TempReg('val'),
+				Atomic(Location('lock') << 1),
+				),
+			Assertion(Register('r5') == 1)	# can't lock
+			)
+
+
+	P1 = branchExtractor(P1)
+	P2 = branchExtractor(P2)
+	U = unrollCombination([P1, P2], 0)
+	for p in U:
+
+		[i, j] = ssa_form(p)
+		
+		# print i
+		# print j
+		formula = encode([i, j], gFW.encoder('PSO'))
+		# ss = hFW.encoder('SC')
+		# formula = encode([i, j], ss)
+
+		s = Solver()
+		s.add(formula)
+		result = s.check()
+		print result
+		if result == sat:
+			return 
 		
 	# 	print '----'
 
 
 if __name__ == '__main__':
 	# mp()
-	mp_fence()
+	# mp_fence()
+	atomicTest()
 	# spin_SPARC()
