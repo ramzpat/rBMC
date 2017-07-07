@@ -80,14 +80,18 @@ def ssa_form(P):
 				exp = e.exp 
 				var_name = str(var)
 				nExp = exp if (isinstance(exp, Location)) else new_exp(exp, state)
-				(nVar,state) = (var.address,state) if (isinstance(var, Location)) else new_var(var_name, state)
+				(nVar,state) = (var.address,state) if (isinstance(var, Location) or isinstance(var, Resv)) else new_var(var_name, state)
 				e.var = var.__class__(nVar)
 				e.exp = nExp 
 			elif isinstance(e, fenceStm):
 				pass 
 			elif isinstance(e, branchOp):
 				pass
+			elif isinstance(e, Reserve):
+				assert(False)
+				pass
 			else:
+				print e
 				assert(False)
 		elif isinstance(e, Ops):
 			# if isinstance(e, InstrOps):
@@ -510,6 +514,8 @@ def spin_SPARC():
 				Register('r5') << TempReg('val'),
 				Atomic(Location('lock') << 1),
 				),
+			# Assume((Register('r5') == 0)),
+			# Assertion((Register('r5') == 0)),
 			InstrOps(	# brnz, pn r5, L2
 					branchOp(~ (Register('r5') == 0), LabelStm('L2')),
 					# nop instr
@@ -534,6 +540,8 @@ def spin_SPARC():
 					Ops(),	
 				),
 			LabelStm('CS'),
+			Assertion(False)
+			# Assume((Register('r5') == 0)),
 			)
 
 	# for i in P1:
@@ -569,6 +577,7 @@ def spin_SPARC():
 					Ops(),	
 				),
 			LabelStm('CS'),
+			Assertion(False)
 			)
 
 
@@ -579,33 +588,25 @@ def spin_SPARC():
 
 		[i, j] = ssa_form(p)
 		
-	# 	# print j
-		# formula = encode([i, j], gFW.encoder('PSO'))
-		# ss = hFW.encoder('SC')
-		# formula = encode([i, j], ss)
-
-	# 	s = Solver()
-		# s.add(formula)
-		# result = s.check()
-		# print result
-		# if result == sat:
-		# 	return 
+		# print i
+		# formula = encode([i,j], gFW.encoder('SC'))
+		# formula = encode([i,j], gFW.encoder('PSO'))
 		
-	# 	print '----'
+		formula = encode([i, j], hFW.encoder('SC'))
+
+		s = Solver()
+		s.add(formula)
+		result = s.check()
+		print result
+		if result == sat:
+			return 
+		
+		print '----'
 
 def atomicTest():
 
 
-	P2 = SeqSem(
-		InstrSem(
-			RmwStm(
-				TempReg('val') << Location('lock'),
-				Location('lock') << 1
-				),
-			Register('r2') << TempReg('val')
-			),
-		Assertion(Register('r2') == 1)	# can't lock
-		)
+	
 
 	P1 = seqOpsNode(
 			InstrOps(	
@@ -624,6 +625,7 @@ def atomicTest():
 				Register('r5') << TempReg('val'),
 				Atomic(Location('lock') << 1),
 				),
+			# Assertion(True)
 			Assertion(Register('r5') == 1)	# can't lock
 			)
 
@@ -651,8 +653,86 @@ def atomicTest():
 	# 	print '----'
 
 
+def spinlock_TOPPERS():
+	P1 = seqOpsNode(
+			LabelStm('While'),
+			InstrOps(	# mov r2, #1
+				TempReg('val') << 1, 
+				Register('r2') << TempReg('val'),
+				),
+			InstrOps(	# ldrex r1, [lock]
+				Atomic( TempReg('val') << Location('lock') ),
+				Register('r1') << TempReg('val'),
+				Atomic( Resv(Location('lock')).set() )
+				),
+			InstrOps(	# cmp r1, #0
+				TempReg('rd') << Register('r1'),
+				TempReg('rt') << 0,
+				TempReg('val_z') << ifExp(TempReg('rd') == TempReg('rt'), 1, 0),
+				TempReg('val_n') << ifExp(TempReg('rd') == TempReg('rt'), 0, 1),
+				Register('z') << TempReg('val_z'),
+				Register('n') << TempReg('val_n')
+				),
+			InstrOps(	# strexeq r1, r2, [lock]
+					Atomic(TempReg('res') << Resv(Location('lock'))),
+					CondOps( TempReg('res') == 1,
+						SeqOps(
+							TempReg('rt') << Register('r2'),
+							Atomic(Location('lock') << TempReg('rt')),
+							Register('r1') << 1
+						),
+						SeqOps(
+							Register('r1') << 0
+						)
+					),
+
+				),
+			InstrOps(	# mov r'output',r1
+				TempReg('val') << Register('r1'),
+				Register('output') << TempReg('val')
+				),
+			InstrOps(	# end while (b While)
+					branchOp(~(Register('output') == 0), LabelStm('While'))
+				),
+			InstrOps(
+				# DMB
+				)
+			# can lock 
+
+			)
+
+	P2 = seqOpsNode(
+			LabelStm('L1'),
+			)
+
+
+	P1 = branchExtractor(P1)
+	P2 = branchExtractor(P2)
+	U = unrollCombination([P1, P2], 1)
+	for p in U:
+
+		[i, j] = ssa_form(p)
+		
+		print i
+
+		# formula = encode([i,j], gFW.encoder('SC'))
+		# formula = encode([i,j], gFW.encoder('PSO'))
+		
+		# formula = encode([i, j], hFW.encoder('SC'))
+
+		# s = Solver()
+		# s.add(formula)
+		# result = s.check()
+		# print result
+		# if result == sat:
+		# 	return 
+		
+		print '----'
+
+
 if __name__ == '__main__':
 	# mp()
 	# mp_fence()
-	atomicTest()
+	# atomicTest()
 	# spin_SPARC()
+	spinlock_TOPPERS()

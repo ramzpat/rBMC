@@ -338,6 +338,9 @@ class TempReg(Register):
 			return ReadAssn(self, other)
 		elif isinstance(other, Register) and not isinstance(other, TempReg):
 			return ReadAssn(self, other)
+		elif isinstance(other, Resv):
+			return ReadAssn(self, other)
+			# assert(False)
 		else:
 			# return WriteAssn(self, other)
 			return Assignment(self, other)
@@ -360,6 +363,27 @@ class Location(Exp):
 		return 0
 	# def __eq__(self, other):
 	# 	return self.address == other.address
+
+class Resv(Exp):
+	def __init__(self, loc):
+		self.address = loc
+
+
+	def clone(self):
+
+		return self.__class__(self.address.clone())
+	
+	def __lshift__(self, other_address):
+		return WriteAssn(self, other_address)
+
+	def __str__(self):
+		return "Resv(" + str(self.address) + ")"
+	def set(self):
+		return WriteAssn(self, 1)
+	# 	return Reserve(self.location)
+	def __len__(self):
+		return 0
+
 
 # def is_reg(reg):
 # 	return isinstance(reg, Register)

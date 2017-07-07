@@ -192,7 +192,9 @@ def branchExtractor(P):
 		assert(isinstance(p, Ops))
 		for i in range(0, len(p.elements)):
 			if isinstance(p.elements[i], CondOps):
-				p.elements[i] = Ops()
+				cond = p.elements[i].cond
+				p.elements[i] = p.elements[i].else_element
+				p.elements.insert(i, Assume(~cond))
 			elif isinstance(p.elements[i], Ops):
 				eliminateCond(p.elements[i])
 
@@ -201,7 +203,9 @@ def branchExtractor(P):
 		for i in range(0, len(p.elements)):
 			if isinstance(p.elements[i], CondOps):
 				# print 'realize',p.elements[i].elements[0] 
+				cond = p.elements[i].cond
 				p.elements[i] = p.elements[i].elements[0]
+				p.elements.insert(i, Assume(cond))
 			elif isinstance(p.elements[i], Ops):
 				realizeCond(p.elements[i])
 
@@ -216,14 +220,19 @@ def branchExtractor(P):
 			ops2 = p.ops.__class__(*p.ops.elements)
 			pTrue = p.__class__(ops1, next)
 			pFalse = p.__class__(ops2, next)
+
+
+			# if (isinstance(e.cond,bool) and e.cond == True):
+			# 	negCond = False
+			# else:
+			# 	negCond = ~(e.cond)
+
 			realizeCond(pTrue.ops)
 			eliminateCond(pFalse.ops)
-			tBranch = OpsNode(Assume(e.cond), [pTrue])
-			if e.cond == True:
-				negCond = False
-			else:
-				negCond = ~(e.cond)
-			fBranch = OpsNode(Assume(negCond), [pFalse])
+			# tBranch = OpsNode(Assume(e.cond), [pTrue])
+			# fBranch = OpsNode(Assume(negCond), [pFalse])
+			tBranch = pTrue
+			fBranch = pFalse
 
 			p.ops = Ops()
 			p.next = [tBranch, fBranch]
@@ -237,8 +246,13 @@ def branchExtractor(P):
 	# link it
 	def editBranchNode(p, labels):
 		assert(isinstance(p, OpsNode))
-		next = p.next 
-		if isinstance(p.ops, Ops) and p.ops.isBranch():
+		next = p.next
+
+		if hasattr(p, 'modified'):
+			return 
+
+		if isinstance(p.ops, Ops) and p.ops.isBranch() and not hasattr(p, 'modified'):
+
 			b = p.ops.getBranch()
 			if labels[str(b.label)].dominates(p):
 				p.isLoop = True
@@ -248,17 +262,27 @@ def branchExtractor(P):
 			ops2 = p.ops.clone()
 			pTrue = p.__class__(ops1, [labels[str(b.label)]])
 			pFalse = p.__class__(ops2, p.next)
+
+			if p.isLoop:
+				pTrue.modified = True
+				pFalse.modified = True
+
 			tBranch = OpsNode(Assume(b.cond), [pTrue])
-			if b.cond == True:
+			if (isinstance(b.cond,bool) and b.cond == True):
 				negCond = False
+				# fBranch = TerminateNode()
+				fBranch = OpsNode(Assume(negCond), [TerminateNode()])
 			else:
 				negCond = ~(b.cond)
-			fBranch = OpsNode(Assume(negCond), [pFalse])
+				fBranch = OpsNode(Assume(negCond), [pFalse])
 
 			p.ops = Ops()
 			p.next = [fBranch, tBranch]
+
 			fBranch.pred = fBranch.pred.union(set([p]))
 			tBranch.pred = tBranch.pred.union(set([p]))
+			
+
 		for i in next:
 			editBranchNode(i, labels)
 	prepareDominators(P)

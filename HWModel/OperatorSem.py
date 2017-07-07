@@ -35,6 +35,14 @@ class WriteAssn(Assignment):
 class ReadAssn(Assignment):
 	pass 
 
+class Reserve(Operation):
+	def __init__(self, location):
+		self.location = location 
+	def clone(self):
+		return self.__class__(self.location)
+	def __str__(self):
+		return 'reserve(' + str(self.location) + ')'
+
 # fence()
 class fenceStm(Operation):
 	def __init__(self):
@@ -465,6 +473,7 @@ class Ops:
 
 	def isBranch(self):
 		for e in self.elements:
+
 			if isinstance(e, branchOp):
 				return True
 			elif isinstance(e, Ops):
@@ -628,9 +637,10 @@ class InstrOps(Ops):
 		return self.strIndent()
 
 class CondOps(Ops):
-	def __init__(self, cond, s):
+	def __init__(self, cond, s, s2 = Ops()):
 		self.cond = cond
 		self.elements = [s]
+		self.else_element = s2
 	def clone(self):
 
 		return self.__class__(self.cond, self.elements[0].clone())
@@ -691,10 +701,10 @@ class OpsNode:
 			i.pred = i.pred.union(set([self]))
 			# print i.pred
 
-		self.reachList = Set([self])
-		for i in next:
-			# print 'beforeAdd',self.reachList, i.reachList
-			self.reachList.add(i.reachList)
+		# self.reachList = Set([self])
+		# for i in next:
+		# 	# print 'beforeAdd',self.reachList, i.reachList
+		# 	self.reachList.add(i.reachList)
 			# print 'afterAdd',self.reachList
 		# print self.reachList 
 
@@ -721,7 +731,7 @@ class OpsNode:
 		if self.next == []:
 			yield ret
 		for i in self.next:
-			if i.reach(self) and len(self.next) > 1:
+			if len(self.next) > 1:
 				yield ret + i.ops
 			else:
 				for p in i:
@@ -789,6 +799,11 @@ class TerminateNode(OpsNode):
 	def __init__(self):
 		self.ops = Ops()
 		self.next = []
+		self.isLoop = False
+
+		self.dominator = set([])
+
+		self.pred = set([])
 	def __lshift__(self, other):
 		return self
 	def __add__(self, other):

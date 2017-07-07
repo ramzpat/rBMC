@@ -632,6 +632,7 @@ class encoder(encodingFW):
 		# initial_location
 		for L in self.info['Loc'].values():
 			self.info['CS'] += [initial_value(L) == 0]
+			
 
 
 		# underlying axioms
@@ -709,7 +710,7 @@ class encoder(encodingFW):
 			axioms_atomic += [
 				ForAll(w, 
 						Implies(
-							And(conflict(rmw_w, w)),
+							(conflict(rmw_w, w)),
 							__atomicExce(
 								subOpr(rmw_r, pi), 
 								subOpr(rmw_w, pi), 
