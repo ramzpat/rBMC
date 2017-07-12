@@ -271,6 +271,7 @@ def branchExtractor(P):
 			if (isinstance(b.cond,bool) and b.cond == True):
 				negCond = False
 				# fBranch = TerminateNode()
+				# fBranch = OpsNode(Assume(negCond), [TerminateNode()])
 				fBranch = OpsNode(Assume(negCond), [TerminateNode()])
 			else:
 				negCond = ~(b.cond)

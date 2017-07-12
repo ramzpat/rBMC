@@ -40,6 +40,13 @@ Event.declare('read_reg', 	('eid', IntSort()), ('reg', Val), ('dest', IntSort())
 Event.declare('write_reg', 	('eid', IntSort()), ('reg', Val), ('val', IntSort()), ('pid', Proc))
 Event.declare('branch', ('eid', IntSort()), ('pid', Proc))
 Event.declare('fence', 		('eid', IntSort()), ('ftype', IntSort()), ('pid', Proc))
+
+# Load-lock / Store-condition Semantics
+# Event.declare('write_resv', ('eid', IntSort()), ('loc', Loc))
+# Event.declare('read_resv', )
+
+
+
 Event = Event.create()
 ConstEvent = Event.event
 ReadOp = Event.read
@@ -162,22 +169,27 @@ def seqRelation(r_name, r1, r2):
 
 # Execution (E, po, rf, co)
 # co - coherrence 
-def conflict_order(Ev = []):
+# initial write must the first write
+# total order among conflicting writes 
+# sc operation : write appears in co if condition satisfy
+def conflict_order(Ev = [], scWrites = []):
 	co = Function('co', Event, Event, BoolSort())
 	axioms = []
 	for e1 in Ev:
 		for e2 in Ev:
 			# if eq(e1.target, e2.target) and not(eq(e1.arg(0),e2.arg(0))):
 			# 	print str((e1,e2)) + ': ' + str(eq(e1.target, e2.target))
-			axioms += [(
-				co(e1, e2) == (
-					And(Distinct(e1, e2),
-						Not(co(e2, e1)),
-						e1.target == e2.target
+			if not(e1 in scWrites) and not(e2 in scWrites):
+				axioms += [(
+					co(e1, e2) == (
+						And(Distinct(e1, e2),
+							Not(co(e2, e1)),
+							e1.target == e2.target
+							)
+						if not(eq(e1.arg(0),e2.arg(0))) and isWrite(e1) and isWrite(e2) and e2.pid != 0 else False
 						)
-					if not(eq(e1.arg(0),e2.arg(0))) and isWrite(e1) and isWrite(e2) and e2.pid != 0 else False
-					)
-				)]
+					)]
+			# else: 
 
 			# if not(eq(e1.arg(0),e2.arg(0))) and isWrite(e1) and isWrite(e2) and e2.pid != 0:
 			# 	print e1, e2
@@ -782,6 +794,9 @@ class encoder(encodingFW):
 				addrLoc = Int(str(e.address))
 				self.info['Loc'][e.address] = InitLoc(addrLoc)
 			return self.info['Loc'][e.address]
+		elif isinstance(e, Resv):
+			assert(False)
+			pass
 		elif isinstance(e, ifExp):
 			# val := (cond)?1:0
 			# r1 << val 
@@ -823,7 +838,78 @@ class encoder(encodingFW):
 			# print '&&&', encodeOp, i.__class__
 		elif isinstance(i, branchOp):
 			encodeOp = self.new_branch(pid)
+
+		elif isinstance(i, OprLoadLink):
+			# assert(False)
+			var = self.encodeElement(i.var)
+			loc = self.encodeElement(i.loc)
+			encodeOp = self.new_read(var, loc, pid)
+			self.info['saveRead'] = encodeOp
+		elif isinstance(i, OprStoreCond):
+			# assert(False)
+			var = self.encodeElement(i.var)
+			loc = self.encodeElement(i.loc)
+			exp = self.encodeElement(i.exp) 
+			prevRead = self.info['saveRead']
+			wprev, w2 = Consts('wprev w2', Event) 	# cannot specific to write events in this line...
+			rf = Function('rf', Event, Event, BoolSort())
+			fr = Function('fr', Event, Event, BoolSort())
+			co = Function('co', Event, Event, BoolSort())
+
+			w = self.new_write(loc, exp, pid)
+			r = Const('r', Event)
+
+			if prevRead != None and eq(prevRead.target, loc):
+				self.info['CS'] += [Or(
+						# success ?
+						And([ ForAll(wprev,
+								Implies(And(rf(wprev, prevRead), Distinct(wprev, w)), 
+									# this write follow co immediately
+									And(
+										ForAll(w2,
+											Implies(And(co(wprev, w2), Distinct(w, w2)),
+												And(co(wprev, w), co(w, w2))
+											)
+										),
+										co(wprev, w)
+									)
+								)
+							   ),
+							  var == 0]),
+						# arbitrary fail
+						And([var == 1,
+							ForAll(w2, 
+								And(
+									Not(co(w2, w)),
+									Not(co(w, w2))
+									)
+								),
+							ForAll(r,Not(rf(w, r)))
+							])
+						)]
+				if not('scWrites' in self.info): 
+					self.info['scWrites'] = []
+				self.info['scWrites'] += [w]
+				encodeOp = w
+			else:
+				# do nothing and result is 0 
+				self.info['CS'] += [var == 1]
+
+			# prevRead is a pair of this write ?
+			# if so(same loc)-> add fact....
+			# 	   add this write as a special write
+			#      write can arbitrary fail or not same beacuase of implementation ...
+			# if not -> write not appear and return 0(fail)
+			# 	do not add write, return None...
+
+			# fact CS 
+			# wprev -rf-> (r_ll of this write)
+			# exists w'. wprev -co-> w' /\ w' -co-> w
+			#   this w has no effect... or not exists ?
+			#    - not exists =>   
 		elif isinstance(i, RmwStm):
+			assert(False)
+		else:
 			assert(False)
 
 		return encodeOp
@@ -843,7 +929,7 @@ class encoder(encodingFW):
 		WriteInit = [self.new_write(v, 0, 0) for v in self.info['Loc'].values()]
 		self.info['Ev'] += WriteInit
 		# print self.info['PS']
-		(co, co_axiom) = conflict_order(self.info['Ev'])
+		(co, co_axiom) = conflict_order(self.info['Ev'], self.info['scWrites'] if ('scWrites' in self.info) else [])
 		(rf, rf_axiom) = read_from(self.info['Ev'])
 		(fr, fr_axiom) = from_read(rf, co)
 

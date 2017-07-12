@@ -617,7 +617,8 @@ class encoder(encodingFW):
 			encodeOp = self.new_branch(pid)
 		elif isinstance(i, RmwStm):
 			assert(False)
-
+		else:
+			assert(False)
 		return encodeOp
 
 	def encodeSpecific(self):
@@ -632,7 +633,7 @@ class encoder(encodingFW):
 		# initial_location
 		for L in self.info['Loc'].values():
 			self.info['CS'] += [initial_value(L) == 0]
-			
+
 
 
 		# underlying axioms

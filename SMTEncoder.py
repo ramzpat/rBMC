@@ -87,9 +87,21 @@ def ssa_form(P):
 				pass 
 			elif isinstance(e, branchOp):
 				pass
-			elif isinstance(e, Reserve):
-				assert(False)
-				pass
+			# elif isinstance(e, Reserve):
+			# 	assert(False)
+			# 	pass
+			elif isinstance(e, OprLoadLink):
+				var = e.var
+				var_name = str(var)
+				(nVar, state) = new_var(var_name, state)
+				e.var = var.__class__(nVar)
+			elif isinstance(e, OprStoreCond):
+				var = e.var 
+				exp = e.exp 
+				nExp = new_exp(exp, state)
+				(nVar, state) = new_var(str(var), state)
+				e.var = var.__class__(nVar)
+				e.exp = nExp 
 			else:
 				print e
 				assert(False)
@@ -661,9 +673,10 @@ def spinlock_TOPPERS():
 				Register('r2') << TempReg('val'),
 				),
 			InstrOps(	# ldrex r1, [lock]
-				Atomic( TempReg('val') << Location('lock') ),
+				OprLoadLink(TempReg('val'), Location('lock')),
+				# Atomic( TempReg('val') << Location('lock') ),
 				Register('r1') << TempReg('val'),
-				Atomic( Resv(Location('lock')).set() )
+				# Atomic( Resv(Location('lock')).set() )
 				),
 			InstrOps(	# cmp r1, #0
 				TempReg('rd') << Register('r1'),
@@ -674,17 +687,24 @@ def spinlock_TOPPERS():
 				Register('n') << TempReg('val_n')
 				),
 			InstrOps(	# strexeq r1, r2, [lock]
-					Atomic(TempReg('res') << Resv(Location('lock'))),
-					CondOps( TempReg('res') == 1,
+					CondOps( Register('z') == 1,
 						SeqOps(
-							TempReg('rt') << Register('r2'),
-							Atomic(Location('lock') << TempReg('rt')),
-							Register('r1') << 1
-						),
-						SeqOps(
-							Register('r1') << 0
-						)
-					),
+							TempReg('val') << Register('r2'),
+							OprStoreCond(TempReg('res'), Location('lock'), TempReg('val')),
+							Register('r1') << TempReg('res')
+							))
+
+					# Atomic(TempReg('res') << Resv(Location('lock'))),
+					# CondOps( TempReg('res') == 1,
+					# 	SeqOps(
+					# 		TempReg('rt') << Register('r2'),
+					# 		Atomic(Location('lock') << TempReg('rt')),
+					# 		Register('r1') << 1
+					# 	),
+					# 	SeqOps(
+					# 		Register('r1') << 0
+					# 	)
+					# ),
 
 				),
 			InstrOps(	# mov r'output',r1
@@ -692,40 +712,116 @@ def spinlock_TOPPERS():
 				Register('output') << TempReg('val')
 				),
 			InstrOps(	# end while (b While)
-					branchOp(~(Register('output') == 0), LabelStm('While'))
+					branchOp((Register('output') == 1), LabelStm('While'))
 				),
 			InstrOps(
 				# DMB
-				)
+				),
 			# can lock 
-
+			Assertion(False)
+			# Assertion(Register('output') == 1)
 			)
 
 	P2 = seqOpsNode(
-			LabelStm('L1'),
+			LabelStm('While'),
+			InstrOps(	# mov r2, #1
+				TempReg('val') << 1, 
+				Register('r2') << TempReg('val'),
+				),
+			InstrOps(	# ldrex r1, [lock]
+				OprLoadLink(TempReg('val'), Location('lock')),
+				# Atomic( TempReg('val') << Location('lock') ),
+				Register('r1') << TempReg('val'),
+				# Atomic( Resv(Location('lock')).set() )
+				),
+			InstrOps(	# cmp r1, #0
+				TempReg('rd') << Register('r1'),
+				TempReg('rt') << 0,
+				TempReg('val_z') << ifExp(TempReg('rd') == TempReg('rt'), 1, 0),
+				TempReg('val_n') << ifExp(TempReg('rd') == TempReg('rt'), 0, 1),
+				Register('z') << TempReg('val_z'),
+				Register('n') << TempReg('val_n')
+				),
+			InstrOps(	# strexeq r1, r2, [lock]
+					CondOps( Register('z') == 1,
+						SeqOps(
+							TempReg('val') << Register('r2'),
+							OprStoreCond(TempReg('res'), Location('lock'), TempReg('val')),
+							Register('r1') << TempReg('res')
+							))
+
+
+					# Atomic(TempReg('res') << Resv(Location('lock'))),
+					# CondOps( TempReg('res') == 1,
+					# 	SeqOps(
+					# 		TempReg('rt') << Register('r2'),
+					# 		Atomic(Location('lock') << TempReg('rt')),
+					# 		Register('r1') << 1
+					# 	),
+					# 	SeqOps(
+					# 		Register('r1') << 0
+					# 	)
+					# ),
+
+				),
+			InstrOps(	# mov r'output',r1
+				TempReg('val') << Register('r1'),
+				Register('output') << TempReg('val')
+				),
+			InstrOps(	# end while (b While)
+					branchOp((Register('output') == 1), LabelStm('While'))
+				),
+			InstrOps(
+				# DMB
+				),
+			# can lock 
+			Assertion(False)
+			# Assertion(Register('output') == 1)
 			)
 
 
 	P1 = branchExtractor(P1)
 	P2 = branchExtractor(P2)
-	U = unrollCombination([P1, P2], 1)
+	U = unrollCombination([P1, P2], 0)
 	for p in U:
 
 		[i, j] = ssa_form(p)
 		
-		print i
+		
 
 		# formula = encode([i,j], gFW.encoder('SC'))
 		# formula = encode([i,j], gFW.encoder('PSO'))
 		
-		# formula = encode([i, j], hFW.encoder('SC'))
-
-		# s = Solver()
-		# s.add(formula)
-		# result = s.check()
-		# print result
-		# if result == sat:
-		# 	return 
+		fw = hFW.encoder('SC')
+		formula = encode([i, j], fw)
+		# print fw.info
+		s = Solver()
+		s.add(formula)
+		result = s.check()
+		print result
+		if result == sat:
+			print i
+			print j
+			rf = fw.info['rel_rf']
+			fr = fw.info['rel_fr']
+			co = fw.info['rel_co']
+			m = s.model()
+			Ev = fw.info['Ev']
+			for e1 in Ev:
+				for e2 in Ev:
+					if hFW.isRead(e2) and hFW.isWrite(e1):
+						if is_true(m.evaluate(rf(e1,e2))):
+							print e1, e2, m.evaluate(e2.val)
+			for e1 in Ev:
+				# for e2 in Ev:
+				if hFW.isReadReg(e1):
+					print e1, m.evaluate(e1.val)
+			# for e1 in Ev:
+			# 	for e2 in Ev:
+			# 		if hFW.isWrite(e1) and hFW.isWrite(e2):
+			# 			# if is_true(m.evaluate(co(e1,e2))):
+			# 			print e1, e1.target, e2, e2.target, m.evaluate(co(e1,e2))
+			return 
 		
 		print '----'
 
@@ -736,3 +832,4 @@ if __name__ == '__main__':
 	# atomicTest()
 	# spin_SPARC()
 	spinlock_TOPPERS()
+

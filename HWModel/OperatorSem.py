@@ -35,13 +35,34 @@ class WriteAssn(Assignment):
 class ReadAssn(Assignment):
 	pass 
 
-class Reserve(Operation):
-	def __init__(self, location):
-		self.location = location 
-	def clone(self):
-		return self.__class__(self.location)
+class SyncOpr(Operation):
+	pass 
+# ll(tempReg, Loc)
+class OprLoadLink(SyncOpr):
+	def __init__(self, var, loc):
+		self.var = var 
+		self.loc = loc 
 	def __str__(self):
-		return 'reserve(' + str(self.location) + ')'
+		return str(self.var) +' := load-link(' + str(self.loc) + ')'
+	def clone(self):
+		return self.__class__(self.var.clone(), self.loc.clone())
+class OprStoreCond(SyncOpr):
+	def __init__(self, var, loc, exp):
+		self.var = var 
+		self.loc = loc 
+		self.exp = exp 
+	def __str__(self):
+		return str(self.var) + ' := store-cond(' + str(self.loc) + "," + str(self.exp) + ')'
+	def clone(self):
+		return self.__class__(self.var.clone(), self.loc.clone(), self.exp.clone())
+
+# class Reserve(Operation):
+# 	def __init__(self, location):
+# 		self.location = location 
+# 	def clone(self):
+# 		return self.__class__(self.location)
+# 	def __str__(self):
+# 		return 'reserve(' + str(self.location) + ')'
 
 # fence()
 class fenceStm(Operation):
