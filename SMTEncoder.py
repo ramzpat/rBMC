@@ -792,7 +792,7 @@ def spinlock_TOPPERS():
 		# formula = encode([i,j], gFW.encoder('SC'))
 		# formula = encode([i,j], gFW.encoder('PSO'))
 		
-		fw = hFW.encoder('SC')
+		fw = hFW.encoder('ARM')
 		formula = encode([i, j], fw)
 		# print fw.info
 		s = Solver()

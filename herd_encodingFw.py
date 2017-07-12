@@ -311,10 +311,10 @@ def acyclic(*rel):
 	# s.vars = []
 	return (trans, And(axiom))
 
-def irreflexive(s, r):
+def irreflexive(r):
 	e = Const('e', Event)
-	s.add(ForAll(e, Not(r(e,e))))
-	return s
+	axiom = (ForAll(e, Not(r(e,e))))
+	return axiom
 
 def empty(s, r):
 	empty = Function('empty_' + str(r), Event, Event, BoolSort())
@@ -355,7 +355,345 @@ def sc_constraints(po, rf, fr, co, Ev = [], RMW = []):
 	# self.info['acyclic'] = trans
 	# print acyclic_axiom
 	return And(And(axiom), acyclic_axiom)
+def dd_reg_relation(rf_regSet, iicoSet, Ev):
+	dd_reg = Function('dd_reg', Event, Event, BoolSort())
+	e1, e2, e3 = Consts('e1 e2 e3', Event)
+	union = set(rf_regSet) | set(iicoSet)
+	union = transitive_closure(union)
+	# s.add(
+	# 	ForAll([e1, e2], Implies(rf_reg(e1, e2), dd_reg(e1, e2))),
+	# 	ForAll([e1, e2], Implies(iico(e1, e2), dd_reg(e1, e2))),
+	# 	ForAll([e1, e2, e3], Implies(And(dd_reg(e1, e2), dd_reg(e2, e3)), dd_reg(e1, e3)))
+	# 	)
 
+	# s.add([dd_reg(e1, e2) == Or(
+	# 								rf_reg(e1, e2), iico(e1, e2),
+	# 								Exists(e3, And(restrict(e3, Ev), dd_reg(e1, e3), dd_reg(e3, e2)))
+	# 							) for e1 in Ev for e2 in Ev] )
+	# print set(rf_regSet)
+	# print set(iicoSet)
+	# print union
+	axiom = [ dd_reg(e1, e2) if (e1.eid, e2.eid) in union else Not(dd_reg(e1, e2)) for e1 in Ev for e2 in Ev]
+	return (dd_reg, union, And(axiom))
+
+# addr dependency = dd-reg ^ RM
+def addr_dependency(dd_regSet, Ev = []):
+	addr_dep = Function('addr_dep',Event, Event, BoolSort())
+	# s.register_relation(addr_dep)
+
+	# e1, e2, e3 = Consts('e1 e2 e3', Event)
+	# s.declare_var(e1, e2, e3)
+	addrSet = []
+	axiom = []
+	for e1 in Ev:
+		for e2 in Ev:
+			if isRead(e1) and isRW(e2) and (e1.eid, e2.eid) in dd_regSet:
+				axiom.append(addr_dep(e1, e2))
+				addrSet += [(e1.eid, e2.eid)]
+			else:
+				axiom.append(Not(addr_dep(e1, e2)))
+	# s.vars = []
+	return (addr_dep, addrSet, And(axiom))
+
+# data dep = dd-reg ^ RW
+def data_dependency(dd_regSet, Ev = []):
+	data_dep = Function('data_dep', Event, Event, BoolSort())
+	# s.register_relation(data_dep)
+	dataSet = []
+	axiom = []
+	for e1 in Ev:
+		for e2 in Ev:
+			if isRead(e1) and isWrite(e2) and (e1.eid, e2.eid) in dd_regSet:
+				axiom.append(data_dep(e1, e2))
+				dataSet += [(e1.eid, e2.eid)]
+			else:
+				axiom.append(Not(data_dep(e1, e2)))
+	return (data_dep, dataSet, And(axiom))
+
+# RB
+def ReadBranchRelation(s, Ev = []):
+	RB = Function('RB', Event, Event, BoolSort())
+	rbSet = []
+	axiom = []
+	for r in Ev:
+		for b in Ev:
+			if isRead(r) and isBranch(b):
+				axiom.append( RB(r, b) )
+				rbSet += [(r.eid, b.eid)]
+			else:
+				axiom.append( Not(RB(r, b)))
+	return (RB, rbSet, And(axiom))
+
+# ctrl = (dd_reg ^ RB);po
+def ctrl_dependency(dd_regSet, rbSet, poSet, Ev):
+	ctrl = Function('ctrl', Event, Event, BoolSort())
+	
+	andSet = set(dd_regSet) & set(rbSet)
+	concat = concat_relation(andSet, poSet)
+
+	# s.declare_var(e1, e2, b)
+	# s.rule(ctrl(e1, e2), [ isRead(e1), isBranch(b), dd_reg(e1,b), po(b, e2) ])
+	# s.vars = []
+	# s.add(ForAll([e1, e2, b], Implies( And(dd_reg(e1, b), RB(e1, b), po(b, e2)), ctrl(e1, e2) ) ))
+	axiom = []
+	for e1 in Ev:
+		for e2 in Ev:
+			if (e1.eid, e2.eid) in concat:
+				axiom.append( ctrl(e1, e2) )
+			else:
+				axiom.append( Not(ctrl(e1, e2)))
+
+	return (ctrl, concat, And(axiom))
+
+def arm_constraints(po, rf, fr, co, iico, rf_reg, poSet, iicoSet, rf_regSet, Ev, RMW = []):
+	axiom = []
+	po_loc = Function('po-loc', Event, Event, BoolSort())
+	po_locSet = [ (e1.eid, e2.eid) for e1 in Ev for e2 in Ev if (e1.eid, e2.eid) in poSet and (eq(e1.target, e2.target) if None != e1.target and None != e2.target and e1.target.sort() == e2.target.sort() else False) ]
+	axiom += [po_loc(e1, e2) == And(po(e1, e2), (e1.target == e2.target) if None != e1.target and None != e2.target and e1.target.sort() == e2.target.sort() else False )  for e1 in Ev for e2 in Ev]
+	
+	cfence = Function('cfence', Event, Event, BoolSort())
+	axiom += [Not(cfence(e1, e2)) for e1 in Ev for e2 in Ev]
+	
+	rmw = Function('rmw', Event, Event, BoolSort())			
+	axiom += [Not(rmw(e1, e2)) for e1 in Ev for e2 in Ev]
+
+	rfe = Function('rfe', Event, Event, BoolSort())
+	rfi = Function('rfi', Event, Event, BoolSort())
+	fre = Function('fre', Event, Event, BoolSort())
+	coe = Function('coe', Event, Event, BoolSort())
+
+	for e1 in Ev:
+		for e2 in Ev:
+			axiom.append(rfe(e1, e2) == And(rf(e1,e2), Not(e1.pid == e2.pid)))
+			axiom.append(rfi(e1, e2) == And(rf(e1,e2), (e1.pid == e2.pid)))
+			axiom.append(fre(e1, e2) == And(fr(e1,e2), Not(e1.pid == e2.pid)))
+			axiom.append(coe(e1, e2) == And(co(e1,e2), Not(e1.pid == e2.pid)))
+
+	#  -- dependency relation
+	#  - dd_reg
+	(dd_reg, dd_regSet, dd_reg_axiom) = dd_reg_relation(rf_regSet, iicoSet, Ev)
+	(addr, addrSet, addr_axiom) = addr_dependency(dd_regSet, Ev)
+	(data, dataSet, data_axiom) = data_dependency(dd_regSet, Ev)
+	(RB, rbSet, RB_axiom) = ReadBranchRelation(Ev)
+	(ctrl, ctrlSet, ctrl_axiom) = ctrl_dependency(dd_regSet, rbSet, poSet, Ev)
+	(ctrl_cfence, ctrl_cfenceSet, ctrl_cfence_axiom) = ctrl_dependency(dd_regSet, rbSet, [], Ev)
+
+	# (* Uniproc *)
+	# acyclic po-loc | rf | fr | co as uniproc
+	(uniproc, axiom_uniproc) = acyclic(po_loc, rf, fr, co)
+
+	axiom += [dd_reg_axiom, axiom_uniproc, addr_axiom, data_axiom, RB_axiom, ctrl_axiom, ctrl_cfence_axiom]
+
+	# (* Atomic *)
+	# empty rmw & (fre;coe) as atomic
+	e1, e2, e3 = Consts('e1 e2 e3', Event)
+	frecoe = Function('fre;coe', Event, Event, BoolSort())
+	axiom.append( ForAll([e1, e2, e3], Implies( And(fre(e1, e3), coe(e3, e2)), frecoe(e1, e2) )) )
+	axiom.append( ForAll([e1, e2], Not( And( rmw(e1,e2), frecoe(e1, e2) ) )))
+
+
+	# (* Utilities *)
+	# let dd = addr | data
+	# let rdw = po-loc & (fre;rfe)
+	# let detour = po-loc & (coe ; rfe)
+	# let addrpo = addr;po
+	dd = Function('dd', Event, Event, BoolSort())
+	rdw = Function('rdw', Event, Event, BoolSort())
+	detour = Function('detour', Event, Event, BoolSort())
+	addrpo = Function('addrpo', Event, Event, BoolSort())
+	
+	e1, e2, e3, e4 = Consts('e1 e2 e3 e4', Event)
+	# s.add(ForAll([e1, e2], dd(e1, e2) == Or(addr(e1, e2), data(e1, e2))))
+	# s.add(ForAll([e1, e2, e3],Implies(And(po_loc(e1, e2), fre(e1, e3), rfe(e3, e2) ), rdw(e1, e2)) ))
+	# s.add(ForAll([e1, e2, e3],Implies(And(po_loc(e1, e2), coe(e1, e3), rfe(e3, e2) ), detour(e1, e2)) ))
+	# s.add(ForAll([e1, e2, e3], Implies( And(addr(e1, e3), po(e3, e2)), addrpo(e1, e2) ) ))
+	ddSet = set(addrSet) | set(dataSet)
+	axiom += [ dd(e1, e2) if (e1.eid, e2.eid) in ddSet else Not(dd(e1, e2)) for e1 in Ev for e2 in Ev ]
+	# rdwSet = set(po_locSet & concat_relation(fre))
+	axiom += [ rdw(e1, e2) == 		(And(po_loc(e1, e2), Exists(e3, And(restrict(e3, Ev), fre(e1,e3), rfe(e3,e2)) ) ))  for e1 in Ev for e2 in Ev]
+	axiom += [ detour(e1, e2) == 	(And(po_loc(e1, e2), Exists(e3, And(restrict(e3, Ev), coe(e1,e3), rfe(e3,e2)) ) ))  for e1 in Ev for e2 in Ev]
+	# s.add([ addrpo(e1, e2) == 	(Exists(e3, And(restrict(e3, Ev), addr(e1,e3), po(e3,e2)) ) )  for e1 in Ev for e2 in Ev])
+	
+	addrpoS = concat_relation(addrSet, poSet)
+	axiom += [ addrpo(e1, e2) if (e1.eid, e2.eid) in addrpoS else Not(addrpo(e1,e2)) for e1 in Ev for e2 in Ev ]
+
+	# (*******)
+	# (* ppo *)
+	# (*******)
+
+	# include "armfences.cat"
+
+	# (* Initial value *)
+	# let ci0 = ctrlisb | detour
+	# let ii0 = dd | rfi | rdw
+	# let cc0 = dd | ctrl | addrpo (* po-loc deleted *)
+	# let ic0 = 0
+	ctrlisb = Function('ctrlisb', Event, Event, BoolSort())
+	axiom += [ Not(ctrlisb(e1, e2)) for e1 in Ev for e2 in Ev]
+
+	ci0 = Function('ci0', Event, Event, BoolSort())
+	ii0 = Function('ii0', Event, Event, BoolSort())
+	cc0 = Function('cc0', Event, Event, BoolSort())
+	ic0 = Function('ic0', Event, Event, BoolSort())
+	e1, e2 = Consts('e1 e2', Event)
+	axiom.append(ForAll([e1, e2], ci0(e1, e2) == Or(ctrlisb(e1, e2), detour(e1, e2))))
+	axiom.append(ForAll([e1, e2], ii0(e1, e2) == Or(dd(e1, e2), rfi(e1, e2), rdw(e1, e2))))
+	axiom.append(ForAll([e1, e2], cc0(e1, e2) == Or(dd(e1, e2), ctrl(e1, e2), addrpo(e1, e2))))
+	axiom.append(ForAll([e1, e2], Not(ic0(e1, e2))))
+	# s.add([(ci0(e1, e2) == Or(ctrlisb(e1, e2), detour(e1, e2))) for e1 in Ev for e2 in Ev])
+	# s.add([ ci0(e1, e2) == Or(ctrlisb(e1, e2), detour(e1, e2)) for e1 in Ev for e2 in Ev])
+	# s.add([ ii0(e1, e2) == Or(dd(e1, e2), rfi(e1, e2), rdw(e1, e2)) for e1 in Ev for e2 in Ev])
+	# s.add([ cc0(e1, e2) == Or(dd(e1, e2), ctrl(e1, e2), addrpo(e1, e2)) for e1 in Ev for e2 in Ev])
+	# s.add([ Not(ic0(e1, e2)) for e1 in Ev for e2 in Ev])
+
+	# (* Computes ppo the ARM and PPC way *)
+
+	# (* Fixpoint from i -> c in instructions and transitivity *)
+	# let rec ci = ci0 | (ci;ii) | (cc;ci)
+	# and ii = ii0 | ci | (ic;ci) | (ii;ii)
+	# and cc = cc0 | ci | (ci;ic) | (cc;cc)
+	# and ic = ic0 | ii | cc | (ic;cc) | (ii ; ic) (* | ci inclus dans ii et cc *)
+
+	# rec = Function('rec', Event, Event, BoolSort())
+	ci = Function('ci', Event, Event, BoolSort())
+	ii = Function('ii', Event, Event, BoolSort())
+	cc = Function('cc', Event, Event, BoolSort())
+	ic = Function('ic', Event, Event, BoolSort())
+	
+	e1, e2, e3, e4 = Consts('e1 e2 e3 e4', Event)
+
+	axiom += [
+			ForAll([e1, e2], Implies( ci0(e1, e2), ci(e1, e2) ) ),
+			ForAll([e1, e2, e3], Implies( And(ci(e1,e2), ii(e2, e3)), ci(e1, e3) )),
+			ForAll([e1, e2, e3], Implies( And(cc(e1, e2), ci(e2, e3)), ci(e1, e3) ))
+		]
+	axiom += [
+			ForAll([e1, e2], Implies( ii0(e1, e2), ii(e1, e2))),
+			ForAll([e1, e2], Implies( ci(e1, e2), ii(e1, e2))),
+			ForAll([e1, e2, e3], Implies( And(ic(e1, e2), ci(e2, e3)), ii(e1, e3) )),
+			ForAll([e1, e2, e3], Implies( And(ii(e1, e2), ii(e2, e3)), ii(e1, e3) ))
+		]
+	axiom += [
+			ForAll([e1, e2], Implies( cc0(e1,e2), cc(e1,e2))),
+			ForAll([e1, e2, e3], Implies( ci(e1, e2), cc(e1,e2))), 
+			ForAll([e1, e2, e3], Implies( And(ci(e1, e2), ci(e2, e3)), cc(e1, e3))), 
+			ForAll([e1, e2, e3], Implies( And(cc(e1, e2), cc(e2, e3)), cc(e1, e3)))
+		]
+	axiom += [
+			ForAll([e1, e2], Implies(ic0(e1, e2), ic(e1, e2))),
+			ForAll([e1, e2], Implies(ii(e1, e2), ic(e1, e2))),
+			ForAll([e1, e2], Implies(cc(e1, e2), ic(e1, e2))),
+			ForAll([e1, e2, e3], Implies( And(ic(e1, e2), cc(e2, e3)), ic(e1, e3) )),
+			ForAll([e1, e2, e3], Implies( And(ii(e1, e2), ic(e2, e3)), ic(e1, e3) )),
+		]
+
+	# let ppo =
+	#   let ppoR = ii & (R * R)
+	#   and ppoW = ic & (R * W) in
+	#   ppoR | ppoW
+	ppoR = Function('ppoR', Event, Event, BoolSort())
+	ppoW = Function('ppoW', Event, Event, BoolSort())
+	for x in Ev:
+		for y in Ev:
+			axiom.append(ppoR(x,y) == And( ii(x,y), (isRead(x) and isRead(y)) ))
+			axiom.append(ppoW(x,y) == And( ic(x,y), (isRead(x) and isWrite(y)) ))
+
+	ppo = Function('ppo', Event, Event, BoolSort())
+	axiom += [ppo(e1, e2) == Or(ppoR(e1, e2), ppoW(e1, e2)) for e1 in Ev for e2 in Ev]
+
+	# (**********)
+	# (* fences *)
+	# (**********)
+
+	# (* ARM *)
+	# let WW = W * W
+	# let dmb.st=dmb.st & WW
+	# let dsb.st=dsb.st & WW
+
+	# (* Common, all arm barriers are strong *)
+	# let strong = dmb|dsb|dmb.st|dsb.st
+	# let light = 0
+	e1, e2, e3, e4 = Consts('e1 e2 e3 e4', Event)
+	strong = Function('strong', Event, Event, BoolSort())
+	light = Function('light', Event, Event, BoolSort())
+	axiom.append(ForAll([e1, e2], Not(strong(e1, e2))))
+	axiom.append(ForAll([e1, e2], Not(light(e1, e2))))
+
+	# PCChecks
+
+	# let fence = strong|light
+
+	fence = Function('fence', Event, Event, BoolSort())
+	axiom += [ Not(fence(e1, e2)) for e1 in Ev for e2 in Ev]
+
+	# (* happens before *)
+	# let hb = ppo | fence | rfe
+	# acyclic hb as thinair
+	hb = Function('hb', Event, Event, BoolSort())
+	axiom += [ hb(e1, e2) == Or( ppo(e1, e2), fence(e1, e2), rfe(e1, e2) ) for e1 in Ev for e2 in Ev]
+	(thinair, axiom_thinair) = acyclic(hb)
+	axiom.append(axiom_thinair)
+
+	# (* prop *)
+	# let hbstar = hb*
+	# let propbase = (fence|(rfe;fence));hbstar
+	hbstar = Function('hb*', Event, Event, BoolSort())
+	e1, e2 = Consts('e1 e2', Event)
+	axiom.append( ForAll([e1], hbstar(e1, e1)))
+	axiom.append( ForAll([e1, e2], Implies(hb(e1, e2), hbstar(e1, e2))) )
+	axiom.append( ForAll([e1, e2, e3], Implies( And(hbstar(e1,e2), hbstar(e2,e3)), hbstar(e1,e3) )))
+	# s.add([ hbstar(e1, e2) if eq(e1, e2) else ( Or(hb(e1, e2), 
+	# 											Exists(e3, And(restrict(e3, Ev), hbstar(e1,e3), hbstar(e3,e2)))) ) 
+	# 		for e1 in Ev for e2 in Ev ])
+
+	propbase = Function('propbase', Event, Event, BoolSort())
+	rfefence = Function('rfe;fence', Event, Event, BoolSort())
+	axiom.append(ForAll([e1, e2, e3], Implies( And(rfe(e1, e2), fence(e2,e3)), rfefence(e1, e3) ) ))
+	axiom.append(ForAll([e1, e2, e3], Implies( And( Or(fence(e1, e2), rfefence(e1,e2)), hbstar(e2,e3) ), propbase(e1,e3) ) ))
+	# s.add([ rfefence(e1, e2) == Exists(e3, And(restrict(e3, Ev), rfe(e1, e3), fence(e3, e2))) for e1 in Ev for e2 in Ev ])
+	# s.add([ propbase(e1,e2) == Exists(e3, And(restrict(e3, Ev), Or(fence(e1, e3), rfefence(e1,e3)), hbstar(e3, e2))) for e1 in Ev for e2 in Ev ])
+
+	# let chapo = rfe|fre|coe|(fre;rfe)|(coe;rfe)
+	chapo = Function('chapo', Event, Event, BoolSort())
+	axiom.append(ForAll([e1, e2], Implies(rfe(e1,e2), chapo(e1,e2))))
+	axiom.append(ForAll([e1, e2], Implies(fre(e1,e2), chapo(e1,e2))))
+	axiom.append(ForAll([e1, e2], Implies(coe(e1,e2), chapo(e1,e2))))
+	axiom.append(ForAll([e1, e2, e3], Implies( And( fre(e1,e2), rfe(e2,e3) ), chapo(e1,e3) )))
+	axiom.append(ForAll([e1, e2, e3], Implies( And( coe(e1,e2), rfe(e2,e3) ), chapo(e1,e3) )))
+	# s.add([chapo(e1, e2) == Or(rfe(e1, e2), fre(e1, e2), coe(e1, e2), 
+	# 						Exists(e3, And(restrict(e3, Ev), Or(
+	# 														And(fre(e1, e3), rfe(e3, e2)),
+	# 														And(coe(e1, e3), rfe(e3, e2))
+	# 														)))
+	# 					) for e1 in Ev for e2 in Ev] )
+
+	# let prop = propbase & (W * W) | (chapo? ; propbase*; strong; hbstar)
+	prop = Function('prob', Event, Event, BoolSort())
+	chapoIden = Function('chapo?', Event, Event, BoolSort())
+	propbaseStar = Function('propbase*', Event, Event, BoolSort())
+	axiom.append(ForAll([e1, e2], chapoIden(e1,e2) == Or(e1 == e2, chapo(e1, e2)) ))
+	axiom.append(ForAll([e1], propbaseStar(e1, e1)))
+	axiom.append(ForAll([e1,e2], Implies(propbase(e1,e2), propbaseStar(e1, e2))))
+	axiom.append(ForAll([e1,e2,e3], Implies( And(propbaseStar(e1,e3), propbaseStar(e3,e2)), propbaseStar(e1,e2) )))
+
+	prop2 = Function('prop2',Event, Event, BoolSort())
+	e1, e2, e3, e4, e5 = Consts('e1 e2 e3 e4 e5', Event)
+	axiom.append(ForAll([e1, e2, e3, e4, e5], Implies( And(chapoIden(e1,e2), propbaseStar(e2, e3), strong(e3, e4), hbstar(e4, e5)) , prop2(e1, e5) )))
+	axiom += [prop(x, y) == Or( ( propbase(x,y) if isWrite(x) and isWrite(y) else False ), (prop2(x,y)) ) for x in Ev for y in Ev]
+
+	# acyclic co|prop as propagation
+	# irreflexive fre;prop;hbstar as observation
+	(propagation, axiom_prop) = acyclic(co, prop)
+	axiom.append(axiom_prop)
+
+	freprophbstar = Function('fre;prop;hbstar', Event, Event, BoolSort())
+	axiom.append(ForAll([e1, e2, e3,e4], Implies(And(fre(e1,e2), prop(e2,e3), hbstar(e3, e4)), freprophbstar(e1,e4))))
+	axiom_ir = irreflexive(freprophbstar)
+	axiom.append(axiom_ir)
+	# let xx = po & (X * X)
+	# acyclic co | xx as scXX
+
+	return And(axiom)
 
 def SC_model(info = {}):
 
@@ -945,6 +1283,10 @@ class encoder(encodingFW):
 		self.info['rel_iico'] = iico 
 		self.info['rel_rf_reg'] = rf_reg
 
+		self.info['iicoSet'] = iicoSet 
+		self.info['rf_regSet'] = rf_regSet
+
+
 		# underlying axioms
 		model_axiom = self.model_axioms()
 		# print
@@ -956,6 +1298,10 @@ class encoder(encodingFW):
 	def model_axioms(self):
 		if self.model == 'SC':
 			return sc_constraints(self.info['rel_po'], self.info['rel_rf'], self.info['rel_fr'], self.info['rel_co'], self.info['Ev'], self.info['RMW'])
+		if self.model == 'ARM':
+			return arm_constraints(self.info['rel_po'], self.info['rel_rf'], self.info['rel_fr'], self.info['rel_co'], 
+									self.info['rel_iico'], self.info['rel_rf_reg'], self.info['poS'], self.info['iicoSet'], self.info['rf_regSet'], 
+									self.info['Ev'], self.info['RMW'])
 		elif self.model == 'PSO':
 			return PSO_model(self.info)
 		return []
