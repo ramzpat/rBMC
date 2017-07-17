@@ -60,7 +60,7 @@ def enum(*sequential, **named):
     enums = dict(zip(sequential, range(len(sequential))), **named)
     return type('Enum', (), enums)
 
-FenceType = enum('STBar', 'MEMBAR_WR', 'DMB', 'DSB')
+FenceType = enum('STBar', 'MEMBAR_WR', 'DMB', 'DSB', 'ISB')
 
 
 # additional fence
@@ -79,6 +79,10 @@ class DMB(fenceStm):
 class DSB(fenceStm):
 	def __str__(self):
 		return 'DSB()'
+
+class ISB(fenceStm): 	#cfence
+	def __str__(self):
+		return 'ISB()'
 
 def isWrite(e):
 	return eq(e.decl(), WriteOp)
@@ -451,8 +455,13 @@ def arm_constraints(po, rf, fr, co, iico, rf_reg, poSet, iicoSet, rf_regSet, Ev,
 	po_locSet = [ (e1.eid, e2.eid) for e1 in Ev for e2 in Ev if (e1.eid, e2.eid) in poSet and (eq(e1.target, e2.target) if None != e1.target and None != e2.target and e1.target.sort() == e2.target.sort() else False) ]
 	axiom += [po_loc(e1, e2) == And(po(e1, e2), (e1.target == e2.target) if None != e1.target and None != e2.target and e1.target.sort() == e2.target.sort() else False )  for e1 in Ev for e2 in Ev]
 	
+	# isb
 	cfence = Function('cfence', Event, Event, BoolSort())
 	axiom += [Not(cfence(e1, e2)) for e1 in Ev for e2 in Ev]
+	# axiom += [
+	# 	# if (isFence(e2))
+	# 	# for e1 in Ev for e2 in Ev 
+	# ]
 	
 	rmw = Function('rmw', Event, Event, BoolSort())			
 	axiom += [Not(rmw(e1, e2)) for e1 in Ev for e2 in Ev]
@@ -528,6 +537,8 @@ def arm_constraints(po, rf, fr, co, iico, rf_reg, poSet, iicoSet, rf_regSet, Ev,
 	# let ii0 = dd | rfi | rdw
 	# let cc0 = dd | ctrl | addrpo (* po-loc deleted *)
 	# let ic0 = 0
+
+	# undefine!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 	ctrlisb = Function('ctrlisb', Event, Event, BoolSort())
 	axiom += [ Not(ctrlisb(e1, e2)) for e1 in Ev for e2 in Ev]
 
@@ -613,18 +624,34 @@ def arm_constraints(po, rf, fr, co, iico, rf_reg, poSet, iicoSet, rf_regSet, Ev,
 	# (* Common, all arm barriers are strong *)
 	# let strong = dmb|dsb|dmb.st|dsb.st
 	# let light = 0
-	e1, e2, e3, e4 = Consts('e1 e2 e3 e4', Event)
+	# e1, e2, e3, e4 = Consts('e1 e2 e3 e4', Event)
 	strong = Function('strong', Event, Event, BoolSort())
-	light = Function('light', Event, Event, BoolSort())
-	axiom.append(ForAll([e1, e2], Not(strong(e1, e2))))
-	axiom.append(ForAll([e1, e2], Not(light(e1, e2))))
+	# light = Function('light', Event, Event, BoolSort())
+
+	EvID = [0 for i in range(0, len(Ev))]
+	for i in Ev:
+		EvID[i.eid] = i
+	# dmb = Function('dmb', Event, Event, BoolSort())
+
+	beforeDMB = [ (eid1, eid2) for (eid1,eid2) in poSet if isFence(EvID[eid2]) and EvID[eid2].ftype == FenceType.DMB ]
+	afterDMB = [ (eid1, eid2) for (eid1,eid2) in poSet if isFence(EvID[eid1]) and EvID[eid1].ftype == FenceType.DMB ]
+	dmbSet = concat_relation(beforeDMB, afterDMB)
+	# for (i,j) in dmbSet:
+	# 	print EvID[i], EvID[j]
+
+	# axiom.append(ForAll([e1, e2], Not(strong(e1, e2))))
+	# fence = Function('fence', Event, Event, BoolSort())
+	axiom += [ strong(e1, e2) if (e1.eid, e2.eid) in dmbSet else Not(strong(e1, e2)) for e1 in Ev for e2 in Ev]
+
+	e1, e2, e3, e4 = Consts('e1 e2 e3 e4', Event)
+	# axiom.append(ForAll([e1, e2], Not(light(e1, e2))))
 
 	# PCChecks
 
 	# let fence = strong|light
 
 	fence = Function('fence', Event, Event, BoolSort())
-	axiom += [ Not(fence(e1, e2)) for e1 in Ev for e2 in Ev]
+	axiom += [ (fence(e1, e2) == strong(e1, e2)) for e1 in Ev for e2 in Ev]
 
 	# (* happens before *)
 	# let hb = ppo | fence | rfe
@@ -692,7 +719,7 @@ def arm_constraints(po, rf, fr, co, iico, rf_reg, poSet, iicoSet, rf_regSet, Ev,
 	axiom.append(axiom_ir)
 	# let xx = po & (X * X)
 	# acyclic co | xx as scXX
-
+	
 	return And(axiom)
 
 def SC_model(info = {}):
@@ -1105,14 +1132,28 @@ class encoder(encodingFW):
 			self.info['EventCnt'] = self.info['EventCnt'] + 1
 			fence.eid = eidCnt
 			fence.pid = pid
+			fence.ftype = FenceType.STBar
+			fence.target = None
 			return fence
 		elif isinstance(i, MEM_WR_Fence):
 			eidCnt = self.info['EventCnt']
 			fence = Fence(eidCnt, FenceType.MEMBAR_WR, pid)
 			fence.eid = eidCnt
 			fence.pid = pid
+			fence.ftype = FenceType.MEMBAR_WR
+			fence.target = None
 			self.info['EventCnt'] = self.info['EventCnt'] + 1
 			return fence
+		elif isinstance(i, DMB):
+			eidCnt = self.info['EventCnt']
+			fence = Fence(eidCnt, FenceType.DMB, pid)
+			fence.eid = eidCnt
+			fence.pid = pid
+			fence.ftype = FenceType.DMB
+			fence.target = None
+			self.info['EventCnt'] = self.info['EventCnt'] + 1
+			return fence
+		assert(False)
 		return None 
 
 	def encodeElement(self, e):

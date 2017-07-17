@@ -373,10 +373,14 @@ def mp2():
 	# 	print '----'
 
 def mp():
+	print 'mp'
 	P1 = seqOpsNode(
 			InstrOps(	# mov r1, #1
 				TempReg('val') << 1, 
 				Register('r1') << TempReg('val')
+				),
+			InstrOps(
+				hFW.DMB()
 				),
 			InstrOps(	# str r1, [x]
 				TempReg('val') << Register('r1'),
@@ -429,14 +433,16 @@ def mp():
 		# print p
 		[i, j] = ssa_form(p)
 		# print i
-		# print i
+		# print j
 		# return
-		formula = encode([i, j], gFW.encoder('SC'))
-		ss = hFW.encoder('SC')
-		formula = encode([i, j], ss)
+		# formula = encode([i, j], gFW.encoder('SC'))
+		# ss = hFW.encoder('SC')
+		fw = hFW.encoder('ARM')
+		formula = encode([i, j], fw)
 
 		s = Solver()
 		s.add(formula)
+		print 'solve it'
 		result = s.check()
 		print result
 		if result == sat:
@@ -445,6 +451,7 @@ def mp():
 		print '----'
 
 def mp_fence():
+	print 'mp_fence'
 	P1 = seqOpsNode(
 			InstrOps(	# mov r1, #1
 				TempReg('val') << 1, 
@@ -503,9 +510,12 @@ def mp_fence():
 	for p in U:
 		# print p
 		[i, j] = ssa_form(p)
-		print i
+		# print i
 		# print j
-		formula = encode([i, j], gFW.encoder('PSO'))
+
+		fw = hFW.encoder('ARM')
+		formula = encode([i, j], fw)
+		# formula = encode([i, j], gFW.encoder('PSO'))
 		# ss = hFW.encoder('SC')
 		# formula = encode([i, j], ss)
 
@@ -827,9 +837,10 @@ def spinlock_TOPPERS():
 
 
 if __name__ == '__main__':
-	# mp()
+	mp()
+
 	# mp_fence()
 	# atomicTest()
 	# spin_SPARC()
-	spinlock_TOPPERS()
+	# spinlock_TOPPERS()
 
