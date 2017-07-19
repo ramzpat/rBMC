@@ -464,7 +464,8 @@ def arm_constraints(po, rf, fr, co, iico, rf_reg, poSet, iicoSet, rf_regSet, Ev,
 	# ]
 	
 	rmw = Function('rmw', Event, Event, BoolSort())			
-	axiom += [Not(rmw(e1, e2)) for e1 in Ev for e2 in Ev]
+	# axiom += [Not(rmw(e1, e2)) for e1 in Ev for e2 in Ev]
+	axiom += ([(rmw(e1, e2) if (e1, e2) in RMW else Not(rmw(e1,e2)) ) for e1 in Ev for e2 in Ev])
 
 	rfe = Function('rfe', Event, Event, BoolSort())
 	rfi = Function('rfi', Event, Event, BoolSort())
@@ -719,7 +720,7 @@ def arm_constraints(po, rf, fr, co, iico, rf_reg, poSet, iicoSet, rf_regSet, Ev,
 	axiom.append(axiom_ir)
 	# let xx = po & (X * X)
 	# acyclic co | xx as scXX
-	
+
 	return And(axiom)
 
 def SC_model(info = {}):

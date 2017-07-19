@@ -613,14 +613,19 @@ def spin_SPARC():
 		# print i
 		# formula = encode([i,j], gFW.encoder('SC'))
 		# formula = encode([i,j], gFW.encoder('PSO'))
+
 		
-		formula = encode([i, j], hFW.encoder('SC'))
+		# formula = encode([i, j], hFW.encoder('SC'))
+		formula = encode([i, j], hFW.encoder('ARM'))
+		# 
 
 		s = Solver()
 		s.add(formula)
 		result = s.check()
 		print result
 		if result == sat:
+			print i
+			print j
 			return 
 		
 		print '----'
@@ -725,7 +730,7 @@ def spinlock_TOPPERS():
 					branchOp((Register('output') == 1), LabelStm('While'))
 				),
 			InstrOps(
-				# DMB
+				hFW.DMB()
 				),
 			# can lock 
 			Assertion(False)
@@ -782,7 +787,7 @@ def spinlock_TOPPERS():
 					branchOp((Register('output') == 1), LabelStm('While'))
 				),
 			InstrOps(
-				# DMB
+				hFW.DMB()
 				),
 			# can lock 
 			Assertion(False)
