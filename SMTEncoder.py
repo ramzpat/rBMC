@@ -379,13 +379,13 @@ def mp():
 				TempReg('val') << 1, 
 				Register('r1') << TempReg('val')
 				),
-			InstrOps(
-				hFW.DMB()
-				),
 			InstrOps(	# str r1, [x]
 				TempReg('val') << Register('r1'),
 				Location('x') << TempReg('val')
 				),
+			# InstrOps(
+			# 	hFW.DMB()
+			# 	),
 			InstrOps(	# str r1, [y]
 				TempReg('val') << Register('r1'),
 				Location('y') << TempReg('val')
@@ -416,6 +416,9 @@ def mp():
 			InstrOps(	# bne A 
 				branchOp(Register('n') == 1, LabelStm('A'))
 			),
+			InstrOps(
+				hFW.DMB()
+				),
 			InstrOps(	# ldr r1, [x]
 				TempReg('val') << Location('x'),
 				Register('r1') << TempReg('val')
@@ -446,6 +449,27 @@ def mp():
 		result = s.check()
 		print result
 		if result == sat:
+			print i
+			print j
+			rf = fw.info['rel_rf']
+			fr = fw.info['rel_fr']
+			co = fw.info['rel_co']
+			m = s.model()
+			Ev = fw.info['Ev']
+			for e1 in Ev:
+				for e2 in Ev:
+					if hFW.isRead(e2) and hFW.isWrite(e1):
+						if is_true(m.evaluate(rf(e1,e2))):
+							print e1, e2, m.evaluate(e2.val)
+			for e1 in Ev:
+				# for e2 in Ev:
+				if hFW.isReadReg(e1):
+					print e1, m.evaluate(e1.val)
+			print '---fence---'
+			for e1 in Ev:
+				for e2 in Ev:
+					if is_true(m.evaluate(fw.info['rel_fence'](e1,e2))):
+						print e1, '->',e2
 			return 
 		
 		print '----'

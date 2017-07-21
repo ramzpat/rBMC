@@ -449,6 +449,7 @@ def ctrl_dependency(dd_regSet, rbSet, poSet, Ev):
 
 	return (ctrl, concat, And(axiom))
 
+# http://diy.inria.fr/cats/proposed-arm/arm.txt
 def arm_constraints(po, rf, fr, co, iico, rf_reg, poSet, iicoSet, rf_regSet, Ev, RMW = []):
 	axiom = []
 	po_loc = Function('po-loc', Event, Event, BoolSort())
@@ -488,6 +489,9 @@ def arm_constraints(po, rf, fr, co, iico, rf_reg, poSet, iicoSet, rf_regSet, Ev,
 	(ctrl, ctrlSet, ctrl_axiom) = ctrl_dependency(dd_regSet, rbSet, poSet, Ev)
 	(ctrl_cfence, ctrl_cfenceSet, ctrl_cfence_axiom) = ctrl_dependency(dd_regSet, rbSet, [], Ev)
 
+	# ----------
+	# http://diy.inria.fr/cats/proposed-arm/arm.txt
+	# ----------
 	# (* Uniproc *)
 	# acyclic po-loc | rf | fr | co as uniproc
 	(uniproc, axiom_uniproc) = acyclic(po_loc, rf, fr, co)
@@ -519,6 +523,8 @@ def arm_constraints(po, rf, fr, co, iico, rf_reg, poSet, iicoSet, rf_regSet, Ev,
 	# s.add(ForAll([e1, e2, e3], Implies( And(addr(e1, e3), po(e3, e2)), addrpo(e1, e2) ) ))
 	ddSet = set(addrSet) | set(dataSet)
 	axiom += [ dd(e1, e2) if (e1.eid, e2.eid) in ddSet else Not(dd(e1, e2)) for e1 in Ev for e2 in Ev ]
+	# print 'addrSet', addrSet
+	# print 'dataSet', dataSet
 	# rdwSet = set(po_locSet & concat_relation(fre))
 	axiom += [ rdw(e1, e2) == 		(And(po_loc(e1, e2), Exists(e3, And(restrict(e3, Ev), fre(e1,e3), rfe(e3,e2)) ) ))  for e1 in Ev for e2 in Ev]
 	axiom += [ detour(e1, e2) == 	(And(po_loc(e1, e2), Exists(e3, And(restrict(e3, Ev), coe(e1,e3), rfe(e3,e2)) ) ))  for e1 in Ev for e2 in Ev]
@@ -542,6 +548,7 @@ def arm_constraints(po, rf, fr, co, iico, rf_reg, poSet, iicoSet, rf_regSet, Ev,
 	# undefine!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 	ctrlisb = Function('ctrlisb', Event, Event, BoolSort())
 	axiom += [ Not(ctrlisb(e1, e2)) for e1 in Ev for e2 in Ev]
+
 
 	ci0 = Function('ci0', Event, Event, BoolSort())
 	ii0 = Function('ii0', Event, Event, BoolSort())
@@ -608,6 +615,8 @@ def arm_constraints(po, rf, fr, co, iico, rf_reg, poSet, iicoSet, rf_regSet, Ev,
 	for x in Ev:
 		for y in Ev:
 			axiom.append(ppoR(x,y) == And( ii(x,y), (isRead(x) and isRead(y)) ))
+			# if (isRead(x) and isRead(y)) :
+			# 	print (ppoR(x,y) == And( ii(x,y), (isRead(x) and isRead(y)) ))
 			axiom.append(ppoW(x,y) == And( ic(x,y), (isRead(x) and isWrite(y)) ))
 
 	ppo = Function('ppo', Event, Event, BoolSort())
@@ -637,6 +646,7 @@ def arm_constraints(po, rf, fr, co, iico, rf_reg, poSet, iicoSet, rf_regSet, Ev,
 	beforeDMB = [ (eid1, eid2) for (eid1,eid2) in poSet if isFence(EvID[eid2]) and EvID[eid2].ftype == FenceType.DMB ]
 	afterDMB = [ (eid1, eid2) for (eid1,eid2) in poSet if isFence(EvID[eid1]) and EvID[eid1].ftype == FenceType.DMB ]
 	dmbSet = concat_relation(beforeDMB, afterDMB)
+
 	# for (i,j) in dmbSet:
 	# 	print EvID[i], EvID[j]
 
@@ -667,7 +677,7 @@ def arm_constraints(po, rf, fr, co, iico, rf_reg, poSet, iicoSet, rf_regSet, Ev,
 	# let propbase = (fence|(rfe;fence));hbstar
 	hbstar = Function('hb*', Event, Event, BoolSort())
 	e1, e2 = Consts('e1 e2', Event)
-	axiom.append( ForAll([e1], hbstar(e1, e1)))
+	axiom += [ hbstar(u, u) for u in Ev ]
 	axiom.append( ForAll([e1, e2], Implies(hb(e1, e2), hbstar(e1, e2))) )
 	axiom.append( ForAll([e1, e2, e3], Implies( And(hbstar(e1,e2), hbstar(e2,e3)), hbstar(e1,e3) )))
 	# s.add([ hbstar(e1, e2) if eq(e1, e2) else ( Or(hb(e1, e2), 
@@ -696,10 +706,12 @@ def arm_constraints(po, rf, fr, co, iico, rf_reg, poSet, iicoSet, rf_regSet, Ev,
 	# 					) for e1 in Ev for e2 in Ev] )
 
 	# let prop = propbase & (W * W) | (chapo? ; propbase*; strong; hbstar)
-	prop = Function('prob', Event, Event, BoolSort())
+	# r? - reflexive closure
+	prop = Function('prop', Event, Event, BoolSort())
 	chapoIden = Function('chapo?', Event, Event, BoolSort())
 	propbaseStar = Function('propbase*', Event, Event, BoolSort())
-	axiom.append(ForAll([e1, e2], chapoIden(e1,e2) == Or(e1 == e2, chapo(e1, e2)) ))
+	# axiom.append(ForAll([e1, e2], chapoIden(e1,e2) == Or(e1 == e2, chapo(e1, e2)) ))
+	axiom += [(chapoIden(u,v) == chapo(u, v)) if u.eid != v.eid else (chapoIden(u,v)) for u in Ev for v in Ev]
 	axiom.append(ForAll([e1], propbaseStar(e1, e1)))
 	axiom.append(ForAll([e1,e2], Implies(propbase(e1,e2), propbaseStar(e1, e2))))
 	axiom.append(ForAll([e1,e2,e3], Implies( And(propbaseStar(e1,e3), propbaseStar(e3,e2)), propbaseStar(e1,e2) )))
@@ -1341,6 +1353,7 @@ class encoder(encodingFW):
 		if self.model == 'SC':
 			return sc_constraints(self.info['rel_po'], self.info['rel_rf'], self.info['rel_fr'], self.info['rel_co'], self.info['Ev'], self.info['RMW'])
 		if self.model == 'ARM':
+			self.info['rel_fence'] = Function('fence', Event, Event, BoolSort())
 			return arm_constraints(self.info['rel_po'], self.info['rel_rf'], self.info['rel_fr'], self.info['rel_co'], 
 									self.info['rel_iico'], self.info['rel_rf_reg'], self.info['poS'], self.info['iicoSet'], self.info['rf_regSet'], 
 									self.info['Ev'], self.info['RMW'])
