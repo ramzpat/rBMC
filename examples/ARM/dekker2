@@ -6,6 +6,7 @@ Lock:
 While: 			; while(x[j]){
 	ldr r3, [xi]	; 	x[i] (load to r3)
 	cmp r3, #1		; 	x[i] = true ?
+	
 	bne CS			; 	!(x[i] = true) -> goto critical section
 	If: 			; 	if( k == i(#1) )
 	ldr r4, [k]		; 		k (load to r4)

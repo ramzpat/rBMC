@@ -52,7 +52,69 @@ if(True)['assert((r3_0 == 1)); ']
 
 
 ## Experiment
-\<to-do\>
+<table>
+  <tr>
+    <td> </td>
+    <td colspan="3">Run time</td>
+    <td colspan="3">Finding bug</td>
+  </tr>
+  <tr>
+    <td> Algoithm (bound) </td>
+    <td>SC</td>
+    <td>TSO</td>
+    <td>PSO</td>
+    <td>SC</td>
+    <td>TSO</td>
+    <td>PSO</td>
+  </tr>
+  <tr>
+    <td> Message passing (1)</td>
+    <td> 0.192 </td>
+    <td> 0.313 </td>
+    <td> 0.580 </td>
+    <td> n </td>
+    <td> n </td>
+    <td> y </td>
+  </tr>
+  <tr>
+    <td> SPARC Spinlock (1)</td>
+    <td> 6.565  </td>
+    <td> 7.415  </td>
+    <td> 7.436 </td>
+    <td> n </td>
+    <td> n </td>
+    <td> n </td>
+  </tr>
+  <tr>
+    <td> Dekker (1)</td>
+    <td> 2.379 </td>
+    <td> 2.763 </td>
+    <td> 2.796 </td>
+    <td> n </td>
+    <td> y </td>
+    <td> y </td>
+  </tr>
+  <tr>
+    <td> Peterson (1)</td>
+    <td> 2.791 </td>
+    <td> 72.466 </td>
+    <td> 92.666 </td>
+    <td> n </td>
+    <td> y </td>
+    <td> y </td>
+  </tr>
+  <tr>
+    <td> Known PSO bug (0)</td>
+    <td> 3.326  </td>
+    <td> 39.320  </td>
+    <td> 1538.227 </td>
+    <td> n </td>
+    <td> n </td>
+    <td> y </td>
+  </tr>
+</table>
+
+
 
 
 # References 

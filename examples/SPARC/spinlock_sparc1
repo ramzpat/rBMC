@@ -12,5 +12,6 @@ L2:
   nop
 L3:
 MEMBAR #StoreLoad
-assume(r0 = #1)
+assert(false)
+;assume(r0 = #1)
 ; critical

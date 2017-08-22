@@ -10,5 +10,6 @@ L2:
   ba,a,pt L1
   nop
 L3:
-assert(r0 = #1)
+assert(false)
+;assert(r0 = #1)
 ; critical

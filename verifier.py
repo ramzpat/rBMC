@@ -157,6 +157,7 @@ def MessagePassing():
 	L1: 
 		ldr r1, [Y]
 		cmp r1, #1
+		ldr r1, [Y]
 		bne L1
 	ldr r2, [X]
 	assert(r2 = #1)
@@ -457,12 +458,12 @@ def peterson():
 	pass 
 
 
-# if __name__ == '__main__':	
+if __name__ == '__main__':	
 # 	dekker()
 # 	# peterson()
 
 # 	# counterTSO()
-# 	# MessagePassing()
+	MessagePassing()
 # 	# spinlock_sparc()
 # 	# JavaPSOerror()
 # 	# print "\033[13m"
