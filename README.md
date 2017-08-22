@@ -114,9 +114,6 @@ if(True)['assert((r3_0 == 1)); ']
   </tr>
 </table>
 
-
-
-
 # References 
 [1] K. Gharachorloo, “Memory Consistency Models for Shared-Memory Multiprocessors.” Stanford University, 1995.\n
 [2] A. Armando, J. Mantovani, and L. Platania, “Bounded Model Checking of Software Using SMT Solvers Instead of SAT Solvers,” Springer Berlin Heidelberg, 2006, pp. 146–162.
