@@ -264,11 +264,217 @@ def SC_model(info = {}):
 	return sc_axioms
 
 def TSO_model(info = {}):
-	pass 
+	# Relations
+	spo = Function('spo', Opr, Opr, BoolSort()) 	# Significant program order
+	spo1 = Function('spo1', Opr, Opr, BoolSort()) 	# Significant program order spo'
+	spo2 = Function('spo2', Opr, Opr, BoolSort()) 	# Significant program order spo''
+	sco = Function('sco', Opr, Opr, BoolSort())		# Significant conflict order
+	loopRel = Function('loopRel', Opr, Opr, BoolSort())	# Helping_relation
+
+	spo.domain = (lambda i: Opr)
+	spo1.domain = (lambda i: Opr)
+	spo2.domain = (lambda i: Opr)
+	sco.domain = (lambda i: Opr)
+	loopRel.domain = (lambda i: Opr) 
+
+	def spo_relation(info = {}):
+		reads = info['read']
+		writes = info['write']
+		rmw = info['RMW']
+
+		x, y = Consts('x y', MemOp)
+		
+
+		# spo'(X,Y) if ...
+		#   R -po-> RW
+		# 	W -po-> W
+		# 	W -po-> MEMBAR(WR) -po-> R
+
+		SPO = [ ForAll([x], Not( spo(x,x) )) ]
+		SPO1 = [ ForAll([x], Not( spo1(x,x) )) ]
+		SPO2 = [ ForAll([x], Not( spo2(x,x) )) ]
+
+		write_p_rmw = writes #+ [(hw.atomic_write(a),l,i) for (a, l, i) in rmw]
+		read_p_rmw = reads #+ [(hw.atomic_read(a),l,i) for (a, l, i) in rmw]
+		atom_w = [w for (r, w) in rmw]
+		
+		rw1, rw2, rw3 = Consts('rw1 rw2 rw3', MemOp)
+		r = Const('tempR', ReadOp)
+		w1, w2 = Consts('tempW1 tempW2', WriteOp)
+		wr = Const('wr_fence', MembarWR)
+		st = Const('st_fence', STBar)
+
+		SPO2 += [
+			ForAll([rw1, rw2], 
+				# R -po-> RW
+				If(Exists([r], And(restrict(r, read_p_rmw), rw1 == read(r), po(r, rw2))), 
+					spo2(rw1, rw2), 
+				# W -po-> W 
+				If(Exists([w1, w2], And(Not(w1 == w2), restrict(w1, write_p_rmw), restrict(w2, write_p_rmw), 
+										rw1 == write(w1), rw2 == write(w2), po(w1, w2))),
+					spo2(rw1, rw2),
+				# W -po-> MEMBAR(WR) -po-> R
+				If(Exists([w1, r, wr], And(restrict(w1, write_p_rmw), restrict(r, read_p_rmw), 
+										rw1 == write(w1), rw2 == read(r),
+										po(w1, wr), po(wr, r))), 
+					spo2(rw1, rw2), 
+				Not(spo2(rw1, rw2)))
+				))
+				)
+		]
+
+		SPO1 += [
+			ForAll([rw1, rw2],
+				# W (in RMW) -po-> R
+				If( Exists([r,w1], And(
+											# restrict(a_rmw, rmw), 
+											# rw1 == write(hw.atomic_write(a_rmw)), 
+											restrict(r, read_p_rmw), 
+											restrict(w1, atom_w),
+											rw2 == read(r),
+											rw1 == write(w1),
+											po(rw1, rw2))),
+				spo1(rw1, rw2), Not(spo1(rw1, rw2)))
+				)
+
+		]
+
+		memOps = [ MemOp.cast(rw) for rw in write_p_rmw + read_p_rmw]
+		SPO += [
+			ForAll([rw1, rw2],
+				Implies( And(restrict(rw1, memOps), restrict(rw2, memOps)),
+					If(spo1(rw1, rw2), spo(rw1, rw2),
+					If(spo2(rw1, rw2), spo(rw1, rw2), 
+					If(Exists([rw3], And(spo(rw1, rw3), spo(rw3, rw2)) ), spo(rw1, rw2), Not(spo(rw1, rw2))))
+					) 
+				)
+			)
+		]
+
+		return SPO + SPO1 + SPO2
+	def sco_relation(info):
+		reads = info['read']
+		writes = info['write']
+		rmw = info['RMW']
+
+		write_p_rmw = writes #+ [(hw.atomic_write(a),l,i) for (a, l, i) in rmw]
+		read_p_rmw = reads #+ [(hw.atomic_read(a),l,i) for (a, l, i) in rmw]
+		memOps = [ MemOp.cast(rw) for rw in write_p_rmw + read_p_rmw]
+
+		x, y = Consts('x y', MemOp)
+		r1, r2 = Consts('r1 r2', ReadOp)
+		w = Const('w', WriteOp)
+
+		SCO = [ ForAll([x], Not(sco(x,x))) ]
+
+		SCO += [
+			ForAll([x, y],
+				If(And(restrict(x,memOps), restrict(y,memOps), co(x,y)), sco(x,y),
+				If(Exists([r1,r2, w], And(Not(r1 == r2), restrict(r1, read_p_rmw), restrict(r2, read_p_rmw),
+										restrict(w, write_p_rmw),
+										read(r1) == x, read(r2) == y, co(x,w), co(w,y) )), 
+					sco(x,y), Not(sco(x,y)))
+				)
+			)
+		]
+
+		return SCO
+	# ------ variables 
+	rw1, rw2, rw3 = Consts('rw1 rw2 rw3', MemOp)
+	a, b = 	Consts('a b', Opr)
+	r = Const('r', ReadOp)
+	w = Const('w', WriteOp)
+	r1, r2 = Consts('r1 r2', ReadOp)
+	w1, w2 = Consts('w1 w2', WriteOp)
+	i, j = Consts('i j', Proc)
+
+	memb_wr = Const('membar_wr', MembarWR)
+
+	# Conditions 
+	tso_axioms = [		
+		# % Uniproc RW -po-> W
+		# xo(subOpr(X,I), subOpr(Y,I)) :- conflict(X,Y), subOpr(X,I), subOpr(Y,I), pOrder(X,Y), isWrite(Y), isRW(X).
+		ForAll([rw1, w2, i],
+			Implies(
+				And(
+					conflict(rw1, w2),
+					po(rw1, w2),
+				),
+				xo(subOpr(rw1, i), subOpr(w2, i))
+			)
+		),
+
+		# % Coherence W -co-> W 
+		# xo(subOpr(X,I), subOpr(Y,I)) :- conflict(X,Y), subOpr(X,I), subOpr(Y,I), isWrite(X), isWrite(Y), co(X,Y).
+		ForAll([w1, w2, i],
+			Implies(
+				And(
+					conflict(w1, w2), 
+					co(w1, w2),
+				),
+				xo(subOpr(w1, i), subOpr(w2, i))
+			)
+		),
+
+		# % Multi - 1    W -co-> R -spo-> RW
+		# xo(subOpr(W,I), subOpr(RW,I)) :- conflict(W,RW), subOpr(W,I), subOpr(RW,I), isWrite(W), isRead(R), isRW(RW), co(W,R), spo(R,RW). 
+		ForAll([w1, rw2, i, r],
+			Implies(
+				And(
+					conflict(w1, rw2),
+					co(w1, r),
+					spo(r, rw2),				
+				),
+				xo(subOpr(w1, i), subOpr(rw2, i))
+			)
+		),
+
+		# LoopRel def 
+		ForAll([rw1, rw2],
+			If( Exists(a, And(sco(rw1, a), spo(a, rw2))), loopRel(rw1, rw2),
+				If( Exists([a], And(loopRel(rw1,a), loopRel(a, rw2)) ) , 
+					loopRel(rw1, rw2) , Not(loopRel(rw1, rw2)) )
+				)
+		),
+		# not reflexive
+		ForAll([rw1, rw2],
+			Implies(loopRel(rw1,rw2), rw1 != rw2)
+		),
+
+		# % Multi - 2
+		# % RW -spo-> { A -sco-> B -spo-> }+ RW *)
+		# xo(subOpr(RW,I), subOpr(RW2,I)) :- conflict(RW,RW2), subOpr(RW,I), subOpr(RW2,I), isRW(RW), isRW(RW2), spo(RW,AA), loopRel(AA,BB), spo(BB,RW2). 
+		ForAll([rw1, rw2, a, i],
+			Implies(
+				And(
+					conflict(rw1, rw2),
+					spo(rw1, a),
+					loopRel(a, rw2),
+					# spo(b, rw2),
+				),
+				xo(subOpr(rw1, i), subOpr(rw2, i))
+			)
+		),
+
+		# % Multi - 3
+		# %% W -sco-> R -spo-> { A -sco-> B -spo-> }+ R
+		# xo(subOpr(W,I), subOpr(R2,I)) :- conflict(W,R2), subOpr(W,I), subOpr(R2,I), isWrite(W), isRead(R), isRead(R2), sco(W,R), spo(R,AA), loopRel(AA,BB), spo(BB,R2). 
+		ForAll([w1, r2, i, a, r],
+			Implies(
+				And(
+					conflict(w1, r2),
+					sco(w1, r),
+					spo(r, a),
+					loopRel(a, r2),
+					# spo(b, r2),  
+				),
+				xo(subOpr(w1, i), subOpr(r2, i))
+			)
+		),
+	]
+	return (tso_axioms) + spo_relation(info) + sco_relation(info)
 
 def PSO_model(info = {}):
-
-	
 
 	# Relations
 	spo = Function('spo', Opr, Opr, BoolSort()) 	# Significant program order
@@ -618,6 +824,7 @@ class encoder(encodingFW):
 		elif isinstance(i, RmwStm):
 			assert(False)
 		else:
+			# print i
 			assert(False)
 		return encodeOp
 
@@ -761,6 +968,8 @@ class encoder(encodingFW):
 	def model_axioms(self):
 		if self.model == 'SC':
 			return SC_model()
+		elif self.model == 'TSO':
+			return TSO_model(self.info)
 		elif self.model == 'PSO':
 			return PSO_model(self.info)
 		return []

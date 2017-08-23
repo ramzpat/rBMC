@@ -69,9 +69,9 @@ class encodingFW:
 				elif op == EOpr['gt']:
 					return e1 > e2
 				elif op == EOpr['and']:
-					return herd.And(e1, e2)
+					return And(e1, e2)
 				elif op == EOpr['or']:
-					return herd.Or(e1, e2)
+					return Or(e1, e2)
 			elif len(exp) == 2:
 				if exp[0] == EOpr['not']:
 					e1 = self.encodeElement(exp[1])
@@ -114,7 +114,7 @@ class encodingFW:
 		# 		s.add(po(x,y) if (x.eid,y.eid) in newPo else Not(po(x,y)) )
 		return newPo
 
-	def encode(self, P, init_cond = [], init_location = True):
+	def encode(self, P, init_cond = [], init_locations = {}):
 		# The set of events
 		Ev = []
 
@@ -133,6 +133,7 @@ class encodingFW:
 			# pairs of atomic (rmw)
 			'RMW':[]
 		}
+		self.info['init_locations'] = init_locations
 
 		# collect po, iico, Events(R,W,regRW)
 		# locations, facts assignment
@@ -154,6 +155,7 @@ class encodingFW:
 		
 		poS = self.program_order(PoS)
 		self.info['poS'] = poS
+		# print [str(v)for v in self.info['Loc'].values()]
 
 		# initial location = 0 ?
 		# if(init_location):

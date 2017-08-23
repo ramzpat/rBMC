@@ -9,6 +9,8 @@ from InvExtractor import *
 import gharachorloo_framework  as gFW
 import herd_encodingFw as hFW 
 
+import time
+
 def isVar(i):
 	return isinstance(i, Register)
 
@@ -428,52 +430,73 @@ def mp():
 	P1 = branchExtractor(P1)
 	P2 = branchExtractor(P2)
 
+	 
+	
+
+
 	# for i in P2:
 	# 	print i
 	# return 
+	k = 0
 	U = unrollCombination([P1, P2], 1)
 	for p in U:
 		# print p
 		[i, j] = ssa_form(p)
-		# print i
-		# print j
-		# return
-		# formula = encode([i, j], gFW.encoder('SC'))
-		# ss = hFW.encoder('SC')
-		fw = hFW.encoder('ARM')
+
+		start_encode = time.clock()
+		# -----------------------------
+		fw = gFW.encoder('SC')
+		# fw = gFW.encoder('TSO')
+		# fw = gFW.encoder('PSO')
+
+
+		# fw = hFW.encoder('SC')
+		# fw = hFW.encoder('TSO')
+		# fw = hFW.encoder('ARM')
 		formula = encode([i, j], fw)
+		# -----------------------------
+		elapsed_encode = (time.clock() - start_encode)
+		# print k, 'encode time: ', elapsed_encode, ' s.'
 
 		s = Solver()
 		s.add(formula)
-		print 'solve it'
+		# print 'solve it'
+
+		start_solving = time.clock()
 		result = s.check()
-		print result
+		elapsed_solving = (time.clock() - start_solving)
+		print k, 'encode time: ', elapsed_encode, ' s.', 'solve time: ', elapsed_solving, ' s.',
+		print 'Ev', len(fw.info['Ev'])
+
+
+		k = k + 1
 		if result == sat:
-			print i
-			print j
-			rf = fw.info['rel_rf']
-			fr = fw.info['rel_fr']
-			co = fw.info['rel_co']
-			m = s.model()
-			Ev = fw.info['Ev']
-			for e1 in Ev:
-				for e2 in Ev:
-					if hFW.isRead(e2) and hFW.isWrite(e1):
-						if is_true(m.evaluate(rf(e1,e2))):
-							print e1, e2, m.evaluate(e2.val)
-			for e1 in Ev:
-				# for e2 in Ev:
-				if hFW.isReadReg(e1):
-					print e1, m.evaluate(e1.val)
-			print '---fence---'
-			for e1 in Ev:
-				for e2 in Ev:
-					if is_true(m.evaluate(fw.info['rel_fence'](e1,e2))):
-						print e1, '->',e2
+			print result
+			# print i
+			# print j
+			# rf = fw.info['rel_rf']
+			# fr = fw.info['rel_fr']
+			# co = fw.info['rel_co']
+			# m = s.model()
+			# Ev = fw.info['Ev']
+			# for e1 in Ev:
+			# 	for e2 in Ev:
+			# 		if hFW.isRead(e2) and hFW.isWrite(e1):
+			# 			if is_true(m.evaluate(rf(e1,e2))):
+			# 				print e1, e2, m.evaluate(e2.val)
+			# for e1 in Ev:
+			# 	# for e2 in Ev:
+			# 	if hFW.isReadReg(e1):
+			# 		print e1, m.evaluate(e1.val)
+			# print '---fence---'
+			# for e1 in Ev:
+			# 	for e2 in Ev:
+			# 		if is_true(m.evaluate(fw.info['rel_fence'](e1,e2))):
+			# 			print e1, '->',e2
 			return 
 		
-		print '----'
-
+		# print '----'
+	print result
 def mp_fence():
 	print 'mp_fence'
 	P1 = seqOpsNode(
@@ -487,8 +510,9 @@ def mp_fence():
 				),
 			# fence ?
 			InstrOps(	# STBar 
-				# hFW.STBarFence(),
-				gFW.STBarFence()
+				hFW.MFence(),
+				# gFW.STBarFence(),
+				# hFW.DMB()
 				),
 			InstrOps(	# str r1, [y]
 				TempReg('val') << Register('r1'),
@@ -520,6 +544,11 @@ def mp_fence():
 			InstrOps(	# bne A 
 				branchOp(Register('n') == 1, LabelStm('A'))
 			),
+			InstrOps(	# STBar 
+				# hFW.STBarFence(),
+				# gFW.STBarFence(),
+				# hFW.DMB()
+				),
 			InstrOps(	# ldr r1, [x]
 				TempReg('val') << Location('x'),
 				Register('r1') << TempReg('val')
@@ -531,22 +560,37 @@ def mp_fence():
 	P1 = branchExtractor(P1)
 	P2 = branchExtractor(P2)
 	U = unrollCombination([P1, P2], 1)
+	k = 0
 	for p in U:
 		# print p
 		[i, j] = ssa_form(p)
-		# print i
-		# print j
+		start_encode = time.clock()
+		# -----------------------------
+		fw = gFW.encoder('SC')
+		# fw = gFW.encoder('TSO')
+		# fw = gFW.encoder('PSO')
 
-		fw = hFW.encoder('ARM')
+
+		# fw = hFW.encoder('SC')
+		# fw = hFW.encoder('TSO')
+		# fw = hFW.encoder('ARM')
 		formula = encode([i, j], fw)
-		# formula = encode([i, j], gFW.encoder('PSO'))
-		# ss = hFW.encoder('SC')
-		# formula = encode([i, j], ss)
+		# -----------------------------
+		elapsed_encode = (time.clock() - start_encode)
+		# print k, 'encode time: ', elapsed_encode, ' s.'
 
 		s = Solver()
 		s.add(formula)
+		# print 'solve it'
+
+		start_solving = time.clock()
 		result = s.check()
-		print result
+		elapsed_solving = (time.clock() - start_solving)
+		print k, 'encode time: ', elapsed_encode, ' s.', 'solve time: ', elapsed_solving, ' s.',
+		print 'Ev', len(fw.info['Ev'])
+		
+
+		k = k + 1
 		if result == sat:
 			return 
 		
@@ -629,30 +673,46 @@ def spin_SPARC():
 
 	P1 = branchExtractor(P1)
 	P2 = branchExtractor(P2)
-	U = unrollCombination([P1, P2], 0)
+	U = unrollCombination([P1, P2], 1)
+	k = 0
 	for p in U:
 
 		[i, j] = ssa_form(p)
 		
-		# print i
-		# formula = encode([i,j], gFW.encoder('SC'))
-		# formula = encode([i,j], gFW.encoder('PSO'))
+		start_encode = time.clock()
+		# -----------------------------
+		# fw = gFW.encoder('SC')
+		# fw = gFW.encoder('TSO')
+		# fw = gFW.encoder('PSO')
 
-		
-		# formula = encode([i, j], hFW.encoder('SC'))
-		formula = encode([i, j], hFW.encoder('ARM'))
-		# 
+
+		# fw = hFW.encoder('SC')
+		# fw = hFW.encoder('TSO')
+		fw = hFW.encoder('ARM')
+		formula = encode([i, j], fw)
+		# -----------------------------
+		elapsed_encode = (time.clock() - start_encode)
+		# print k, 'encode time: ', elapsed_encode, ' s.'
 
 		s = Solver()
 		s.add(formula)
+		# print 'solve it'
+
+		start_solving = time.clock()
 		result = s.check()
-		print result
+		elapsed_solving = (time.clock() - start_solving)
+		print k, 'encode time: ', elapsed_encode, ' s.', 'solve time: ', elapsed_solving, ' s.',
+		print 'Ev', len(fw.info['Ev'])
+		
+
+		k = k + 1
+		# print result
 		if result == sat:
 			print i
 			print j
 			return 
 		
-		print '----'
+		# print '----'
 
 def atomicTest():
 
@@ -690,7 +750,7 @@ def atomicTest():
 		
 		# print i
 		# print j
-		formula = encode([i, j], gFW.encoder('PSO'))
+		formula = encode([i, j], gFW.encoder('SC'))
 		# ss = hFW.encoder('SC')
 		# formula = encode([i, j], ss)
 
@@ -821,7 +881,7 @@ def spinlock_TOPPERS():
 
 	P1 = branchExtractor(P1)
 	P2 = branchExtractor(P2)
-	U = unrollCombination([P1, P2], 0)
+	U = unrollCombination([P1, P2], 1)
 	for p in U:
 
 		[i, j] = ssa_form(p)
@@ -831,7 +891,7 @@ def spinlock_TOPPERS():
 		# formula = encode([i,j], gFW.encoder('SC'))
 		# formula = encode([i,j], gFW.encoder('PSO'))
 		
-		fw = hFW.encoder('ARM')
+		fw = hFW.encoder('SC')
 		formula = encode([i, j], fw)
 		# print fw.info
 		s = Solver()
@@ -864,12 +924,579 @@ def spinlock_TOPPERS():
 		
 		print '----'
 
+def PSOError():
+	P1 = seqOpsNode(
+			InstrOps(	# mov r0, #0
+				TempReg('val') << 0, 
+				Register('r0') << TempReg('val'),
+				),
+			InstrOps(	# mov r1, #1
+				TempReg('val') << 1, 
+				Register('r1') << TempReg('val'),
+				),
+			InstrOps(	# mov r2, #2
+				TempReg('val') << 2, 
+				Register('r2') << TempReg('val'),
+				),
+			InstrOps(	# mov r3, #3
+				TempReg('val') << 3, 
+				Register('r3') << TempReg('val'),
+				),
+			InstrOps(	# str r0, [z]
+					TempReg('val') << Register('r0'),
+					Location('z') << TempReg('val')
+				),
+			InstrOps(	# str r0, [x]
+					TempReg('val') << Register('r0'),
+					Location('x') << TempReg('val')
+				),
+			InstrOps(	# str r0, [y]
+					TempReg('val') << Register('r0'),
+					Location('y') << TempReg('val')
+				),
+			InstrOps(	# str r2, [x]
+					TempReg('val') << Register('r2'),
+					Location('x') << TempReg('val')
+				),
+			InstrOps(	# str r3, [y]
+					TempReg('val') << Register('r3'),
+					Location('y') << TempReg('val')
+				),
+			InstrOps(	# str r1, [z]
+					TempReg('val') << Register('r1'),
+					Location('z') << TempReg('val')
+				),
+			)
+
+	P2 = seqOpsNode(
+			InstrOps(	# ldr r1, [z]
+					TempReg('val') << Location('z'),
+					Register('r1') << TempReg('val')
+				),
+			Assume( Register('r1') == 1 ),
+			InstrOps(	# ldr r2, [x]
+					TempReg('val') << Location('x'),
+					Register('r2') << TempReg('val')
+				),
+			InstrOps(	# ldr r3, [y]
+					TempReg('val') << Location('y'),
+					Register('r3') << TempReg('val')
+				),
+			Assertion( (Register('r2') == 2) & (Register('r3') == 3) )
+			)
+
+
+	P1 = branchExtractor(P1)
+	P2 = branchExtractor(P2)
+	U = unrollCombination([P1, P2], 0)
+	k = 0
+	for p in U:
+
+		[i, j] = ssa_form(p)
+
+		start_encode = time.clock()
+		# -----------------------------
+		fw = gFW.encoder('SC')
+		# fw = gFW.encoder('TSO')
+		# fw = gFW.encoder('PSO')
+
+		# fw = hFW.encoder('SC')
+		# fw = hFW.encoder('TSO')
+		# fw = hFW.encoder('ARM')
+		formula = encode([i, j], fw)
+		# -----------------------------
+		elapsed_encode = (time.clock() - start_encode)
+		# print k, 'encode time: ', elapsed_encode, ' s.'
+
+		s = Solver()
+		s.add(formula)
+		# print 'solve it'
+
+		start_solving = time.clock()
+		result = s.check()
+		elapsed_solving = (time.clock() - start_solving)
+		print k, 'encode time: ', elapsed_encode, ' s.', 'solve time: ', elapsed_solving, ' s.',
+		print 'Ev', len(fw.info['Ev'])
+
+
+		k = k + 1
+		if result == sat:
+		# 	print i
+		# 	print j
+		# 	rf = fw.info['rel_rf']
+		# 	fr = fw.info['rel_fr']
+		# 	co = fw.info['rel_co']
+		# 	m = s.model()
+		# 	Ev = fw.info['Ev']
+		# 	for e1 in Ev:
+		# 		for e2 in Ev:
+		# 			if hFW.isRead(e2) and hFW.isWrite(e1):
+		# 				if is_true(m.evaluate(rf(e1,e2))):
+		# 					print e1, e2, m.evaluate(e2.val)
+		# 	for e1 in Ev:
+		# 		# for e2 in Ev:
+		# 		if hFW.isReadReg(e1):
+		# 			print e1, m.evaluate(e1.val)
+		# 	# for e1 in Ev:
+		# 	# 	for e2 in Ev:
+		# 	# 		if hFW.isWrite(e1) and hFW.isWrite(e2):
+		# 	# 			# if is_true(m.evaluate(co(e1,e2))):
+		# 	# 			print e1, e1.target, e2, e2.target, m.evaluate(co(e1,e2))
+			print result
+			return 
+		
+		print '----'
+
+def dekker():
+	P1 = seqOpsNode(
+			LabelStm('Lock'),
+			InstrOps(	# mov r1, #1		true
+				TempReg('val') << 1, 
+				Register('r1') << TempReg('val'),
+				),
+			InstrOps(	# mov r2, #0		false
+				TempReg('val') << 1, 
+				Register('r2') << TempReg('val'),
+				),
+			InstrOps(	# mov r5, #1		j
+				TempReg('val') << 1, 
+				Register('r5') << TempReg('val'),
+				),
+			InstrOps(	# str r1, [xi]		[xi] = true
+				TempReg('val') << Register('r1'), 
+				Location('xi') << TempReg('val')
+				),
+			LabelStm('While'),	#			while(x[j]){
+			InstrOps(	# ldr r3, [xj]
+					TempReg('val') << Location('xj'),
+					Register('r3') << TempReg('val')
+				),
+			InstrOps(	# cmp r3, #1
+				ParOps(
+					TempReg('rd') << 1,
+					TempReg('rt') << Register('r3')
+				),
+				ParOps(
+					SeqOps(
+						TempReg('val_z') << ifExp(TempReg('rd') == TempReg('rt'), 1, 0),
+						Register('z') << TempReg('val_z')
+					),
+					SeqOps(
+						TempReg('val_n') << ifExp(TempReg('rd') == TempReg('rt'), 0, 1),
+						Register('n') << TempReg('val_n')
+					)
+				)
+				),
+			InstrOps(	# bne CS
+				branchOp(Register('n') == 1, LabelStm('CS'))
+				),
+			LabelStm('If'),
+			InstrOps(	# ldr r4, [k]
+				TempReg('val') << Location('k'),
+				Register('r4') << TempReg('val')
+				),
+			InstrOps(	# cmp r4, r5
+				ParOps(
+					TempReg('rd') << Register('r5'),
+					TempReg('rt') << Register('r4')
+				),
+				ParOps(
+					SeqOps(
+						TempReg('val_z') << ifExp(TempReg('rd') == TempReg('rt'), 1, 0),
+						Register('z') << TempReg('val_z')
+					),
+					SeqOps(
+						TempReg('val_n') << ifExp(TempReg('rd') == TempReg('rt'), 0, 1),
+						Register('n') << TempReg('val_n')
+					)
+				)
+				),
+			InstrOps(	# bne While
+				branchOp(Register('n') == 1, LabelStm('While'))
+				),
+			InstrOps(	# str r2, [xi]
+				TempReg('val') << Register('r2'),
+				Location('xi') << TempReg('val')
+				),
+			LabelStm('While2'),
+			InstrOps(	# ldr r4, [k]
+				TempReg('val') << Location('k'),
+				Register('r4') << TempReg('val')
+				),
+			InstrOps(	# cmp r4, r5
+				ParOps(
+					TempReg('rd') << Register('r5'),
+					TempReg('rt') << Register('r4')
+				),
+				ParOps(
+					SeqOps(
+						TempReg('val_z') << ifExp(TempReg('rd') == TempReg('rt'), 1, 0),
+						Register('z') << TempReg('val_z')
+					),
+					SeqOps(
+						TempReg('val_n') << ifExp(TempReg('rd') == TempReg('rt'), 0, 1),
+						Register('n') << TempReg('val_n')
+					)
+				)
+				),
+			InstrOps(	# beq While2
+				branchOp(Register('z') == 1, LabelStm('While2'))
+				),
+			InstrOps(	# str r1, [xi]
+				TempReg('val') << Register('r1'),
+				Location('xi') << TempReg('val')
+				),
+			InstrOps(	# beq While2
+				branchOp(True, LabelStm('While'))
+				),
+			LabelStm('CS'),
+			Assertion(False)
+			)
+
+	P2 = seqOpsNode(
+			LabelStm('Lock'),
+			InstrOps(	# mov r1, #1		true
+				TempReg('val') << 1, 
+				Register('r1') << TempReg('val'),
+				),
+			InstrOps(	# mov r2, #0		false
+				TempReg('val') << 1, 
+				Register('r2') << TempReg('val'),
+				),
+			InstrOps(	# mov r5, #0		i
+				TempReg('val') << 0, 
+				Register('r5') << TempReg('val'),
+				),
+			InstrOps(	# str r1, [xj]		[xj] = true
+				TempReg('val') << Register('r1'), 
+				Location('xj') << TempReg('val')
+				),
+			LabelStm('While'),	#			while(x[i]){
+			InstrOps(	# ldr r3, [xi]
+					TempReg('val') << Location('xi'),
+					Register('r3') << TempReg('val')
+				),
+			InstrOps(	# cmp r3, #1
+				ParOps(
+					TempReg('rd') << 1,
+					TempReg('rt') << Register('r3')
+				),
+				ParOps(
+					SeqOps(
+						TempReg('val_z') << ifExp(TempReg('rd') == TempReg('rt'), 1, 0),
+						Register('z') << TempReg('val_z')
+					),
+					SeqOps(
+						TempReg('val_n') << ifExp(TempReg('rd') == TempReg('rt'), 0, 1),
+						Register('n') << TempReg('val_n')
+					)
+				)
+				),
+			InstrOps(	# bne CS
+				branchOp(Register('n') == 1, LabelStm('CS'))
+				),
+			LabelStm('If'),
+			InstrOps(	# ldr r4, [k]
+				TempReg('val') << Location('k'),
+				Register('r4') << TempReg('val')
+				),
+			InstrOps(	# cmp r4, r5
+				ParOps(
+					TempReg('rd') << Register('r5'),
+					TempReg('rt') << Register('r4')
+				),
+				ParOps(
+					SeqOps(
+						TempReg('val_z') << ifExp(TempReg('rd') == TempReg('rt'), 1, 0),
+						Register('z') << TempReg('val_z')
+					),
+					SeqOps(
+						TempReg('val_n') << ifExp(TempReg('rd') == TempReg('rt'), 0, 1),
+						Register('n') << TempReg('val_n')
+					)
+				)
+				),
+			InstrOps(	# bne While
+				branchOp(Register('n') == 1, LabelStm('While'))
+				),
+			InstrOps(	# str r2, [xj]
+				TempReg('val') << Register('r2'),
+				Location('xj') << TempReg('val')
+				),
+			LabelStm('While2'),
+			InstrOps(	# ldr r4, [k]
+				TempReg('val') << Location('k'),
+				Register('r4') << TempReg('val')
+				),
+			InstrOps(	# cmp r4, r5
+				ParOps(
+					TempReg('rd') << Register('r5'),
+					TempReg('rt') << Register('r4')
+				),
+				ParOps(
+					SeqOps(
+						TempReg('val_z') << ifExp(TempReg('rd') == TempReg('rt'), 1, 0),
+						Register('z') << TempReg('val_z')
+					),
+					SeqOps(
+						TempReg('val_n') << ifExp(TempReg('rd') == TempReg('rt'), 0, 1),
+						Register('n') << TempReg('val_n')
+					)
+				)
+				),
+			InstrOps(	# beq While2
+				branchOp(Register('z') == 1, LabelStm('While2'))
+				),
+			InstrOps(	# str r1, [xj]
+				TempReg('val') << Register('r1'),
+				Location('xj') << TempReg('val')
+				),
+			InstrOps(	# beq While2
+				branchOp(True, LabelStm('While'))
+				),
+			LabelStm('CS'),
+			Assertion(False)
+			)
+
+
+	P1 = branchExtractor(P1)
+	P2 = branchExtractor(P2)
+	U = unrollCombination([P1, P2], 1)
+	k = 0
+	for p in U:
+
+		[i, j] = ssa_form(p)
+		
+		start_encode = time.clock()
+		# -----------------------------
+		# fw = gFW.encoder('SC')
+		# fw = gFW.encoder('TSO')
+		# fw = gFW.encoder('PSO')
+
+
+		# fw = hFW.encoder('SC')
+		# fw = hFW.encoder('TSO')
+		fw = hFW.encoder('ARM')
+		formula = encode([i, j], fw)
+		# -----------------------------
+		elapsed_encode = (time.clock() - start_encode)
+		# print k, 'encode time: ', elapsed_encode, ' s.'
+
+		s = Solver()
+		s.add(formula)
+		# print 'solve it'
+
+		start_solving = time.clock()
+		result = s.check()
+		elapsed_solving = (time.clock() - start_solving)
+		print k, 'encode time: ', elapsed_encode, ' s.', 'solve time: ', elapsed_solving, ' s.',
+		print 'Ev', len(fw.info['Ev'])
+		
+
+		k = k + 1
+		# print result
+		if result == sat:
+			return 
+		
+		# print '----'
+
+
+def perterson():
+	P1 = seqOpsNode(
+			InstrOps(	# mov r6, #0
+				TempReg('val') << 0, 
+				Register('r6') << TempReg('val'),
+				),
+			InstrOps(	# mov r1, #1
+				TempReg('val') << 1, 
+				Register('r1') << TempReg('val'),
+				),
+			InstrOps(	# str r1, [f0]		
+				TempReg('val') << Register('r1'), 
+				Location('f0') << TempReg('val')
+				),
+			LabelStm('P0_gate'),	
+			InstrOps(	# str r1, [turn]		
+				TempReg('val') << Register('r1'), 
+				Location('turn') << TempReg('val')
+				),
+			LabelStm('while'),
+			InstrOps(	# ldr r2, [f1]
+				TempReg('val') << Location('f1'),
+				Register('r2') << TempReg('val')
+				),
+			InstrOps(	# cmp r2, #1
+				ParOps(
+					TempReg('rd') << 1,
+					TempReg('rt') << Register('r2')
+				),
+				ParOps(
+					SeqOps(
+						TempReg('val_z') << ifExp(TempReg('rd') == TempReg('rt'), 1, 0),
+						Register('z') << TempReg('val_z')
+					),
+					SeqOps(
+						TempReg('val_n') << ifExp(TempReg('rd') == TempReg('rt'), 0, 1),
+						Register('n') << TempReg('val_n')
+					)
+				)
+				),
+			InstrOps(	# bne CS
+				branchOp(Register('n') == 1, LabelStm('CS'))
+				),
+			LabelStm('while2'),
+			InstrOps(	# ldr r3, [turn]
+				TempReg('val') << Location('turn'),
+				Register('r3') << TempReg('val')
+				),
+			InstrOps(	# cmp r3, r1
+				ParOps(
+					TempReg('rd') << Register('r1'),
+					TempReg('rt') << Register('r3')
+				),
+				ParOps(
+					SeqOps(
+						TempReg('val_z') << ifExp(TempReg('rd') == TempReg('rt'), 1, 0),
+						Register('z') << TempReg('val_z')
+					),
+					SeqOps(
+						TempReg('val_n') << ifExp(TempReg('rd') == TempReg('rt'), 0, 1),
+						Register('n') << TempReg('val_n')
+					)
+				)
+				),
+			InstrOps(	# beq while
+				branchOp(Register('z') == 1, LabelStm('while'))
+				),
+			LabelStm('CS'),
+			Assertion(False)
+			)
+
+	P2 = seqOpsNode(
+			InstrOps(	# mov r6, #0
+				TempReg('val') << 0, 
+				Register('r6') << TempReg('val'),
+				),
+			InstrOps(	# mov r1, #1
+				TempReg('val') << 1, 
+				Register('r1') << TempReg('val'),
+				),
+			InstrOps(	# str r1, [f1]		
+				TempReg('val') << Register('r1'), 
+				Location('f1') << TempReg('val')
+				),
+			LabelStm('P1_gate'),	
+			InstrOps(	# str r6, [turn]		
+				TempReg('val') << Register('r6'), 
+				Location('turn') << TempReg('val')
+				),
+			LabelStm('while'),
+			InstrOps(	# ldr r2, [f1]
+				TempReg('val') << Location('f0'),
+				Register('r2') << TempReg('val')
+				),
+			InstrOps(	# cmp r2, #1
+				ParOps(
+					TempReg('rd') << 1,
+					TempReg('rt') << Register('r2')
+				),
+				ParOps(
+					SeqOps(
+						TempReg('val_z') << ifExp(TempReg('rd') == TempReg('rt'), 1, 0),
+						Register('z') << TempReg('val_z')
+					),
+					SeqOps(
+						TempReg('val_n') << ifExp(TempReg('rd') == TempReg('rt'), 0, 1),
+						Register('n') << TempReg('val_n')
+					)
+				)
+				),
+			InstrOps(	# bne CS
+				branchOp(Register('n') == 1, LabelStm('CS'))
+				),
+			LabelStm('while2'),
+			InstrOps(	# ldr r3, [turn]
+				TempReg('val') << Location('turn'),
+				Register('r3') << TempReg('val')
+				),
+			InstrOps(	# cmp r3, r6
+				ParOps(
+					TempReg('rd') << Register('r6'),
+					TempReg('rt') << Register('r3')
+				),
+				ParOps(
+					SeqOps(
+						TempReg('val_z') << ifExp(TempReg('rd') == TempReg('rt'), 1, 0),
+						Register('z') << TempReg('val_z')
+					),
+					SeqOps(
+						TempReg('val_n') << ifExp(TempReg('rd') == TempReg('rt'), 0, 1),
+						Register('n') << TempReg('val_n')
+					)
+				)
+				),
+			InstrOps(	# beq while
+				branchOp(Register('z') == 1, LabelStm('while'))
+				),
+			LabelStm('CS'),
+			Assertion(False)
+			)
+
+
+	P1 = branchExtractor(P1)
+	P2 = branchExtractor(P2)
+	U = unrollCombination([P1, P2], 1)
+	k = 0
+	for p in U:	
+		[i, j] = ssa_form(p)
+		
+		start_encode = time.clock()
+		# -----------------------------
+		# fw = gFW.encoder('SC')
+		# fw = gFW.encoder('TSO')
+		# fw = gFW.encoder('PSO')
+
+
+		# fw = hFW.encoder('SC')
+		# fw = hFW.encoder('TSO')
+		fw = hFW.encoder('ARM')
+		formula = encode([i, j], fw)
+		# -----------------------------
+		elapsed_encode = (time.clock() - start_encode)
+		# print k, 'encode time: ', elapsed_encode, ' s.'
+
+		s = Solver()
+		s.add(formula)
+		# print 'solve it'
+
+		start_solving = time.clock()
+		result = s.check()
+		elapsed_solving = (time.clock() - start_solving)
+		print k, 'encode time: ', elapsed_encode, ' s.', 'solve time: ', elapsed_solving, ' s.',
+		print 'Ev', len(fw.info['Ev'])
+		
+
+		k = k + 1
+		# print result
+		if result == sat:
+			print result
+			print i
+			print j
+			return 
+		
+		# print '----'
+
 
 if __name__ == '__main__':
-	mp()
-
-	# mp_fence()
+	start = time.clock()
+	# perterson()
+	# dekker()
+	# mp()
+	mp_fence()
 	# atomicTest()
 	# spin_SPARC()
 	# spinlock_TOPPERS()
+	# PSOError() 
+	elapsed = (time.clock() - start)
+	print elapsed, 's'
 

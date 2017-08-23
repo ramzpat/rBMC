@@ -60,7 +60,7 @@ def enum(*sequential, **named):
     enums = dict(zip(sequential, range(len(sequential))), **named)
     return type('Enum', (), enums)
 
-FenceType = enum('STBar', 'MEMBAR_WR', 'DMB', 'DSB', 'ISB')
+FenceType = enum('STBar', 'MEMBAR_WR', 'DMB', 'DSB', 'ISB', 'mfence')
 
 
 # additional fence
@@ -83,6 +83,10 @@ class DSB(fenceStm):
 class ISB(fenceStm): 	#cfence
 	def __str__(self):
 		return 'ISB()'
+
+class MFence(fenceStm): # mfence for x86
+	def __str__(self):
+		return 'mfence()'
 
 def isWrite(e):
 	return eq(e.decl(), WriteOp)
@@ -735,133 +739,85 @@ def arm_constraints(po, rf, fr, co, iico, rf_reg, poSet, iicoSet, rf_regSet, Ev,
 
 	return And(axiom)
 
-def SC_model(info = {}):
 
-	# Relations
-	spo = Function('spo', Opr, Opr, BoolSort()) 	# Significant program order
-	sco = Function('sco', Opr, Opr, BoolSort())		# Significant conflict order
+def TSO_model(po, rf, fr, co, iico, rf_reg, poSet, iicoSet, rf_regSet, Ev, RMW = []):
+	axiom = []
+	po_loc = Function('po-loc', Event, Event, BoolSort())
+	po_locSet = [ (e1.eid, e2.eid) for e1 in Ev for e2 in Ev if (e1.eid, e2.eid) in poSet and (eq(e1.target, e2.target) if None != e1.target and None != e2.target and e1.target.sort() == e2.target.sort() else False) ]
+	axiom += [po_loc(e1, e2) == And(po(e1, e2), (e1.target == e2.target) if None != e1.target and None != e2.target and e1.target.sort() == e2.target.sort() else False )  for e1 in Ev for e2 in Ev]
 	
-	# Helping_relation
-	loopRel = Function('loopRel', Opr, Opr, BoolSort())	
+	# "X86 TSO"
+	# include "x86fences.cat"
+	# include "filters.cat"
+	# include "cos.cat"
 
-	spo.domain = (lambda i: Opr)
-	sco.domain = (lambda i: Opr)
-	loopRel.domain = (lambda i: Opr) 
+	# (* Uniproc check *)
+	# let com = rf | fr | co
+	# acyclic po-loc | com
+	# com = Function('com', Event, Event, BoolSort())
+	(uniproc, axiom_uniproc) = acyclic(po_loc, rf, fr, co)
+	axiom.append(axiom_uniproc)
 
-	rw1, rw2 = Consts('rw1 rw2', MemOp)
-	a, b = 	Consts('a b', Opr)
-	r = Const('r', ReadOp)
-	w = Const('w', WriteOp)
-	r1, r2 = Consts('r1 r2', ReadOp)
-	w1, w2 = Consts('w1 w2', WriteOp)
-	i, j = Consts('i j', Proc)
+	# (* Atomic *)
+	# empty rmw & (fre;coe)
+	rmw = Function('rmw', Event, Event, BoolSort())			
+	axiom += ([(rmw(e1, e2) if (e1, e2) in RMW else Not(rmw(e1,e2)) ) for e1 in Ev for e2 in Ev])
 
-	# Conditions 
-	sc_axioms = [
-		# SPO Def
-		ForAll([rw1, rw2],
-			Implies(And(
-				po(rw1, rw2), 
-				# Not(conflict(rw1, rw2))
-				Not(mem_access(rw1) == mem_access(rw2))
-				),
-				spo(rw1, rw2)) 
-			),
-		# SCO Def
-		ForAll([rw1, rw2], 
-			Implies(ico(rw1, rw2), sco(rw1, rw2))
-			),
-		ForAll([r1, r2, w], 
-			Implies(
-				And(ico(r1, w), ico(w, r2)),
-				sco(r1, r2))
-			),
-		# Uniprocessor cond (RW -po-> W)
-		ForAll([rw1, w, i],
-			Implies(
-				And(
-					conflict(rw1, w),
-					po(rw1, w),
-				),
-				xo(subOpr(rw1,i), subOpr(w, i)) 
-				)
-			),
-		# Coherence (W -co'-> W)
-		ForAll([w1, w2, i],
-			Implies(
-				And(
-					conflict(w1, w2),
-					ico(w1, w2),
-					),
-				xo(subOpr(w1,i), subOpr(w2, i)) 
-				)
-			),
-		
-		# LoopRel def 
-		ForAll([rw1, rw2],
-			If( Exists(a, And(sco(rw1, a), spo(a, rw2))), loopRel(rw1, rw2),
-				If( Exists([a], And(loopRel(rw1,a), loopRel(a, rw2)) ) , 
-					loopRel(rw1, rw2) , Not(loopRel(rw1, rw2)) )
-				)
-		),
-		# not reflexive
-		ForAll([rw1, rw2],
-			Implies(loopRel(rw1,rw2), rw1 != rw2)
-		),
+	rfe = Function('rfe', Event, Event, BoolSort())
+	rfi = Function('rfi', Event, Event, BoolSort())
+	fre = Function('fre', Event, Event, BoolSort())
+	coe = Function('coe', Event, Event, BoolSort())
+
+	for e1 in Ev:
+		for e2 in Ev:
+			axiom.append(rfe(e1, e2) == And(rf(e1,e2), Not(e1.pid == e2.pid)))
+			axiom.append(rfi(e1, e2) == And(rf(e1,e2), (e1.pid == e2.pid)))
+			axiom.append(fre(e1, e2) == And(fr(e1,e2), Not(e1.pid == e2.pid)))
+			axiom.append(coe(e1, e2) == And(co(e1,e2), Not(e1.pid == e2.pid)))
+
+	
+	e1, e2, e3 = Consts('e1 e2 e3', Event)
+	frecoe = Function('fre;coe', Event, Event, BoolSort())
+	axiom.append( ForAll([e1, e2, e3], Implies( And(fre(e1, e3), coe(e3, e2)), frecoe(e1, e2) )) )
+	axiom.append( ForAll([e1, e2], Not( And( rmw(e1,e2), frecoe(e1, e2) ) )))
+
+	# (* GHB *)
+	# #ppo
+	# let po_ghb = WW(po) | RM(po)
+	po_ghb = Function('po_ghb', Event, Event, BoolSort())
+	axiom += [ po_ghb(u,v) if (u.eid, v.eid) in poSet and isRW(u) and isRW(v) and ( isRead(u) or isWrite(v) ) else Not(po_ghb(u,v))  for u in Ev for v in Ev]
+	# print [ po_ghb(u,v)  for u in Ev for v in Ev if (u.eid, v.eid) in poSet and isRW(u) and isRW(v) and ( isRead(u) or isWrite(v) ) ]
+
+	# #mfence
+	# include "x86fences.cat"
+
+	# #implied barriers
+	# let poWR = WR(po)
+	# let i1 = MA(poWR)
+	# let i2 = AM(poWR)
+	# let implied = i1 | i2
+	# Ignore because we not sure about atomic event
 
 
+	EvID = [0 for i in range(0, len(Ev))]
+	for i in Ev:
+		EvID[i.eid] = i
+	# dmb = Function('dmb', Event, Event, BoolSort())
 
-		# # LoopRel def (Base case)
-		# ForAll([rw1, rw2],
-		# 	Implies(sco(rw1, rw2),
-		# 		loopRel(rw1, rw2))
-		# 	),
-		# # LoopRel def (Inductive case)
-		# ForAll([rw1, rw2,a, b, i],
-		# 	Implies(
-		# 		And(loopRel(rw1, a),
-		# 			spo(a, b),
-		# 			sco(b, rw2)
-		# 			),
-		# 		loopRel(rw1, rw2))
-		# 	),
+	beforeFence = [ (eid1, eid2) for (eid1,eid2) in poSet if isFence(EvID[eid2]) and EvID[eid2].ftype == FenceType.mfence ]
+	afterFence = [ (eid1, eid2) for (eid1,eid2) in poSet if isFence(EvID[eid1]) and EvID[eid1].ftype == FenceType.mfence ]
+	fenceSet = concat_relation(beforeFence, afterFence)
 
+	mfence = Function('mfence', Event, Event, BoolSort())
+	axiom += [(mfence(u,v) if (u.eid, v.eid) in fenceSet else Not(mfence(u,v)) ) for u in Ev for v in Ev]
 
-		# Multi-proc 1
-		ForAll([w1, r, rw2, i],
-			Implies(
-				And(conflict(w1, rw2),
-					ico(w1, r),
-					po(r, rw2),
-					),
-				xo(subOpr(w1, i), subOpr(rw2, i)))
-			),
-		# Multi-proc 2
-		ForAll([rw1, rw2, a, i],
-			Implies(And(
-					conflict(rw1, rw2),
-					spo(rw1, a),
-					loopRel(a, rw2),
-					# spo(b, rw2),
-					),
-				xo(subOpr(rw1, i), subOpr(rw2, i)))
-			),
-		# Multi-proc 3
-		ForAll([w1, r2, i, r, a],
-			Implies(And(
-					conflict(w1, r2),
-					sco(w1, r),
-					spo(r, a), 
-					loopRel(a, r2),
-					# spo(b, r2),
-					),
-				xo(subOpr(w1, i), subOpr(r2, i)))
-			),
-	]
-	return sc_axioms
+	(tso, tso_axioms) = acyclic(mfence,po_ghb, rfe, fr, co)
+	axiom.append(tso_axioms)
+	# let ghb = mfence | implied | po_ghb | rfe | fr | co
+	# show implied
+	# acyclic ghb as tso
+	return And(axiom)
 
-def TSO_model(info = {}):
-	pass 
 
 def PSO_model(info = {}):
 	# Additional Op
@@ -1166,6 +1122,16 @@ class encoder(encodingFW):
 			fence.target = None
 			self.info['EventCnt'] = self.info['EventCnt'] + 1
 			return fence
+		elif isinstance(i, MFence):
+			eidCnt = self.info['EventCnt']
+			fence = Fence(eidCnt, FenceType.mfence, pid)
+			fence.eid = eidCnt
+			fence.pid = pid
+			fence.ftype = FenceType.mfence
+			fence.target = None
+			self.info['EventCnt'] = self.info['EventCnt'] + 1
+			return fence
+		print i
 		assert(False)
 		return None 
 
@@ -1357,6 +1323,12 @@ class encoder(encodingFW):
 			return arm_constraints(self.info['rel_po'], self.info['rel_rf'], self.info['rel_fr'], self.info['rel_co'], 
 									self.info['rel_iico'], self.info['rel_rf_reg'], self.info['poS'], self.info['iicoSet'], self.info['rf_regSet'], 
 									self.info['Ev'], self.info['RMW'])
-		elif self.model == 'PSO':
-			return PSO_model(self.info)
+		if self.model == 'TSO':
+			
+			return TSO_model(self.info['rel_po'], self.info['rel_rf'], self.info['rel_fr'], self.info['rel_co'], 
+									self.info['rel_iico'], self.info['rel_rf_reg'], self.info['poS'], self.info['iicoSet'], self.info['rf_regSet'], 
+									self.info['Ev'], self.info['RMW'])
+		# elif self.model == 'PSO':
+		# 	return PSO_model(self.info)
+		assert(False)
 		return []
