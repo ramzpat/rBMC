@@ -10,9 +10,9 @@ if __package__ is None:
     import sys
     from os import path
     sys.path.append( path.dirname(path.dirname( path.dirname( path.abspath(__file__) ) ) ))
-    from Arch.arch_object import *
+    from Arch.objects import *
 else:
-	from Arch.arch_object import *
+	from Arch.objects import *
 
 from z3 import *
 from abc import ABCMeta, abstractmethod
@@ -66,12 +66,12 @@ class ASMParser(object):
 		'''
 		instruction : ASSERT '(' bexp ')'
 		'''
-		p[0] = [InstrAssert(p[3])]
+		p[0] = [Assertion(p[3])]
 	def p_instruction_assume(self, p):
 		'''
 		instruction : ASSUME '(' bexp ')'
 		'''
-		p[0] = [InstrAssume(p[3])]
+		p[0] = [Assume(p[3])]
 
 	# ------------ ASSERT
 	def p_exp(self, p):

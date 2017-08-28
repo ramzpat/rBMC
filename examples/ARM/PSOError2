@@ -1,0 +1,5 @@
+ldr r1, [z]
+assume(r1 = #1)
+ldr r2, [x]
+ldr r3, [y]
+assert(r2 = #2 and r3 = #3)

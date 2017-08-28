@@ -1,0 +1,23 @@
+Lock: 
+	mov r1, #1		; true
+	mov r2, #0		; false
+	mov r5, #1		; i
+	str r1, [xj]	; x[j] = true
+While: 			; while(x[j]){
+	ldr r3, [xi]	; 	x[i] (load to r3)
+	cmp r3, #1		; 	x[i] = true ?
+	
+	bne CS			; 	!(x[i] = true) -> goto critical section
+	If: 			; 	if( k == i(#1) )
+	ldr r4, [k]		; 		k (load to r4)
+	cmp r4, r5		;		k = j ?
+	bne While  		; 		!(k = i) -> goto While
+	str r2, [xj]	;		x[j] = false
+While2:			; 		while( k == i); ?
+	ldr r4, [k]		;			k (load to r4)
+	cmp	r4, r5		;			k = i ?
+	beq While2		;			(k = 1) -> goto While2
+	str r1, [xj]	;		x[j] = true
+	b While 		; 	goto While
+	CS:				; critical section:
+	assert(r3 = #1)

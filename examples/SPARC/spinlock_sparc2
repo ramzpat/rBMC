@@ -1,0 +1,15 @@
+L1: 
+  ldstub [lock], r0
+  brnz,pn r0, L2
+  nop
+  ba L3
+L2: 
+  ldub [lock], r1
+  brnz,pt r1, L2
+  nop 
+  ba,a,pt L1
+  nop
+L3:
+assert(false)
+;assert(r0 = #1)
+; critical

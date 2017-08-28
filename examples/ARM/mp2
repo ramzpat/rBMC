@@ -1,0 +1,4 @@
+ldr r2, [Y]
+ldr r3, [X]
+assume(r2 = #1)
+assert(r3 = #1)

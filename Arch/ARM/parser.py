@@ -7,7 +7,7 @@ import ply.yacc as yacc
 # Get the token map from the lexer.  This is required.
 # from arm_lexer import lexer as arm_lexer, tokens as arm_tokens, literals as arm_literals
 # from asm_parser import ASMParser
-# from arm_object import *
+from arm_object import *
 
 # External Package
 if __package__ is None:
@@ -15,12 +15,15 @@ if __package__ is None:
   from os import path
   sys.path.append( path.dirname(path.dirname( path.dirname( path.abspath(__file__) ) ) ))
   from Arch.Abstract.parser import ASMParser
+  # from Arch.objects import *
 else:
   from Arch.Abstract.parser import ASMParser
+  # from Arch.objects import *
 
 from lexer import lexer as arm_lexer, tokens as arm_tokens, literals as arm_literals
-from arm_object import *
-from z3 import *
+
+
+
 
 class ARMParser(ASMParser):
 
@@ -34,7 +37,7 @@ class ARMParser(ASMParser):
 		'''
 		program : statements
 		'''
-		p[0] = p[1]
+		p[0] = seqOpsNode(*p[1])
 
 	def p_statements(self, p):
 		'''
@@ -157,8 +160,8 @@ if __name__ == '__main__':
 	  beq Lock
 	  ; critical section
 	Unlock:
-	  mov r1, #0 
-	  ;swp r1, r1, [locked]
+	  moveq r1, #0 
+	  swp r1, r1, [locked]
 	'''
 	m_prog = '''
 	Lock: 

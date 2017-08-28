@@ -370,7 +370,6 @@ class Resv(Exp):
 
 
 	def clone(self):
-
 		return self.__class__(self.address.clone())
 	
 	def __lshift__(self, other_address):

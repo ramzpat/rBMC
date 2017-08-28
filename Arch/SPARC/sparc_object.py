@@ -1,26 +1,11 @@
+
 if __package__ is None:
   import sys
   from os import path
   sys.path.append( path.dirname(path.dirname( path.dirname( path.abspath(__file__) ) ) ))
-  from Arch.arch_object import *
+  from Arch.objects import *
 else:  
-  from Arch.arch_object import *
-
-
-class SparcBranch(InstrBranch):
-	def setAnnulled(self, a):
-		self.annul = a 
-	def setPredict(self, p):
-		self.predict = p
-	def __str__(self):
-		return 'branch('+str(self.cond)+', '+ str(self.link)+ ', a:' + str(self.annul) + ', p:' + str(self.predict) + ')'
-
-	def setNext(self, delaySlot):
-		self.delayInstr = delaySlot
-
-	# def unroll(self):
-	# 	return ([InstrAssume(self.cond), self.delayInstr],
-	# 			[InstrAssume(Exp(EOpr['not'],(self.cond))), self.delayInstr])
+  from Arch.objects import *
 
 
 # Encode Instruction object
@@ -29,40 +14,62 @@ def instr(name, operand, cond = (True)):
 	rt = operand[1]
 	opr = operand[0]
 	if name == 'mova':
-		i = Instr('mova', rt, opr)
-		i.iSemantics = (lambda: [(rt << opr)])
-		statement = i
+		# i = Instr('mova', rt, opr)
+		# i.iSemantics = (lambda: [(rt << opr)])
+		statement = [
+			TempReg('val') << opr, 
+			rt << TempReg('val')
+		]
 		# [(operand[0] << operand[1])]
 	elif name == 'add' :
-		i = Instr('add', rt, opr)
-		i.iSemantics = (lambda: [rt << rt + opr])
-		statement = i
+		# i = Instr('add', rt, opr)
+		# i.iSemantics = (lambda: [rt << rt + opr])
+		statement = [
+			TempReg('v_rt') << rt, 
+			TempReg('v_opr') << opr,
+			TempReg('val') << TempReg('v_rt') + TempReg('v_opr'),
+			rt << TempReg('val')
+		]
 		# [(operand[0] << (operand[0] + operand[1]))]
 	elif name == 'cmp' :
-		i = Instr('cmp', rt, opr)
-		i.iSemantics = (lambda: [Register('z') << i_if_exp(rt == opr, 1, 0), 
-					Register('n') << i_if_exp(rt < opr, 1, 0)])
-		statement = i
+		# i = Instr('cmp', rt, opr)
+		# i.iSemantics = (lambda: [Register('z') << i_if_exp(rt == opr, 1, 0), 
+		# 			Register('n') << i_if_exp(rt < opr, 1, 0)])
+		statement = [
+			TempReg('v_rt') << rt,
+			TempReg('v_opr') << opr,
+			TempReg('v_z') << ifExp( TempReg('v_rt') == TempReg('v_opr'), 1, 0 ),
+			TempReg('v_n') << ifExp( TempReg('v_rt') != TempReg('v_opr'), 0, 1 ),
+			Register('z') << TempReg('v_z'),
+			Register('n') << TempReg('v_n')
+		]
 		# [Register('z') << i_if_exp(rt == opr, 1, 0), 
 		# 			Register('n') << i_if_exp(rt < opr, 1, 0)]
-	return [statement]
+	return [InstrOps(*statement)]
 
 def instr_memory(name, addr, reg, cond = (True)):
 	# cond = decode(cond)
 	statement = []
 	if name == 'ldub' :
-		i = Instr('ldub', reg, addr)
-		i.iSemantics = (lambda: [(reg << i_read(addr))])
-		statement = i
+		# i = Instr('ldub', reg, addr)
+		# i.iSemantics = (lambda: [(reg << i_read(addr))])
+		statement = [
+			TempReg('val') << Location(addr),
+			reg << TempReg('val')
+		]
 		# [(reg << i_read(addr))]
 	elif name == 'ldstub' :
-		i = Instr('ldstub', reg, addr)
-		i.iSemantics = (lambda: [(reg << i_rmw(1, addr))])
-		statement = i 
+		# i = Instr('ldstub', reg, addr)
+		# i.iSemantics = (lambda: [(reg << i_rmw(1, addr))])
+		statement = [
+			Atomic(TempReg('val') << Location(addr)), 
+			reg << TempReg('val'),
+			Atomic(Location(addr) << 1)
+		] 
 		# [(reg << i_rmw(1, addr))]
 	# elif name == 'str':
 	# 	statement = [i_write(reg, operand)]
-	return [statement]
+	return [InstrOps(*statement)]
 
 def instr_branch(br, reg, label):
 	statement = []
@@ -138,16 +145,18 @@ def instr_branch(br, reg, label):
 		elif br[1] == 'pn':
 			p = 0
 	if name == 'brnz':
-		b = SparcBranch(label, ~(reg == 0))
-		b.setAnnulled(a)
-		b.setPredict(p)
+		b = branchOp(~(reg == 0), label)
+		# SparcBranch(label, ~(reg == 0))
+		b.annulled = a
+		b.predict = p
 		statement = [b]
 	elif name == 'ba':
-		b = SparcBranch(label, True)
-		b.setAnnulled(a)
-		b.setPredict(p)
+		b = branchOp(True, label)
+		# SparcBranch(label, True)
+		b.annulled = a
+		b.predict = p
 		statement = [b]
-	return statement
+	return [InstrOps(*statement)]
 
 # def instr_delaySlot(s):
 # 	for i in range(0, len(s)-1):
@@ -155,3 +164,19 @@ def instr_branch(br, reg, label):
 # 			s[i].setNext(s[i+1])
 # 			s[i+1] = None
 # 	return s
+
+def delayedInstrBehavior(s):
+	i = 0
+	while (i < len(s)-1):
+		if isinstance(s[i], InstrOps) and s[i].getBranch() != None:
+			b = s[i].getBranch()
+			if(b.annulled == 1):
+				s[i] = InstrOps(s[i+1].elements, b )
+				s[i+1] = InstrOps()
+			else:
+				tmp = s[i]
+				s[i] = s[i+1]
+				s[i+1] = tmp
+				i = i + 1
+		i = i + 1
+	return s

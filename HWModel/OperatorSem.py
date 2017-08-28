@@ -705,8 +705,6 @@ def seqOpsNode(*seq):
 	return e
 
 class OpsNode:
-
-
 	def __init__(self, ops, next = []):
 		# print ops.__class__
 		assert(isinstance(ops, InstrOps) or isinstance(ops, AnnotatedStatement))

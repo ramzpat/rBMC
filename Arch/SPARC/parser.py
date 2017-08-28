@@ -31,7 +31,7 @@ class SPARCParser(ASMParser):
 		'''
 		program : statements
 		'''
-		p[0] = (p[1])
+		p[0] = (seqOpsNode(*(delayedInstrBehavior(p[1]))))
 	def p_statements(self, p):
 		'''
 		statements : statement 
@@ -40,6 +40,11 @@ class SPARCParser(ASMParser):
 		if(len(p) == 2):
 			p[0] = p[1]
 		else:
+			# print '------'
+			# print p[2]
+			# for e in p[1]:
+			# 	print e,',',
+			# print '------'
 			p[0] = p[1] + p[2]
 	def p_statement(self, p):
 		'''
@@ -67,7 +72,7 @@ class SPARCParser(ASMParser):
 	def p_instruction_instr_nop(self, p):
 		''' instruction : INSTR_NOP
 		'''
-		p[0] = [None]
+		p[0] = [InstrOps()]
 
 	def p_instr_processing(self, p):
 		''' instr_processing : INSTR_ARTH REGISTER ',' operand

@@ -5,9 +5,9 @@ _tabversion = '3.8'
 
 _lr_method = 'LALR'
 
-_lr_signature = '1029C2FAB0E7BDFBD8C629F9D0C9453E'
+_lr_signature = 'D0F32237BF0754C38C229DBFB1610101'
     
-_lr_action_items = {'REGISTER':([4,5,10,16,18,20,23,27,34,41,42,46,51,52,54,57,58,60,61,62,65,69,71,],[17,19,22,28,43,45,47,28,28,28,28,68,28,28,28,28,28,28,28,28,28,85,28,]),'NUMBER':([33,],[53,]),'ASSERT':([0,2,6,7,9,12,13,24,26,28,48,49,53,59,64,70,81,87,91,94,96,],[3,-10,-9,-7,3,-8,-6,3,-26,-35,-5,-25,-34,-11,-13,-14,-12,-19,-18,-21,-20,]),'INSTR1':([0,2,6,7,9,12,13,24,26,28,48,49,53,59,64,70,81,87,91,94,96,],[4,-10,-9,-7,4,-8,-6,4,-26,-35,-5,-25,-34,-11,-13,-14,-12,-19,-18,-21,-20,]),'INSTR2':([0,2,6,7,9,12,13,24,26,28,48,49,53,59,64,70,81,87,91,94,96,],[5,-10,-9,-7,5,-8,-6,5,-26,-35,-5,-25,-34,-11,-13,-14,-12,-19,-18,-21,-20,]),'COND':([4,5,10,14,],[18,20,23,25,]),'BLIT':([16,27,34,41,54,60,61,],[31,31,31,31,31,31,31,]),'#':([16,27,34,41,42,51,52,54,57,58,60,61,62,65,71,],[33,33,33,33,33,33,33,33,33,33,33,33,33,33,33,]),'INSTR_SWP':([0,2,6,7,9,12,13,24,26,28,48,49,53,59,64,70,81,87,91,94,96,],[10,-10,-9,-7,10,-8,-6,10,-26,-35,-5,-25,-34,-11,-13,-14,-12,-19,-18,-21,-20,]),')':([28,29,30,31,32,35,36,37,38,39,50,53,55,56,63,72,73,74,75,76,77,78,79,80,86,],[-35,-32,-17,-41,-30,-24,-40,59,-36,-39,70,-34,74,75,-38,-15,-16,-42,-27,-22,-23,-33,-37,-43,75,]),'(':([3,15,16,27,34,41,51,52,54,57,58,60,61,62,71,],[16,27,34,34,54,34,71,71,54,71,71,34,34,71,71,]),'+':([28,30,32,35,53,75,76,77,],[-35,51,-30,-24,-34,-27,-22,-23,]),'*':([28,32,35,53,75,],[-35,-30,57,-34,-27,]),'-':([28,30,32,35,53,75,76,77,],[-35,52,-30,-24,-34,-27,-22,-23,]),',':([17,19,22,43,45,47,68,85,],[42,44,46,65,67,69,84,90,]),'/':([28,32,35,53,75,],[-35,-30,58,-34,-27,]),':':([11,],[24,]),'$end':([1,2,6,7,8,9,12,13,21,24,26,28,48,49,53,59,64,70,81,87,91,94,96,],[-1,-10,-9,-7,0,-2,-8,-6,-3,-4,-26,-35,-5,-25,-34,-11,-13,-14,-12,-19,-18,-21,-20,]),'RELOP':([28,30,32,35,40,53,56,72,73,75,76,77,],[-35,-17,-30,-24,62,-34,62,-15,-16,-27,-22,-23,]),'[':([44,67,84,90,],[66,83,89,93,]),']':([82,88,92,95,],[87,91,94,96,]),'ID':([0,2,6,7,9,12,13,14,24,25,26,28,48,49,53,59,64,66,70,81,83,87,89,91,93,94,96,],[11,-10,-9,-7,11,-8,-6,26,-4,49,-26,-35,-5,-25,-34,-11,-13,82,-14,-12,88,-19,92,-18,95,-21,-20,]),'AND':([28,30,31,32,35,36,38,39,53,63,72,73,74,75,76,77,80,],[-35,-17,-41,-30,-24,-40,61,-39,-34,-38,-15,-16,-42,-27,-22,-23,-43,]),'INSTR_BRANCH':([0,2,6,7,9,12,13,24,26,28,48,49,53,59,64,70,81,87,91,94,96,],[14,-10,-9,-7,14,-8,-6,14,-26,-35,-5,-25,-34,-11,-13,-14,-12,-19,-18,-21,-20,]),'ASSUME':([0,2,6,7,9,12,13,24,26,28,48,49,53,59,64,70,81,87,91,94,96,],[15,-10,-9,-7,15,-8,-6,15,-26,-35,-5,-25,-34,-11,-13,-14,-12,-19,-18,-21,-20,]),'NOT':([16,27,34,54,60,61,],[41,41,41,41,41,41,]),'OR':([28,29,30,31,32,35,36,37,38,39,50,53,55,63,72,73,74,75,76,77,78,79,80,],[-35,-32,-17,-41,-30,-24,-40,60,-36,-39,60,-34,60,-38,-15,-16,-42,-27,-22,-23,-33,-37,-43,]),}
+_lr_action_items = {'REGISTER':([4,5,10,16,18,20,23,27,34,41,42,46,51,52,54,57,58,60,61,62,65,69,71,],[17,19,22,28,43,45,47,28,28,28,28,68,28,28,28,28,28,28,28,28,28,85,28,]),'NUMBER':([33,],[53,]),'ASSERT':([0,2,6,7,9,12,13,24,26,28,48,49,53,59,64,70,81,87,91,94,96,],[3,-10,-9,-7,3,-8,-6,3,-26,-35,-5,-25,-34,-11,-14,-12,-13,-19,-18,-24,-23,]),'INSTR1':([0,2,6,7,9,12,13,24,26,28,48,49,53,59,64,70,81,87,91,94,96,],[4,-10,-9,-7,4,-8,-6,4,-26,-35,-5,-25,-34,-11,-14,-12,-13,-19,-18,-24,-23,]),'INSTR2':([0,2,6,7,9,12,13,24,26,28,48,49,53,59,64,70,81,87,91,94,96,],[5,-10,-9,-7,5,-8,-6,5,-26,-35,-5,-25,-34,-11,-14,-12,-13,-19,-18,-24,-23,]),'COND':([4,5,10,14,],[18,20,23,25,]),'BLIT':([16,27,34,41,54,60,61,],[31,31,31,31,31,31,31,]),'#':([16,27,34,41,42,51,52,54,57,58,60,61,62,65,71,],[33,33,33,33,33,33,33,33,33,33,33,33,33,33,33,]),'INSTR_SWP':([0,2,6,7,9,12,13,24,26,28,48,49,53,59,64,70,81,87,91,94,96,],[10,-10,-9,-7,10,-8,-6,10,-26,-35,-5,-25,-34,-11,-14,-12,-13,-19,-18,-24,-23,]),')':([28,29,30,31,32,35,36,37,38,39,50,53,55,56,63,72,73,74,75,76,77,78,79,80,86,],[-35,-31,-17,-41,-29,-22,-40,59,-36,-39,70,-34,74,75,-38,-15,-16,-42,-27,-20,-21,-32,-37,-43,75,]),'(':([3,15,16,27,34,41,51,52,54,57,58,60,61,62,71,],[16,27,34,34,54,34,71,71,54,71,71,34,34,71,71,]),'+':([28,30,32,35,53,75,76,77,],[-35,51,-29,-22,-34,-27,-20,-21,]),'*':([28,32,35,53,75,],[-35,-29,57,-34,-27,]),'-':([28,30,32,35,53,75,76,77,],[-35,52,-29,-22,-34,-27,-20,-21,]),',':([17,19,22,43,45,47,68,85,],[42,44,46,65,67,69,84,90,]),'/':([28,32,35,53,75,],[-35,-29,58,-34,-27,]),':':([11,],[24,]),'$end':([1,2,6,7,8,9,12,13,21,24,26,28,48,49,53,59,64,70,81,87,91,94,96,],[-1,-10,-9,-7,0,-2,-8,-6,-3,-4,-26,-35,-5,-25,-34,-11,-14,-12,-13,-19,-18,-24,-23,]),'RELOP':([28,30,32,35,40,53,56,72,73,75,76,77,],[-35,-17,-29,-22,62,-34,62,-15,-16,-27,-20,-21,]),'[':([44,67,84,90,],[66,83,89,93,]),']':([82,88,92,95,],[87,91,94,96,]),'ID':([0,2,6,7,9,12,13,14,24,25,26,28,48,49,53,59,64,66,70,81,83,87,89,91,93,94,96,],[11,-10,-9,-7,11,-8,-6,26,-4,49,-26,-35,-5,-25,-34,-11,-14,82,-12,-13,88,-19,92,-18,95,-24,-23,]),'AND':([28,30,31,32,35,36,38,39,53,63,72,73,74,75,76,77,80,],[-35,-17,-41,-29,-22,-40,61,-39,-34,-38,-15,-16,-42,-27,-20,-21,-43,]),'INSTR_BRANCH':([0,2,6,7,9,12,13,24,26,28,48,49,53,59,64,70,81,87,91,94,96,],[14,-10,-9,-7,14,-8,-6,14,-26,-35,-5,-25,-34,-11,-14,-12,-13,-19,-18,-24,-23,]),'ASSUME':([0,2,6,7,9,12,13,24,26,28,48,49,53,59,64,70,81,87,91,94,96,],[15,-10,-9,-7,15,-8,-6,15,-26,-35,-5,-25,-34,-11,-14,-12,-13,-19,-18,-24,-23,]),'NOT':([16,27,34,54,60,61,],[41,41,41,41,41,41,]),'OR':([28,29,30,31,32,35,36,37,38,39,50,53,55,63,72,73,74,75,76,77,78,79,80,],[-35,-31,-17,-41,-29,-22,-40,60,-36,-39,60,-34,60,-38,-15,-16,-42,-27,-20,-21,-32,-37,-43,]),}
 
 _lr_action = {}
 for _k, _v in _lr_action_items.items():
@@ -26,41 +26,41 @@ for _k, _v in _lr_goto_items.items():
 del _lr_goto_items
 _lr_productions = [
   ("S' -> program","S'",1,None,None,None),
-  ('program -> statements','program',1,'p_program_statements','parser.py',35),
-  ('statements -> statement','statements',1,'p_statements','parser.py',41),
-  ('statements -> statement statements','statements',2,'p_statements','parser.py',42),
-  ('statement -> ID :','statement',2,'p_statement','parser.py',51),
-  ('statement -> ID : instruction','statement',3,'p_statement','parser.py',52),
-  ('statement -> instruction','statement',1,'p_statement','parser.py',53),
-  ('instruction -> instr_processing','instruction',1,'p_instruction','parser.py',63),
-  ('instruction -> instr_memory','instruction',1,'p_instruction','parser.py',64),
-  ('instruction -> instr_swp','instruction',1,'p_instruction','parser.py',65),
-  ('instruction -> instr_branch','instruction',1,'p_instruction','parser.py',66),
+  ('program -> statements','program',1,'p_program_statements','parser.py',38),
+  ('statements -> statement','statements',1,'p_statements','parser.py',44),
+  ('statements -> statement statements','statements',2,'p_statements','parser.py',45),
+  ('statement -> ID :','statement',2,'p_statement','parser.py',54),
+  ('statement -> ID : instruction','statement',3,'p_statement','parser.py',55),
+  ('statement -> instruction','statement',1,'p_statement','parser.py',56),
+  ('instruction -> instr_processing','instruction',1,'p_instruction','parser.py',66),
+  ('instruction -> instr_memory','instruction',1,'p_instruction','parser.py',67),
+  ('instruction -> instr_swp','instruction',1,'p_instruction','parser.py',68),
+  ('instruction -> instr_branch','instruction',1,'p_instruction','parser.py',69),
   ('instruction -> ASSERT ( bexp )','instruction',4,'p_instruction_assert','parser.py',67),
-  ('instr_processing -> INSTR1 COND REGISTER , operand','instr_processing',5,'p_instr_processing','parser.py',71),
-  ('instr_processing -> INSTR1 REGISTER , operand','instr_processing',4,'p_instr_processing','parser.py',72),
   ('instruction -> ASSUME ( bexp )','instruction',4,'p_instruction_assume','parser.py',72),
+  ('instr_processing -> INSTR1 COND REGISTER , operand','instr_processing',5,'p_instr_processing','parser.py',74),
+  ('instr_processing -> INSTR1 REGISTER , operand','instr_processing',4,'p_instr_processing','parser.py',75),
   ('exp -> texp + texp','exp',3,'p_exp','parser.py',79),
   ('exp -> texp - texp','exp',3,'p_exp','parser.py',80),
   ('exp -> texp','exp',1,'p_exp','parser.py',81),
-  ('instr_memory -> INSTR2 COND REGISTER , [ ID ]','instr_memory',7,'p_instr_memory','parser.py',80),
-  ('instr_memory -> INSTR2 REGISTER , [ ID ]','instr_memory',6,'p_instr_memory','parser.py',81),
-  ('instr_swp -> INSTR_SWP COND REGISTER , REGISTER , [ ID ]','instr_swp',9,'p_instr_swp','parser.py',89),
-  ('instr_swp -> INSTR_SWP REGISTER , REGISTER , [ ID ]','instr_swp',8,'p_instr_swp','parser.py',90),
+  ('instr_memory -> INSTR2 COND REGISTER , [ ID ]','instr_memory',7,'p_instr_memory','parser.py',83),
+  ('instr_memory -> INSTR2 REGISTER , [ ID ]','instr_memory',6,'p_instr_memory','parser.py',84),
   ('texp -> factor * factor','texp',3,'p_texp','parser.py',92),
   ('texp -> factor / factor','texp',3,'p_texp','parser.py',93),
   ('texp -> factor','texp',1,'p_texp','parser.py',94),
-  ('instr_branch -> INSTR_BRANCH COND ID','instr_branch',3,'p_instr_branch','parser.py',97),
-  ('instr_branch -> INSTR_BRANCH ID','instr_branch',2,'p_instr_branch','parser.py',98),
+  ('instr_swp -> INSTR_SWP COND REGISTER , REGISTER , [ ID ]','instr_swp',9,'p_instr_swp','parser.py',92),
+  ('instr_swp -> INSTR_SWP REGISTER , REGISTER , [ ID ]','instr_swp',8,'p_instr_swp','parser.py',93),
+  ('instr_branch -> INSTR_BRANCH COND ID','instr_branch',3,'p_instr_branch','parser.py',100),
+  ('instr_branch -> INSTR_BRANCH ID','instr_branch',2,'p_instr_branch','parser.py',101),
   ('factor -> ( exp )','factor',3,'p_factor_exp','parser.py',105),
-  ('operands -> # NUMBER','operands',2,'p_operands_operand','parser.py',106),
-  ('operands -> REGISTER','operands',1,'p_operands_register','parser.py',109),
+  ('operands -> # NUMBER','operands',2,'p_operands_operand','parser.py',109),
   ('factor -> operand','factor',1,'p_factor_operand','parser.py',110),
-  ('operands -> operand , operands','operands',3,'p_operands_operand_operands','parser.py',113),
+  ('operands -> REGISTER','operands',1,'p_operands_register','parser.py',112),
   ('bexp -> bterm','bexp',1,'p_bexp','parser.py',116),
   ('bexp -> bexp OR bterm','bexp',3,'p_bexp','parser.py',117),
-  ('operand -> # NUMBER','operand',2,'p_operand_number','parser.py',117),
-  ('operand -> REGISTER','operand',1,'p_operand_register','parser.py',121),
+  ('operands -> operand , operands','operands',3,'p_operands_operand_operands','parser.py',116),
+  ('operand -> # NUMBER','operand',2,'p_operand_number','parser.py',120),
+  ('operand -> REGISTER','operand',1,'p_operand_register','parser.py',124),
   ('bterm -> nfactor','bterm',1,'p_bterm_nfactor','parser.py',125),
   ('bterm -> nfactor AND bterm','bterm',3,'p_bterm_nfactor_and','parser.py',128),
   ('nfactor -> NOT bfactor','nfactor',2,'p_nfactor_not','parser.py',131),
