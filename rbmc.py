@@ -1,20 +1,21 @@
 # RBMC
 import sys 
 # reading input files
-# usage: python rbmc.py <k> <memory model> {<input file>}+
+# usage: python rbmc.py <k> <fw> <memory model> {<input file>}+
 bound_k = 0
 memory_model = 'sc'
 input_files = []
 syntax = 'arm'
 
-if len(sys.argv) < 4:   
+if len(sys.argv) < 5:   
 	print 'error'
 	sys.exit()
 
 bound_k = int(sys.argv[1])
-memory_model = sys.argv[2]
-syntax = sys.argv[3]
-input_files = sys.argv[4:]
+fw = sys.argv[2]
+memory_model = sys.argv[3]
+syntax = sys.argv[4]
+input_files = sys.argv[5:]
 nProc = len(input_files)
 
 
@@ -52,15 +53,18 @@ X = pathExploring(prog, bound_k)
 
 for p in X:
 	# encode 
-	e = Encoder.encode(p, 'gharachorloo', memory_model)
+	e = Encoder.encode(p, fw, memory_model)
 	# SMT solver
 	s = Solver()
 	s.add(e)
 	result = s.check()
 	if result == z3.sat:
-		print 'invalid'
+		print 'Invalid'
+		print '========= Execution Path ========='
+		for t in p:
+			print t
 if result == z3.unsat:
-	print 'valid under bound', bound_k
+	print 'Valid under bound', bound_k
 
 
 

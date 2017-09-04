@@ -55,7 +55,7 @@ class havoc(AnnotatedStatement):
 
 
 class DoWhile(AnnotatedStatement):
-	def __init__(self, body, inv, branchInstr, Q):
+	def __init__(self, body, inv, branchInstr, Q = True):
 		self.body = body 			# loop body
 		self.bInstr = branchInstr 	# branch condition
 		self.inv = inv 				# invariant

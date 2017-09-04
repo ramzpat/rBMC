@@ -159,6 +159,7 @@ class encodingFW:
 			PoS += poS
 			self.info['Pid'] += 1
 
+		print 'no. of Ev, ', len(self.info['Ev']), 
 		if len(self.info['Ev']) > 1:
 			self.info['CS'] += [Distinct([ self.getEvent(e) for e in self.info['Ev'] if self.getEvent(e) != None ])]
 			# print 'hey'

@@ -105,12 +105,15 @@ class ARMParser(ASMParser):
 		else:
 			p[0] = instr_branch(p[2])
 
+
 	def p_operands_operand(self, p):
 		'''operands : '#' NUMBER'''
 		p[0] = [int(p[2])]
 	def p_operands_register(self, p):
 		'''operands : REGISTER'''
 		p[0] = [Register(p[1])]
+	
+
 
 	def p_operands_operand_operands(self, p):
 		'''operands : operand ',' operands'''
@@ -123,6 +126,11 @@ class ARMParser(ASMParser):
 	def p_operand_register(self, p):
 		'operand : REGISTER'
 		p[0] = Register(p[1])
+	def p_operand_location(self, p):
+		'''
+		operand : '[' ID ']' 
+		'''
+		p[0] = Location(p[2])
 
 # Build the parser
 # parser = yacc.yacc()
@@ -168,10 +176,10 @@ if __name__ == '__main__':
 	mov r1, #1 
 	str r1, [A]
 	str r1, [Y]
-	assert(r1 <= #1 and true)
+	assert([A] = #1)
 	'''
-	
-	for i in parse(m_prog):
+	p = parse(m_prog)
+	for i in p:
 		print i
 	pass
 

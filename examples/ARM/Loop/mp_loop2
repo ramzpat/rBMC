@@ -1,0 +1,7 @@
+;mp_loop2
+do{
+	ldr r1, [y]
+	ldr r1, [x]
+{ r1 = #0 or r1 = #1 }
+}while( r1 = #1 )
+assert([x] = #1)

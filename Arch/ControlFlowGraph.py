@@ -15,7 +15,7 @@ def seqOpsNode(*seq):
 class OpsNode:
 	def __init__(self, ops, next = []):
 		# print ops.__class__
-		assert(isinstance(ops, InstrOps) or isinstance(ops, AnnotatedStatement))
+		assert(isinstance(ops, SeqOps) or isinstance(ops, InstrOps) or isinstance(ops, AnnotatedStatement))
 		self.ops = ops 
 		self.next = next 
 		self.isLoop = False
@@ -24,7 +24,6 @@ class OpsNode:
 
 		self.pred = set([])
 		for i in next:
-
 			i.pred = i.pred.union(set([self]))
 			# print i.pred
 
@@ -36,11 +35,23 @@ class OpsNode:
 		# print self.reachList 
 
 	def __lshift__(self, other):
-		if self.next == []:
+		if isinstance(self.ops, SeqOps) and self.ops.elements == [] and self.next == []:
+			self.ops = other.ops 
+			self.next = other.next 
+			self.dominator = other.dominator
+			self.pred = other.pred
+
+			for i in self.next:
+				i.pred -= set([other])
+				i.pred = i.pred.union(set([self]))
+
+		elif self.next == []:
 			self.next = [other]
+			other.pred = other.pred.union(set([self]))
 		else:
 			for i in self.next:
 				i << other 
+				# other.pred.union(set[])
 
 	def __add__(self, other):
 		ops = self.ops 
@@ -70,6 +81,7 @@ class OpsNode:
 			for i in self.next:
 				for p in i.exploreNodes(visited + [self]):
 					yield p
+
 
 	def dominates(self, other):
 		if self.dominator == set([]):
@@ -105,6 +117,8 @@ class OpsNode:
 				return i
 		assert(False)
 		return self.next[0]
+
+
 
 	def isLoopBranch(self, inNode):
 		if isinstance(self.ops, Ops) and len(self.next) > 1:

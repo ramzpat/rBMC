@@ -58,8 +58,15 @@ if __name__ == '__main__':
         SWP r1, r2, [A]
         CMP r1, #1
         STR EQ r1, [A]
-        assert(r1 = r1)
+        assert([A] = r1)
     '''
+  data = '''
+  do{
+  ldr r1, [y]
+  cmp r1, #1
+  }while(n = 1)
+  assert([x] = #1)
+  '''
   lexer.input(data)
 
   while True:

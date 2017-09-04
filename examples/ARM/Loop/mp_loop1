@@ -1,0 +1,4 @@
+;mp_loop1
+mov r1, #1
+str r1, [x]
+str r1, [y]

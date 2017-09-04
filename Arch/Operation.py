@@ -60,9 +60,10 @@ class fenceStm(Operation):
 		return 'fence()' 
 		
 class branchOp(Operation):
-	def __init__(self, cond, label):
+	def __init__(self, cond, label, fake_op = False):
 		self.cond = cond
 		self.label = label
+		self.fake_op = fake_op
 	def clone(self):
 		return self.__class__(self.cond, self.label)
 	def __str__(self):

@@ -10,11 +10,12 @@ class ASMLex(object):
 
   tokens = ['COMMENT',                      # Comments 
             'ASSERT', 'ASSUME',             # Annotations
+            'DO', 'WHILE',                  
             'REGISTER', 'NUMBER', 'COND',   # Reg, imm, assembly predicate
             'RELOP', 'BLIT','AND', 'OR', 'NOT',
             'ID'
             ]
-  literals = [ '[', ']', ',', '#', ':', '(' ,')' ,]
+  literals = [ '[', ']', ',', '#', ':', '(' ,')', '{' , '}' ,]
 
   @abstractmethod
   def __init__(self):
@@ -36,6 +37,14 @@ class ASMLex(object):
   def t_ASSUME(self, t):
     r'assume | ASSUME'
     return t
+  def t_DO(self, t):
+    r'do | DO'
+    return t 
+  def t_WHILE(self, t):
+    r'while | WHILE'
+    return t
+
+
   def t_NOT(self, t):
     r'not'
     return t  

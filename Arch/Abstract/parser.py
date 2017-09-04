@@ -72,6 +72,12 @@ class ASMParser(object):
 		instruction : ASSUME '(' bexp ')'
 		'''
 		p[0] = [Assume(p[3])]
+	def p_instruction_do(self, p):
+		'''
+		instruction : DO '{' statements '{' bexp '}' '}' WHILE '(' bexp ')'
+		'''
+		# p[0] = 
+		p[0] = [DoWhile( SeqOps(*p[3]), p[5], p[10])]
 
 	# ------------ ASSERT
 	def p_exp(self, p):

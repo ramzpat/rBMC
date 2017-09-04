@@ -1158,9 +1158,9 @@ class encoder(encodingFW):
 				addrLoc = Int(str(e.address))
 				self.info['Loc'][e.address] = InitLoc(addrLoc)
 			return self.info['Loc'][e.address]
-		elif isinstance(e, Resv):
-			assert(False)
-			pass
+		# elif isinstance(e, Resv):
+		# 	assert(False)
+		# 	pass
 		elif isinstance(e, ifExp):
 			# val := (cond)?1:0
 			# r1 << val 

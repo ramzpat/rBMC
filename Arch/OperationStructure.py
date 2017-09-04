@@ -11,7 +11,7 @@ class Ops:
 		return self.__class__()
 		
 	def strIndent(self, indent = 0):
-		ret = (' '* indent) + 'emptyOps'
+		ret = (' '* indent) + 'nil'
 		return ret
 
 	def __str__(self):

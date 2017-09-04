@@ -204,14 +204,44 @@ def ssa_form(P):
 			return p
 		assert(False)
 
+	def eliminateHavoc(p):
+		if isinstance(p, havoc):
+			return [ v << undefinedExp() for v in p.vars]
+		elif isinstance(p, ParOps):
+			newPar = []
+			for i in p.elements:
+				newPar += eliminateHavoc(i)
+
+			return [ParOps(*newPar)]
+		# elif isinstance(p, IfStm):
+		# 	newSeq = []
+		# 	for i in p.list():
+		# 		newSeq += self.eliminateHavoc(i)
+		# 	# print SeqSem(*newSeq)
+		# 	return [IfStm(p.cond, *newSeq)]
+		elif isinstance(p, Ops):
+			newSeq = []
+			for i in p.elements:
+				newSeq += eliminateHavoc(i)
+			# print SeqSem(*newSeq)
+			return [p.__class__(*newSeq)]
+		else:
+			return [p]
+
 	def ssa_seq(P, state = {}):
 		assert(isinstance(P, SeqOps))
+
+		[P] = eliminateHavoc(P)
+		# extract loop first!
+		
+
 		P = P.clone()
 
 		P = additionalRead(P)
-
+		# print P 
 		for i in P.elements:
 			state = newOpr(i, state)
+		# print P
 		return (P, state)
 
 	state = {
@@ -220,6 +250,7 @@ def ssa_form(P):
 		'dynamic_cnt' : {}
 	}
 	ssa = []
+
 	for p in P:
 		(e, state) = ssa_seq(p, state)
 		ssa += [e]
