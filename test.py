@@ -49,9 +49,10 @@ if __name__ == '__main__':
 		# print p[0],p[1]
 		# encode 
 		# e = Encoder.encode(p, 'gharachorloo', 'SC')
-		e = Encoder.encode(p, 'gharachorloo', 'TSO')
+		# e = Encoder.encode(p, 'gharachorloo', 'TSO')
 		# e = Encoder.encode(p, 'gharachorloo', 'PSO')
 		# e = Encoder.encode(p, 'herding_cats', 'SC')
+		e = Encoder.encode(p, 'herding_cats', 'TSO')
 		# e = Encoder.encode(p, 'herding_cats', 'ARM')
 		# # SMT solver
 
@@ -61,8 +62,8 @@ if __name__ == '__main__':
 		start = time.clock()
 		result = s.check()
 		elapsed = (time.clock() - start)
-		print ',solving time, ', elapsed, ',s.'
-		# print result
+		# print ',solving time, ', elapsed, ',s.'
+		print result
 		if result == sat:
-			# print p[1]
+			print result
 			break

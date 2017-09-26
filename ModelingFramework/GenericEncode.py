@@ -75,6 +75,8 @@ class encodingFW:
 				elif op == EOpr['divide']:
 					return e1 / e2
 				elif op == EOpr['eq']:
+					# print e1, ,
+					# print (e1 == 1)
 					return (e1 == e2)
 				elif op == EOpr['lt']:
 					return e1 < e2

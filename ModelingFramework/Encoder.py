@@ -180,8 +180,20 @@ def ssa_form(P):
 				dictLoc[v] = TempReg('val_'+str(v.address if isinstance(v, Location) else v))
 			# print self.updateCond(p, dictLoc)
 			return SeqOps( *([ dictLoc[v] << v for v in locVar] + [Assume(updateCond(p.cond, dictLoc))]))
+
+		elif isinstance(p, Assignment) and isinstance(p.exp, ifExp):
+			locVar = getLocations(p.exp.cond)
+			locVar = set(locVar)
+			dictLoc = {}
+
+			for v in locVar:
+				dictLoc[v] = TempReg('val_'+str(v.address if isinstance(v, Location) else v))
+
+			return SeqOps( *( [ dictLoc[v] << v for v in locVar] + [p.var << ifExp( updateCond(p.exp.cond, dictLoc), p.exp.t_exp, p.exp.f_exp )]) )
 		elif isinstance(p, Operation):
 			return p
+
+
 		elif isinstance(p, SeqOps):
 			new_elements = SeqOps()
 			for i in p.elements:
