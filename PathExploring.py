@@ -78,10 +78,18 @@ def invExtractor(P, vars = []):
 					OpsNode( Assertion(p.ops.inv), [TerminateNode()] )
 				])
 			# ret << loopBody2
+		elif isinstance(p.ops, IfBr):
+			tBr = invExtractor(seqOpsNode(*(p.ops.t_body.elements)), vars)
+			fBr = invExtractor(seqOpsNode(*(p.ops.f_body.elements)), vars)
+			ifBr = OpsNode(SeqOps(),[
+					seqOpsNode( Assume(p.ops.cond), InstrOps(branchOp(False, LabelStm(''), True)) ) + tBr,
+					seqOpsNode( Assume(~ (p.ops.cond)), InstrOps(branchOp(False, LabelStm(''), True)) ) + fBr
+				])
+			ret << ifBr
 		elif isinstance(p.ops, SeqOps):
 			# i = p
 			# i = invExtractor(p, vars)
-			ret << OpsNode(i.ops.clone())
+			ret << OpsNode(p.ops.clone())
 		elif isinstance(p.ops,Operation):
 			ret << OpsNode(p.ops.clone())
 

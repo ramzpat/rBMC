@@ -26,15 +26,28 @@ if __name__ == '__main__':
 	; ldr r1, [x]
 	assert([x] = #1)
 	'''
-	[P1, P2] = translate([P1, P2])
+	P3 = '''
+	$a := $a + #1
+	assert($a = #1)
+	if( $a = #0 ){
+		cmp r1, #1
+	}else{ 
+		nop
+	}
+	$a := $a - #1
+	'''
+
+	[P1, P3] = translate([P1, P3])
+	
+
 	# P2 << OpsNode(Assertion(Location('x') == 1))
 	# for e in P2.exploreNodes():
 	# 	print '=',e.ops
 
 	# exit()
-	# for o in P2:
+	# for o in P3:
 	# 	print o
-	P2 = invExtractor(P2)
+	P2 = invExtractor(P3)
 	# for o in P2:
 	# 	print o
 	# exit()
@@ -46,24 +59,25 @@ if __name__ == '__main__':
 	X = pathExploring([P1,P2], 20)
 	for p in X:
 
-		# print p[0],p[1]
+		# print p[1]
+		print '==='
 		# encode 
-		# e = Encoder.encode(p, 'gharachorloo', 'SC')
+		e = Encoder.encode(p, 'gharachorloo', 'SC')
 		# e = Encoder.encode(p, 'gharachorloo', 'TSO')
 		# e = Encoder.encode(p, 'gharachorloo', 'PSO')
 		# e = Encoder.encode(p, 'herding_cats', 'SC')
-		e = Encoder.encode(p, 'herding_cats', 'TSO')
+		# e = Encoder.encode(p, 'herding_cats', 'TSO')
 		# e = Encoder.encode(p, 'herding_cats', 'ARM')
 		# # SMT solver
 
 		s = Solver()
-		s.add(e)
+		# s.add(e)
 
-		start = time.clock()
-		result = s.check()
-		elapsed = (time.clock() - start)
-		# print ',solving time, ', elapsed, ',s.'
-		print result
-		if result == sat:
-			print result
-			break
+		# start = time.clock()
+		# result = s.check()
+		# elapsed = (time.clock() - start)
+		# # print ',solving time, ', elapsed, ',s.'
+		# print result
+		# if result == sat:
+		# 	print result
+		# 	break

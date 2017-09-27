@@ -6,6 +6,8 @@ class Operation():
 		pass 
 	def clone(self):
 		return self.__class__()
+	def __str__(self):
+		return 'nop'
 
 # <var> := <exp>
 # <var> ::= <reg> | <loc> | <symbolic var>

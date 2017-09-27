@@ -10,12 +10,15 @@ class ASMLex(object):
 
   tokens = ['COMMENT',                      # Comments 
             'ASSERT', 'ASSUME',             # Annotations
-            'DO', 'WHILE',                  
+            'DO', 'WHILE',          
+            'IF','ELSE',        
+            'NOP',                          # no operation
             'REGISTER', 'NUMBER', 'COND',   # Reg, imm, assembly predicate
             'RELOP', 'BLIT','AND', 'OR', 'NOT',
-            'ID'
+            'ID', 
+            # 'AUX',                          # Auxiliary variable
             ]
-  literals = [ '[', ']', ',', '#', ':', '(' ,')', '{' , '}' ,]
+  literals = [ '[', ']', ',', '#', ':', '(' ,')', '{' , '}' , '$', '+', '-']
 
   @abstractmethod
   def __init__(self):
@@ -30,6 +33,8 @@ class ASMLex(object):
       self.lexer = lex.lex(module=self, **kwargs)
 
   # ----------- Lexer 
+  # -- Auxiliary variable 
+
   # -- Annotations
   def t_ASSERT(self, t):
     r'assert | ASSERT'
@@ -37,11 +42,22 @@ class ASMLex(object):
   def t_ASSUME(self, t):
     r'assume | ASSUME'
     return t
+    
   def t_DO(self, t):
     r'do | DO'
     return t 
   def t_WHILE(self, t):
     r'while | WHILE'
+    return t
+
+  def t_IF(self, t):
+    r'if | IF'
+    return t 
+  def t_ELSE(self, t):
+    r'else | ELSE'
+    return t
+  def t_NOP(self, t):
+    r'nop | NOP'
     return t
 
 

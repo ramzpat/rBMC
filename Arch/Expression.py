@@ -176,6 +176,27 @@ class Location(Exp):
 	# def __eq__(self, other):
 	# 	return self.address == other.address
 
+class AuxVar(Exp):
+	def __init__(self, var):
+		self.name = var 
+	def clone(self):
+		return self.__class__(self.name)
+	def __str__(self):
+		return '$' + str(self.name)
+	def __lshift__(self, other):
+		if isinstance(other, Location):
+			return ReadAssn(self, other)
+		elif isinstance(other, Register) and not isinstance(other, TempReg):
+			return ReadAssn(self, other)
+		# elif isinstance(other, Resv):
+		# 	return ReadAssn(self, other)
+			# assert(False)
+		else:
+			# return WriteAssn(self, other)
+			return Assignment(self, other)
+	def __len__(self):
+		return 0
+
 
 
 

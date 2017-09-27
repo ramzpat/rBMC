@@ -73,3 +73,23 @@ class DoWhile(AnnotatedStatement):
 
 	def __str__(self):
 		return self.strIndent()
+
+
+class IfBr(AnnotatedStatement):
+	def __init__(self, cond, t_body, f_body):
+		self.cond = cond 			# condition for branch
+		self.t_body = t_body		# true path
+		self.f_body = f_body 		# false path 
+
+	def strIndent(self, indent = 0):
+		ret = ''
+		ret += (' '* indent) + 'if(' + str(self.cond) + '){ \n'
+		ret += str(self.t_body.strIndent(indent + 1))
+		ret += (' '* indent) + '\n'
+		ret += (' '* indent) + '}else{\n'
+		ret += str(self.f_body.strIndent(indent + 1))
+		ret += (' '* indent) + '\n'
+		ret += (' '* indent) + '}\n'
+		return ret	
+	def __str__(self):
+		return self.strIndent()

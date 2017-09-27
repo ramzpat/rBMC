@@ -62,6 +62,12 @@ class ASMParser(object):
 	def p_instruction(self, p):
 		pass 
 
+	def p_instruction_nop(self, p):
+		'''
+		instruction : NOP
+		'''
+		p[0] = [InstrOps(Operation())]
+
 	def p_instruction_assert(self, p):
 		'''
 		instruction : ASSERT '(' bexp ')'
@@ -78,6 +84,20 @@ class ASMParser(object):
 		'''
 		# p[0] = 
 		p[0] = [DoWhile( SeqOps(*p[3]), p[5], p[10])]
+
+	def p_instruction_if(self, p):
+		'''
+		instruction : IF '(' bexp ')' '{' statements '}' ELSE '{' statements '}'
+		'''
+		p[0] = [IfBr( p[3], SeqOps(*p[6]), SeqOps(*p[10]) ) ]
+
+	def p_instruction_assn(self, p):
+		'''
+		instruction : '$' ID ':' RELOP exp
+		'''
+		if(p[4] == '='):
+			p[0] = [SeqOps(AuxVar(p[2]) << p[5])]
+		# p[0] = 
 
 	# ------------ ASSERT
 	def p_exp(self, p):
@@ -116,6 +136,12 @@ class ASMParser(object):
 		factor : operand
 		'''
 		p[0] = p[1]
+
+	def p_factor_aux(self, p):
+		'''
+		factor : '$' ID 
+		'''
+		p[0] = AuxVar(p[2])
 
 	def p_bexp(self, p):
 		'''

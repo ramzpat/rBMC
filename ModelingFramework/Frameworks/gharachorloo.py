@@ -775,6 +775,10 @@ class encoder(encodingFW):
 		
 		if type(e) == int or type(e) == bool:
 			return e
+		elif isinstance(e, AuxVar):
+			
+			self.info['AuxVar'][e.name] = Int(str(e))
+			return Int(str(e))
 		elif isinstance(e, Register):
 			return Int(str(e))
 		# elif isinstance(e, Register):
@@ -829,8 +833,10 @@ class encoder(encodingFW):
 			# print '&&&', encodeOp, i.__class__
 		elif isinstance(i, branchOp):
 			encodeOp = self.new_branch(pid)
-		elif isinstance(i, RmwStm):
-			assert(False)
+		# elif isinstance(i, RmwStm):
+		# 	assert(False)
+		elif isinstance(i, Operation):
+			encodeOp = None
 		else:
 			# print i
 			assert(False)

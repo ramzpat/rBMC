@@ -85,9 +85,12 @@ def ssa_form(P):
 			if isinstance(e, Assignment):
 				var = e.var
 				exp = e.exp 
-				var_name = str(var)
+				var_name = str(var.name) if (isinstance(var, AuxVar)) else str(var)
 				nExp = exp if (isinstance(exp, Location)) else new_exp(exp, state)
-				(nVar,state) = (var.address,state) if (isinstance(var, Location)) else new_var(var_name, state)
+				if isinstance(var, AuxVar):
+					(nVar, state) = (var_name, state)
+				else:
+					(nVar,state) = (var.address,state) if (isinstance(var, Location)) else new_var(var_name, state)
 				e.var = var.__class__(nVar)
 				e.exp = nExp 
 			elif isinstance(e, fenceStm):
@@ -109,6 +112,8 @@ def ssa_form(P):
 				(nVar, state) = new_var(str(var), state)
 				e.var = var.__class__(nVar)
 				e.exp = nExp 
+			elif isinstance(e, Operation):
+				pass 
 			else:
 				print e
 				assert(False)
@@ -253,7 +258,7 @@ def ssa_form(P):
 		# print P 
 		for i in P.elements:
 			state = newOpr(i, state)
-		# print P
+		print P
 		return (P, state)
 
 	state = {
