@@ -80,7 +80,7 @@ class ASMParser(object):
 		p[0] = [Assume(p[3])]
 	def p_instruction_do(self, p):
 		'''
-		instruction : DO '{' statements '{' bexp '}' '}' WHILE '(' bexp ')'
+		instruction : DO '{' statements '{' bexp '}' '}' WHILE '(' bexp ')' 
 		'''
 		# p[0] = 
 		p[0] = [DoWhile( SeqOps(*p[3]), p[5], p[10])]

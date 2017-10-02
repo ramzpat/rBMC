@@ -10,7 +10,7 @@ def getAssnVars(p):
 		return [p.var]
 	elif isinstance(p, ParOps):
 		newPar = []
-		for i in p.list():
+		for i in p.elements:
 			newPar += getAssnVars(i)
 		return newPar
 	# elif isinstance(p, IfStm):
@@ -44,6 +44,7 @@ def invExtractor(P, vars = []):
 			# 'do-while'
 			# loopBody = seqOpsNode(*(p.ops.body.elements))
 			loopBody = invExtractor(seqOpsNode(*(p.ops.body.elements)), vars)
+
 			# for e in loopBody.exploreNodes():
 			# 	print e.ops 
 			# print '-----'
@@ -77,7 +78,7 @@ def invExtractor(P, vars = []):
 					) ,
 					OpsNode( Assertion(p.ops.inv), [TerminateNode()] )
 				])
-			# ret << loopBody2
+			ret << loopBody2
 		elif isinstance(p.ops, IfBr):
 			tBr = invExtractor(seqOpsNode(*(p.ops.t_body.elements)), vars)
 			fBr = invExtractor(seqOpsNode(*(p.ops.f_body.elements)), vars)

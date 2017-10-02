@@ -18,7 +18,7 @@ class ASMLex(object):
             'ID', 
             # 'AUX',                          # Auxiliary variable
             ]
-  literals = [ '[', ']', ',', '#', ':', '(' ,')', '{' , '}' , '$', '+', '-']
+  literals = [ '[', ']', ',', '#', ':', '(' ,')', '{' , '}' , '$', '+', '-',]
 
   @abstractmethod
   def __init__(self):

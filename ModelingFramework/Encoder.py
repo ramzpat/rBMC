@@ -258,7 +258,7 @@ def ssa_form(P):
 		# print P 
 		for i in P.elements:
 			state = newOpr(i, state)
-		print P
+		# print P
 		return (P, state)
 
 	state = {

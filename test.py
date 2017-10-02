@@ -8,38 +8,116 @@ from z3 import *
 
 import time
 
-if __name__ == '__main__':
+def mp():
 	P1 = '''
 	mov r1, #1
 	str r1, [x]
 	str r1, [y]
 	'''
+
 	P2 = '''
-	L:
-	;do{
+	do {
 		ldr r1, [y]
-	;{ (r1 = #0 or r1 = #1) }
-	;}while( r1 = #0 )
-	;assume( r1 = #1)
-	cmp r1, #1
-	bne L
-	; ldr r1, [x]
-	assert([x] = #1)
-	'''
-	P3 = '''
-	$a := $a + #1
-	assert($a = #1)
-	if( $a = #0 ){
 		cmp r1, #1
-	}else{ 
-		nop
-	}
-	$a := $a - #1
+	{ (n = #0 or n = #1) }
+	} while ( n = #1 ) 
+	ldr r1, [x]
+	assert(r1 = #1)
+	'''
+	return translate([P1, P2])
+
+def mp_fence():
+	P1 = '''
+	mov r1, #1
+	str r1, [x]
+	str r1, [y]
 	'''
 
-	[P1, P3] = translate([P1, P3])
-	
+	P2 = '''
+	do {
+		ldr r1, [y]
+		cmp r1, #1
+	{ (n = #0 or n = #1) }
+	} while ( n = #1 ) 
+	ldr r1, [x]
+	assert(r1 = #1)
+	'''
+	return [P1, P2]
+def toppers():
+	P1 = '''
+	mov r1, #1
+	str r1, [x]
+	str r1, [y]
+	'''
 
+	P2 = '''
+	do {
+		ldr r1, [y]
+		cmp r1, #1
+	{ (n = #0 or n = #1) }
+	} while ( n = #1 ) 
+	ldr r1, [x]
+	assert(r1 = #1)
+	'''
+	return [P1, P2]
+
+def sparc():
+	P1 = '''
+	mov r1, #1
+	str r1, [x]
+	str r1, [y]
+	'''
+
+	P2 = '''
+	do {
+		ldr r1, [y]
+		cmp r1, #1
+	{ (n = #0 or n = #1) }
+	} while ( n = #1 ) 
+	ldr r1, [x]
+	assert(r1 = #1)
+	'''
+	return [P1, P2]
+
+def dekker():
+	P1 = '''
+	mov r1, #1
+	str r1, [x]
+	str r1, [y]
+	'''
+
+	P2 = '''
+	do {
+		ldr r1, [y]
+		cmp r1, #1
+	{ (n = #0 or n = #1) }
+	} while ( n = #1 ) 
+	ldr r1, [x]
+	assert(r1 = #1)
+	'''
+	return [P1, P2]
+
+def perterson():
+	P1 = '''
+	mov r1, #1
+	str r1, [x]
+	str r1, [y]
+	'''
+
+	P2 = '''
+	do {
+		ldr r1, [y]
+		cmp r1, #1
+	{ (n = #0 or n = #1) }
+	} while ( n = #1 ) 
+	ldr r1, [x]
+	assert(r1 = #1)
+	'''
+	return [P1, P2]
+
+if __name__ == '__main__':
+	P = mp()
+	
 	# P2 << OpsNode(Assertion(Location('x') == 1))
 	# for e in P2.exploreNodes():
 	# 	print '=',e.ops
@@ -47,37 +125,47 @@ if __name__ == '__main__':
 	# exit()
 	# for o in P3:
 	# 	print o
-	P2 = invExtractor(P3)
+	for i in range(0, len(P)):
+		P[i] = invExtractor(P[i])
+		P[i] = GraphPreparation(P[i])
+	# P2 = invExtractor(P3)
+
 	# for o in P2:
 	# 	print o
 	# exit()
 
-	P1 = GraphPreparation(P1)
-	P2 = GraphPreparation(P2)
+	# P1 = GraphPreparation(P1)
+	# P2 = GraphPreparation(P2)
 
 
-	X = pathExploring([P1,P2], 20)
+	X = pathExploring(P)
 	for p in X:
 
-		# print p[1]
-		print '==='
 		# encode 
-		e = Encoder.encode(p, 'gharachorloo', 'SC')
+		start = time.clock()
+		# e = Encoder.encode(p, 'gharachorloo', 'SC')
 		# e = Encoder.encode(p, 'gharachorloo', 'TSO')
 		# e = Encoder.encode(p, 'gharachorloo', 'PSO')
-		# e = Encoder.encode(p, 'herding_cats', 'SC')
+		e = Encoder.encode(p, 'herding_cats', 'SC')
 		# e = Encoder.encode(p, 'herding_cats', 'TSO')
 		# e = Encoder.encode(p, 'herding_cats', 'ARM')
+		elapsed = (time.clock() - start)
+		print ',encoding time, ', elapsed, ',s.'
+
+
 		# # SMT solver
-
 		s = Solver()
-		# s.add(e)
+		s.add(e)
 
-		# start = time.clock()
-		# result = s.check()
-		# elapsed = (time.clock() - start)
-		# # print ',solving time, ', elapsed, ',s.'
-		# print result
-		# if result == sat:
-		# 	print result
-		# 	break
+		start = time.clock()
+		result = s.check()
+		elapsed = (time.clock() - start)
+		print ',solving time, ', elapsed, ',s.'
+		print result
+		if result == sat:
+			# print result
+			for e in P:
+				for i in e:
+					print i
+				print '------'
+			break

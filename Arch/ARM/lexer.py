@@ -42,7 +42,7 @@ class ARMLex(ASMLex):
     return t
   
   def t_REGISTER(self, t):
-    r'r[0-9]+ | pc | lr | sp '
+    r'r[0-9]+ | pc | lr | sp | n | z | c | v '
     return t
 
 # # Build 
