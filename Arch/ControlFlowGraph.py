@@ -33,11 +33,45 @@ class OpsNode:
 		# 	self.reachList.add(i.reachList)
 			# print 'afterAdd',self.reachList
 		# print self.reachList 
+	def clone(self):
+		newNext = self.next[:]
+		# for e in self.next:
+		# 	newNext += [e.clone()]
+		# print self.ops, self.ops.__class__
+		o = OpsNode(self.ops.clone(), newNext)
+		o.isLoop = self.isLoop 
+		o.dominator = self.dominator
+		o.pred = self.pred 
+		return o
+	def copy(self):
+		if isinstance(self, TerminateNode):
+			return self
+		newNext = []
+		for e in self.next:
+			newNext += [e.copy()]
+		# print self.ops, self.ops.__class__
+		o = OpsNode(self.ops.clone(), newNext)
+		o.isLoop = self.isLoop 
+		o.dominator = self.dominator
+		o.pred = self.pred 
+		return o
+	def appendNext(self, other):
+		if not(self is other) and not isinstance(self, TerminateNode):
+			if self.next == []:
+				self.next = [other]
+				other.pred = other.pred.union(set([self]))
+			else :
+				for i in range(0, len(self.next)):
+					self.next[i].appendNext(other)
+
+
 
 	def __lshift__(self, other):
+		if isinstance(self, TerminateNode):
+			return 
 		if isinstance(self.ops, SeqOps) and self.ops.elements == [] and self.next == []:
-			self.ops = other.ops 
-			self.next = other.next 
+			self.ops = other.ops
+			self.next = other.next
 			self.dominator = other.dominator
 			self.pred = other.pred
 
@@ -49,8 +83,10 @@ class OpsNode:
 			self.next = [other]
 			other.pred = other.pred.union(set([self]))
 		else:
-			for i in self.next:
-				i << other 
+			self.appendNext(other)
+			# for i in self.next:
+			# 	i << other
+				# i << other.clone()
 				# other.pred.union(set[])
 
 	def __add__(self, other):

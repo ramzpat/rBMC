@@ -57,7 +57,10 @@ def invExtractor(P, vars = []):
 			# for v in vars:
 			# 	print v
 
-			loopBody2 = loopBody + seqOpsNode(
+			loopBody1 = seqOpsNode( Assume(~(p.ops.bInstr)), InstrOps(
+						branchOp(False, LabelStm(''), True)
+						))
+			loopBody2 = seqOpsNode(
 				Assertion(p.ops.inv),
 				InstrOps(
 					branchOp(False, LabelStm(''), True) 	# there is a branch operation appear
@@ -69,32 +72,50 @@ def invExtractor(P, vars = []):
 					branchOp(False, LabelStm(''), True) 	# there is a branch operation appear
 				),
 				)
-			loopBody2 << loopBody
-			loopBody2 << OpsNode(SeqOps(), [
-					seqOpsNode( Assume(~(p.ops.bInstr)), InstrOps(
+			elseBranch = seqOpsNode( Assume(~(p.ops.bInstr)), InstrOps(
 						branchOp(False, LabelStm(''), True)
-						), 
-					# Assertion(p.ops.Q)
-					) ,
+						))
+			loopBody2 << loopBody.copy()
+			loopBody2 << OpsNode(SeqOps(), [
+						elseBranch, 
 					OpsNode( Assertion(p.ops.inv), [TerminateNode()] )
 				])
-			ret << loopBody2
+			# ret << loopBody2
+			# emptyNode = OpsNode(Assertion(p.ops.inv))
+			# emptyNode.pred = emptyNode.pred.union(set([ret]))
+			# ret.next += [emptyNode]
+			# print ret.next,OpsNode(SeqOps()) 
+			# ret << OpsNode(SeqOps())
+			loopBody << OpsNode(SeqOps(), [
+					loopBody1,
+					loopBody2,
+					# OpsNode(SeqOps()),
+					
+					])
+			ret << loopBody
 		elif isinstance(p.ops, IfBr):
 			tBr = invExtractor(seqOpsNode(*(p.ops.t_body.elements)), vars)
-			fBr = invExtractor(seqOpsNode(*(p.ops.f_body.elements)), vars)
+			o = seqOpsNode( Assume(p.ops.cond), InstrOps(branchOp(False, LabelStm(''), True)) ) 
+			o << tBr
+			# fBr = invExtractor(seqOpsNode(*(p.ops.f_body.elements)), vars)
 			ifBr = OpsNode(SeqOps(),[
-					seqOpsNode( Assume(p.ops.cond), InstrOps(branchOp(False, LabelStm(''), True)) ) + tBr,
-					seqOpsNode( Assume(~ (p.ops.cond)), InstrOps(branchOp(False, LabelStm(''), True)) ) + fBr
+					o,
+					seqOpsNode( Assume(~ (p.ops.cond)), InstrOps(branchOp(False, LabelStm(''), True)) )
+					# seqOpsNode( Assume(~ (p.ops.cond)), InstrOps(branchOp(False, LabelStm(''), True)) ) + fBr
 				])
 			ret << ifBr
 		elif isinstance(p.ops, SeqOps):
 			# i = p
 			# i = invExtractor(p, vars)
-			ret << OpsNode(p.ops.clone())
+			# ret << OpsNode(p.ops.clone())
+			i = invExtractor(seqOpsNode(*p.ops.elements), vars)
+			ret << i
 		elif isinstance(p.ops,Operation):
 			ret << OpsNode(p.ops.clone())
 
 		elif isinstance(p.ops,AnnotatedStatement):
+			# print OpsNode(p.ops.clone()).ops
+			
 			ret << OpsNode(p.ops.clone())
 		elif isinstance(p.ops, InstrOps):
 
@@ -108,6 +129,7 @@ def invExtractor(P, vars = []):
 	# ret << P
 	# for p in P.exploreNodes():
 	# 	print p, p.pred
+
 	return ret
 
 def prepareDominators(p):
@@ -152,7 +174,15 @@ def GraphPreparation(P):
 		if isinstance(p.ops, LabelStm):
 			ret[str(p.ops)] = p
 		for i in p.next:
+			# print i, i.next
+			# if len(i.next) > 0:
+			# 	print i.next[0].ops
 			ret = exploreLabel(i, ret)
+
+		# for a in p.exploreNodes():
+		# 	if isinstance(p.ops, LabelStm):
+		# 	ret[str(p.ops)] = p
+
 		return ret 
 	labels = exploreLabel(P)
 	# print labels

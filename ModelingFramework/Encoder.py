@@ -219,6 +219,9 @@ def ssa_form(P):
 			return p
 		elif isinstance(p, Ops):
 			return p
+		elif isinstance(p, fenceStm):
+			return p
+		print p.__class__
 		assert(False)
 
 	def eliminateHavoc(p):

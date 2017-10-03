@@ -43,6 +43,8 @@ class Atomic(AnnotatedStatement):
 class havoc(AnnotatedStatement):
 	def __init__(self, *v):
 		self.vars = v
+	def clone(self):
+		return havoc(*self.vars)
 	def getVars(self):
 		return self.vars
 	def __str__(self):
@@ -60,6 +62,9 @@ class DoWhile(AnnotatedStatement):
 		self.bInstr = branchInstr 	# branch condition
 		self.inv = inv 				# invariant
 		self.Q = Q					# post-condition
+	def clone(self):
+		o = DoWhile(self.body.clone(), self.inv, self.bInstr)
+		return o
 
 	def strIndent(self, indent = 0):
 		ret = ''
@@ -76,19 +81,23 @@ class DoWhile(AnnotatedStatement):
 
 
 class IfBr(AnnotatedStatement):
-	def __init__(self, cond, t_body, f_body):
+	def __init__(self, cond, t_body, f_body = None):
 		self.cond = cond 			# condition for branch
 		self.t_body = t_body		# true path
 		self.f_body = f_body 		# false path 
+
+	def clone(self):
+		return IfBr(self.cond, self.t_body.clone())
+
 
 	def strIndent(self, indent = 0):
 		ret = ''
 		ret += (' '* indent) + 'if(' + str(self.cond) + '){ \n'
 		ret += str(self.t_body.strIndent(indent + 1))
 		ret += (' '* indent) + '\n'
-		ret += (' '* indent) + '}else{\n'
-		ret += str(self.f_body.strIndent(indent + 1))
-		ret += (' '* indent) + '\n'
+		# ret += (' '* indent) + '}else{\n'
+		# ret += str(self.f_body.strIndent(indent + 1))
+		# ret += (' '* indent) + '\n'
 		ret += (' '* indent) + '}\n'
 		return ret	
 	def __str__(self):

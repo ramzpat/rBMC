@@ -67,6 +67,6 @@ class branchOp(Operation):
 		self.label = label
 		self.fake_op = fake_op
 	def clone(self):
-		return self.__class__(self.cond, self.label)
+		return self.__class__(self.cond, self.label, self.fake_op)
 	def __str__(self):
 		return 'branch(' + str(self.cond) + ', ' + str(self.label) + ')'

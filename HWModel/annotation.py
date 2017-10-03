@@ -60,6 +60,7 @@ class DoWhile(AnnotatedStatement):
 		self.inv = inv 				# invariant
 		self.Q = Q					# post-condition
 
+	
 	def strIndent(self, indent = 0):
 		ret = ''
 		ret += (' '* indent) + 'do{ \n'
