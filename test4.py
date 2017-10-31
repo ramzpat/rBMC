@@ -122,7 +122,8 @@ def toppers():
 					InstrOps(	# mov r'output',r1
 						TempReg('val') << Register('r1'),
 						Register('output') << TempReg('val')
-						)
+						),
+					Assume(Register('output') == 1)
 				),
 				(Register('output') == 1) | (Register('output') == 0),
 				(Register('output') == 1)
@@ -138,12 +139,6 @@ def toppers():
 	
 	return [P1, P1]
 
-
-def toppers2():
-	P1 ='''
-	moveq r2, #1
-	'''
-	return translate([P1])
 def sparc():
 	P1 = seqOpsNode(
 			InstrOps(	# ldstub [lock], r5
@@ -185,7 +180,7 @@ def sparc():
 				)
 			),
 			# LabelStm('CS'),
-			# Assertion(False)
+			Assertion(False)
 			)
 	return [P1, P1]
 
@@ -208,7 +203,6 @@ def dekker():
 					do{
 						ldr r4, [k]
 						cmp r4, r5
-						assume(z = #0)	; should not stuck here.... for entering the CS
 						{ ((z = #1) or (z = #0)) }
 					}while(z = #1) 	; while(turn == j);
 					str r1, [xi]	; [xi] := true
@@ -216,9 +210,10 @@ def dekker():
 				ldr r3, [xj]
 				cmp r3, #1
 			}
-			assume(z = #0)
 			{ ((z = #1) or (z = #0)) }
 		}while(z = #1)
+
+		assert(false)
 	'''
 
 	P2 = '''
@@ -239,7 +234,6 @@ def dekker():
 					do{
 						ldr r4, [k]
 						cmp r4, r5
-						assert(z = #1) 	; should stuck here 
 						{ ((z = #1) or (z = #0)) }
 					}while(z = #1) 	; while(turn == i);
 					str r1, [xj]	; [xj] := true
@@ -247,11 +241,10 @@ def dekker():
 				ldr r3, [xi]
 				cmp r3, #1
 			}
-			assert(z = #1)	; should stuck here 
 			{ ((z = #1) or (z = #0)) }
 		}while(z = #1)
 
-		;assert(false)
+		assert(false)
 	'''
 
 
@@ -259,37 +252,58 @@ def dekker():
 
 def perterson():
 	P1 = '''
+	mov r6, #0 
 	mov r1, #1
-	str r1, [x]
-	str r1, [y]
+	str r1, [f0]
+	str r1, [turn]	; turn := 1
+
+	do{
+		ldr r2, [f1]
+		cmp r2, #1
+		;while flag[1] = true & turn = 1
+		if ( z = #1 ) {
+			ldr r3, [turn]
+			cmp r3, #1
+		}
+	{ (z = #1) or (z = #0)} 
+	}while( z = #1 )
+	assert(false)
 	'''
 
-	P2 = '''
-	do {
-		ldr r1, [y]
-		cmp r1, #1
-	{ (n = #0 or n = #1) }
-	} while ( n = #1 ) 
-	ldr r1, [x]
-	assert(r1 = #1)
-	'''
-	return [P1, P2]
+	P2 = ''' 
+	mov r6, #0
+	mov r1, #1
+	str r1, [f1]
+	str r6, [turn]	; turn := 0
+
+	do{
+		ldr r2, [f0]
+		cmp r2, #1
+		;while flag[1] = true & turn = 0
+		if(z = #1){
+			ldr r3, [turn]
+			cmp r3, #0
+		}
+	{ (z = #1) or (z = #0)} 
+	}while( z = #1 )
+	assert(false)	'''
+	return translate([P1, P2])
 
 if __name__ == '__main__':
 	# P = mp()
 	# P = mp_fence()
-	# P = toppers()
-	P = toppers2()
+	P = toppers()
 	# P = sparc()
 	# P = dekker()
+	# P = perterson()
 	
-	print 'program to be checked'
-	for p in P:
-		for i in p:
-			print i
-		print '----------'
+	# P2 << OpsNode(Assertion(Location('x') == 1))
+	# for e in P2.exploreNodes():
+	# 	print '=',e.ops
 
-
+	# exit()
+	# for o in P3:
+	# 	print o
 	for i in range(0, len(P)):
 		print 'preparing program ', str(i+1)
 		P[i] = invExtractor(P[i])
@@ -300,44 +314,44 @@ if __name__ == '__main__':
 	X = pathExploring(P)
 	print 'finish exploring'
 
-	for model in ['SC', 'TSO', 'PSO']:
-		print 'experiment for gharachorloo with model ', model
-		k = 0
-		for p in pathExploring(P):
-			k = k + 1
+	# for model in ['SC', 'TSO', 'PSO']:
+	# 	print 'experiment for gharachorloo with model ', model
+	# 	k = 0
+	# 	for p in pathExploring(P):
+	# 		k = k + 1
 
-			# encode 
-			# for e in p:
-			# 	print e
-			# print '------'
+	# 		# encode 
+	# 		# for e in p:
+	# 		# 	print e
+	# 		# print '------'
 
-			start = time.clock()
-			e = Encoder.encode(p, 'gharachorloo', model)
-			# e = Encoder.encode(p, 'gharachorloo', 'TSO')
-			# e = Encoder.encode(p, 'gharachorloo', 'PSO')
-			# e = Encoder.encode(p, 'herding_cats', 'SC')
-			# e = Encoder.encode(p, 'herding_cats', 'TSO')
-			# e = Encoder.encode(p, 'herding_cats', 'ARM')
-			elapsed = (time.clock() - start)
-			print k,',encoding time, ', elapsed, ',s.',
+	# 		start = time.clock()
+	# 		e = Encoder.encode(p, 'gharachorloo', model)
+	# 		# e = Encoder.encode(p, 'gharachorloo', 'TSO')
+	# 		# e = Encoder.encode(p, 'gharachorloo', 'PSO')
+	# 		# e = Encoder.encode(p, 'herding_cats', 'SC')
+	# 		# e = Encoder.encode(p, 'herding_cats', 'TSO')
+	# 		# e = Encoder.encode(p, 'herding_cats', 'ARM')
+	# 		elapsed = (time.clock() - start)
+	# 		print k,',encoding time, ', elapsed, ',s.',
 
 
-			# # SMT solver
-			s = Solver()
-			s.add(e)
+	# 		# # SMT solver
+	# 		s = Solver()
+	# 		s.add(e)
 
-			start = time.clock()
-			result = s.check()
-			elapsed = (time.clock() - start)
-			print ',solving time, ', elapsed, ',s.', 
-			print result
-			# if result == sat:
-			# 	# print result
-			# 	for e in P:
-			# 		for i in e:
-			# 			print i
-			# 		print '------'
-			# 	break
+	# 		start = time.clock()
+	# 		result = s.check()
+	# 		elapsed = (time.clock() - start)
+	# 		print ',solving time, ', elapsed, ',s.', 
+	# 		print result
+	# 		# if result == sat:
+	# 		# 	# print result
+	# 		# 	for e in P:
+	# 		# 		for i in e:
+	# 		# 			print i
+	# 		# 		print '------'
+	# 		# 	break
 	for model in ['SC', 'TSO', 'ARM']:
 		print 'experiment for herdingCats with model ', model
 		k = 0
@@ -369,12 +383,11 @@ if __name__ == '__main__':
 			elapsed = (time.clock() - start)
 			print ',solving time, ', elapsed, ',s.', 
 			print result
-			# if result == sat:
-			# 	# print result
-			# 	for e in P:
-			# 		for i in e:
-			# 			print i
-			# 		print '------'
-			# 	break
+			if result == sat:
+				print result
+				for e in p:
+					print e
+				print '------'
+				break
 
 	print k

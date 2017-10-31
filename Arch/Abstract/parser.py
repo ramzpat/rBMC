@@ -87,9 +87,9 @@ class ASMParser(object):
 
 	def p_instruction_if(self, p):
 		'''
-		instruction : IF '(' bexp ')' '{' statements '}' ELSE '{' statements '}'
+		instruction : IF '(' bexp ')' '{' statements '}' 
 		'''
-		p[0] = [IfBr( p[3], SeqOps(*p[6]), SeqOps(*p[10]) ) ]
+		p[0] = [IfBr( p[3], SeqOps(*p[6]) ) ]
 
 	def p_instruction_assn(self, p):
 		'''
