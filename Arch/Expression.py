@@ -150,6 +150,8 @@ class TempReg(Register):
 			return ReadAssn(self, other)
 		elif isinstance(other, Register) and not isinstance(other, TempReg):
 			return ReadAssn(self, other)
+		elif isinstance(other, AuxVar):
+			return ReadAssn(self, other)
 		# elif isinstance(other, Resv):
 		# 	return ReadAssn(self, other)
 			# assert(False)
@@ -184,16 +186,11 @@ class AuxVar(Exp):
 	def __str__(self):
 		return '$' + str(self.name)
 	def __lshift__(self, other):
-		if isinstance(other, Location):
-			return ReadAssn(self, other)
-		elif isinstance(other, Register) and not isinstance(other, TempReg):
-			return ReadAssn(self, other)
-		# elif isinstance(other, Resv):
-		# 	return ReadAssn(self, other)
-			# assert(False)
+		if isinstance(other, TempReg):
+			return WriteAssn(self, other)
 		else:
-			# return WriteAssn(self, other)
-			return Assignment(self, other)
+			return WriteAssn(self, other)
+		assert(False)
 	def __len__(self):
 		return 0
 

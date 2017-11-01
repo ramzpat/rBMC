@@ -144,7 +144,10 @@ class encodingFW:
 			'Reg':{},		# set of registers
 			'Loc':{},		# set of locations
 
-			'AuxVar':{},	# set of auxiliary variables
+			# 'AuxVar':{},	# set of auxiliary variables
+			'Aux':{},
+			'AuxCnt':0,
+
 
 			# pairs of atomic (rmw)
 			'RMW':[]

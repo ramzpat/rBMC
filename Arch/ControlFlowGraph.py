@@ -15,7 +15,8 @@ def seqOpsNode(*seq):
 class OpsNode:
 	def __init__(self, ops, next = []):
 		# print ops.__class__
-		assert(isinstance(ops, SeqOps) or isinstance(ops, InstrOps) or isinstance(ops, AnnotatedStatement))
+		assert(isinstance(ops, SeqOps) or isinstance(ops, InstrOps) or isinstance(ops, AnnotatedStatement)
+			or isinstance(ops, WriteAssn) or isinstance(ops, ReadAssn) or isinstance(ops,Assignment) ) # for aux var
 		self.ops = ops 
 		self.next = next 
 		self.isLoop = False

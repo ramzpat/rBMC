@@ -17,7 +17,7 @@ frameworks_list = {	'gharachorloo': gFW,
 					}
 
 def isVar(i):
-	return isinstance(i, Register)
+	return isinstance(i, Register) or isinstance(i, AuxVar)
 
 def ssa_form(P):
 	if not isinstance(P, list):
@@ -86,7 +86,7 @@ def ssa_form(P):
 				var = e.var
 				exp = e.exp 
 				var_name = str(var.name) if (isinstance(var, AuxVar)) else str(var)
-				nExp = exp if (isinstance(exp, Location)) else new_exp(exp, state)
+				nExp = (exp if (isinstance(exp, Location) or isinstance(exp, AuxVar)) else new_exp(exp, state))
 				if isinstance(var, AuxVar):
 					(nVar, state) = (var_name, state)
 				else:
@@ -261,7 +261,7 @@ def ssa_form(P):
 		# print P 
 		for i in P.elements:
 			state = newOpr(i, state)
-		# print P
+		print P
 		return (P, state)
 
 	state = {

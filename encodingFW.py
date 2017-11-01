@@ -129,6 +129,8 @@ class encodingFW:
 			'RegCnt':0,		# no. of registers
 			'Reg':{},		# set of registers
 			'Loc':{},		# set of locations
+			'Aux':{},
+			'AuxCnt':0,
 
 			# pairs of atomic (rmw)
 			'RMW':[]

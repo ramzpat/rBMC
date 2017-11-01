@@ -18,9 +18,12 @@ Val.declare('undifined')
 Val.declare('temp', ('id', IntSort()))
 Val.declare('int', ('val', IntSort()))
 Val.declare('reg', ('rid', IntSort()))
+Val.declare('aux', ('id', IntSort()))
 Val = Val.create()
 Reg = Val.reg
 Temp = Val.temp
+Aux = Val.aux 
+
 
 # addrLoc = Function('addrLoc', Loc, IntSort())
 
@@ -34,6 +37,8 @@ initLocVal = Function('initLocVal', Loc, IntSort())
 
 def is_reg(e):
 	return eq(e.decl(), Reg)
+def is_aux(e):
+	return eq(e.decl(), Aux)
 def is_intVal(e):
 	return eq(e.decl(), Val.int)
 
@@ -44,6 +49,8 @@ Event.declare('read',  		('eid', IntSort()), ('loc', Loc), ('dest', IntSort()), 
 Event.declare('write', 		('eid', IntSort()), ('loc', Loc), ('val', IntSort()), ('pid', Proc))
 Event.declare('read_reg', 	('eid', IntSort()), ('reg', Val), ('dest', IntSort()), ('pid', Proc) )
 Event.declare('write_reg', 	('eid', IntSort()), ('reg', Val), ('val', IntSort()), ('pid', Proc))
+Event.declare('read_aux', 	('eid', IntSort()), ('reg', Val), ('dest', IntSort()), ('pid', Proc) )
+Event.declare('write_aux', 	('eid', IntSort()), ('reg', Val), ('val', IntSort()), ('pid', Proc))
 Event.declare('branch', ('eid', IntSort()), ('pid', Proc))
 Event.declare('fence', 		('eid', IntSort()), ('ftype', IntSort()), ('pid', Proc))
 
@@ -55,10 +62,14 @@ Event.declare('fence', 		('eid', IntSort()), ('ftype', IntSort()), ('pid', Proc)
 
 Event = Event.create()
 ConstEvent = Event.event
-ReadOp = Event.read
-WriteOp = Event.write
-WriteReg = Event.write_reg
-ReadReg = Event.read_reg
+
+ReadOp 		= Event.read
+WriteOp 	= Event.write
+ReadReg 	= Event.read_reg
+WriteReg 	= Event.write_reg
+ReadAux 	= Event.read_aux
+WriteAux 	= Event.write_aux
+
 Branch = Event.branch
 Fence = Event.fence
 
@@ -98,6 +109,10 @@ def isWrite(e):
 	return eq(e.decl(), WriteOp)
 def isRead(e):
 	return eq(e.decl(), ReadOp)
+def isWriteAux(e):
+	return eq(e.decl(), WriteAux)
+def isReadAux(e):
+	return eq(e.decl(), ReadAux)
 def isFence(e):
 	return eq(e.decl(), Event.fence)
 def isRW(rw):
@@ -209,6 +224,30 @@ def conflict_order(Ev = [], scWrites = []):
 			# 	print e1, e2
 	return (co, And(axioms))
 
+def conflict_order_aux(Ev = [], scWrites = []):
+	co = Function('co_aux', Event, Event, BoolSort())
+	axioms = []
+	for e1 in Ev:
+		for e2 in Ev:
+			# if eq(e1.target, e2.target) and not(eq(e1.arg(0),e2.arg(0))):
+			# 	print str((e1,e2)) + ': ' + str(eq(e1.target, e2.target))
+			if not(e1 in scWrites) and not(e2 in scWrites):
+				axioms += [(
+					co(e1, e2) == (
+						And(Distinct(e1, e2),
+							Not(co(e2, e1)),
+							e1.target == e2.target
+							)
+						if not(eq(e1.arg(0),e2.arg(0))) and isWriteAux(e1) and isWriteAux(e2) and e2.pid != 0 else False
+						)
+					)]
+			# else: 
+
+			# if not(eq(e1.arg(0),e2.arg(0))) and isWrite(e1) and isWrite(e2) and e2.pid != 0:
+			# 	print e1, e2
+	return (co, And(axioms))
+
+
 # rf - one to many
 def read_from(Ev = []):
 	def candidate_writes(r, Ev = []):
@@ -237,6 +276,36 @@ def read_from(Ev = []):
 			axiom += [(ForAll(e, Not(rf(e,e1))))]
 
 	return (rf, And(axiom))
+
+# rf-aux - one to many
+def read_from_aux(Ev = []):
+	def candidate_writes_aux(r, Ev = []):
+		write =[w for w in Ev if isWriteAux(w) and eq(w.target, r.target) ]
+		# print locB
+		# candidate_w = [ (w,locA,pA) for (w,locA,pA) in write if (eq(locA, locB))]
+		return write
+
+	# rf : W x R relation
+	e = Const('e', Event)
+	rf = Function('rf_aux', Event, Event, BoolSort())
+	# s.register_relation(rf)
+	axiom = []
+	for e1 in Ev:
+		if isReadAux(e1):
+			cWrite = candidate_writes_aux(e1, Ev)
+			# print e1, cWrite
+			axiom += [(Or([rf(w, e1) for w in cWrite ]))]
+			# rf-val
+			# print e1, cWrite
+			axiom += [(And([
+				Implies(rf(w, e1), w.val == e1.val)
+				for w in cWrite
+				]))]
+		else:
+			axiom += [(ForAll(e, Not(rf(e,e1))))]
+
+	return (rf, And(axiom))
+
 
 def iico_relation(S = [], Ev = []):
 	# (iico, axiom) = relation('iico', Event, S)
@@ -306,6 +375,12 @@ def from_read(rf, co):
 	e1, e2, e3 = Consts('e1 e2 e3', Event)
 	axiom = ( ForAll([e1, e2, e3], Implies( And(rf(e2, e1), co(e2, e3), Distinct(e1, e3)), fr(e1, e3) ) ) )
 	return (fr, axiom)
+# fr - fromread (fixed point) 
+def from_read_aux(rf, co):
+	fr = Function('fr_aux', Event, Event, BoolSort())
+	e1, e2, e3 = Consts('e1 e2 e3', Event)
+	axiom = ( ForAll([e1, e2, e3], Implies( And(rf(e2, e1), co(e2, e3), Distinct(e1, e3)), fr(e1, e3) ) ) )
+	return (fr, axiom)
 
 # constraining 
 def acyclic(*rel):
@@ -335,6 +410,17 @@ def empty(s, r):
 	e1, e2 = Consts('e1 e2', Event)
 	s.add(ForAll([e1, e2], Not(e1, e2)))
 	return (s, r)
+
+def sc_auxiliary(po, rf, fr, co, Ev = []):
+	# sc.cat
+	# SC ----------
+	axiom = []	
+	# (* Sequential consistency *)
+	# acyclic po | fr | rf | co as sc
+	(trans, acyclic_axiom) = (acyclic(po, fr, rf, co))
+	# self.info['acyclic'] = trans
+	# print acyclic_axiom
+	return And(And(axiom), acyclic_axiom)
 
 def sc_constraints(po, rf, fr, co, Ev = [], RMW = []):
 	# sc.cat
@@ -1063,6 +1149,8 @@ class encoder(encodingFW):
 		v = exp
 		if is_reg(var):
 			write = WriteReg(eidCnt, var, v, pid ) #Const(name, WriteReg)	
+		elif is_aux(var):
+			write = WriteAux(eidCnt, var, v, pid)
 		else: 
 			write = WriteOp(eidCnt, var, v, pid) #Const(name, WriteOp)
 		write.eid = eidCnt
@@ -1076,6 +1164,8 @@ class encoder(encodingFW):
 		eidCnt = self.info['EventCnt']
 		if is_reg(exp):
 			read = ReadReg(eidCnt, exp, var, pid) #Const(name, ReadReg)
+		elif is_aux(exp):
+			read = ReadAux(eidCnt, exp, var, pid)
 		else:
 			read = ReadOp(eidCnt, exp, var, pid) #Const(name, ReadOp)
 		read.eid = eidCnt
@@ -1142,12 +1232,17 @@ class encoder(encodingFW):
 		return None 
 
 	def encodeElement(self, e):
-		assert(isinstance(e, Exp) or isinstance(e, Register) or type(e) == int or type(e) == bool)
+		assert(isinstance(e, Exp)  or isinstance(e, Register) or type(e) == int or type(e) == bool)
 		
 		if type(e) == int or type(e) == bool:
 			return e
 		elif isinstance(e, TempReg):
 			return Int(str(e))
+		elif isinstance(e, AuxVar):
+			if not(e.name in self.info['Aux'].keys()):
+				self.info['Aux'][e.name] = Aux(self.info['AuxCnt'])
+				self.info['AuxCnt'] += 1
+			return self.info['Aux'][e.name]
 		elif isinstance(e, Register):
 			if not(str(e) in self.info['Reg'].keys()):
 				self.info['Reg'][str(e)] = Reg(self.info['RegCnt'])
@@ -1290,8 +1385,13 @@ class encoder(encodingFW):
 		# initial_location
 		# for L in self.info['Loc'].values():
 		# 	self.info['CS'] += [initial_value(L) == 0]
+		
 		WriteInit = [self.new_write(v, 0, 0) for v in self.info['Loc'].values()]
 		self.info['Ev'] += WriteInit
+
+		WriteAuxInit = [self.new_write(v, 0, 0) for v in self.info['Aux'].values()]
+		self.info['Ev'] += WriteAuxInit
+
 		# print self.info['PS']
 		(co, co_axiom) = conflict_order(self.info['Ev'], self.info['scWrites'] if ('scWrites' in self.info) else [])
 		(rf, rf_axiom) = read_from(self.info['Ev'])
@@ -1302,12 +1402,23 @@ class encoder(encodingFW):
 		#  - rf-reg : W-reg x R-reg relation
 		(rf_reg, rf_regSet, rf_reg_axiom) = rf_reg_relation(self.info['Ev'])
 
+		# auxiliary
+		(co_aux, co_aux_axiom) = conflict_order_aux(self.info['Ev'], [])
+		(rf_aux, rf_aux_axiom) = read_from_aux(self.info['Ev'])
+		(fr_aux, fr_aux_axiom) = from_read_aux(rf_aux, co_aux)
+
+
 		self.info['rel_po'] = po
 		self.info['rel_co'] = co
 		self.info['rel_rf'] = rf 
 		self.info['rel_fr'] = fr 
 		self.info['rel_iico'] = iico 
-		self.info['rel_rf_reg'] = rf_reg
+		self.info['rel_rf_reg'] = rf_reg		
+		self.info['rel_co_aux'] = co_aux 
+		self.info['rel_rf_aux'] = rf_aux 
+		self.info['rel_fr_aux'] = fr_aux 
+
+		sc_aux = sc_auxiliary(po, rf_aux, fr_aux, co_aux, self.info['Ev'])
 
 		self.info['iicoSet'] = iicoSet 
 		self.info['rf_regSet'] = rf_regSet
@@ -1318,7 +1429,10 @@ class encoder(encodingFW):
 		# print
 		# return False
 		# print self.info['Loc'].values()
-		return And(And(self.info['CS'] + [model_axiom, co_axiom, rf_axiom, fr_axiom, iico_axiom, rf_reg_axiom]),Not(And(self.info['PS'])))
+		return And(And(self.info['CS'] 
+					+ [sc_aux, co_aux_axiom, rf_aux_axiom, fr_aux_axiom] 
+					+ [ model_axiom, co_axiom, rf_axiom, fr_axiom, iico_axiom, rf_reg_axiom]
+					),Not(And(self.info['PS'])))
 
 
 	def model_axioms(self):

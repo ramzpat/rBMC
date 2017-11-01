@@ -275,19 +275,40 @@ def perterson():
 	'''
 	return [P1, P2]
 
+def aux_test():
+	P1 = seqOpsNode(
+		# InstrOps(
+			# cnt += 1
+			TempReg('val') << AuxVar('cnt'),
+			TempReg('val') << TempReg('val') + 1,
+			AuxVar('cnt') << TempReg('val'),
+			# Assert(cnt = 1)
+			TempReg('val') << AuxVar('cnt'),
+			Assertion(TempReg('val') != 0),
+			# cnt -= 1
+			TempReg('val') << AuxVar('cnt'),
+			TempReg('val') << TempReg('val') - 1,
+			AuxVar('cnt') << TempReg('val'),
+		# ),
+		)
+	# print AuxVar('cnt') << 1
+
+	return [P1,P1]
+
 if __name__ == '__main__':
+	P = aux_test()
 	# P = mp()
 	# P = mp_fence()
 	# P = toppers()
-	P = toppers2()
+	# P = toppers2()
 	# P = sparc()
 	# P = dekker()
 	
-	print 'program to be checked'
-	for p in P:
-		for i in p:
-			print i
-		print '----------'
+	# print 'program to be checked'
+	# for p in P:
+	# 	for i in p:
+	# 		print i
+	# 	print '----------'
 
 
 	for i in range(0, len(P)):
@@ -300,8 +321,9 @@ if __name__ == '__main__':
 	X = pathExploring(P)
 	print 'finish exploring'
 
-	for model in ['SC', 'TSO', 'PSO']:
-		print 'experiment for gharachorloo with model ', model
+	# for model in ['SC', 'TSO', 'PSO']:
+	for model in ['SC']:
+		print 'experiment with model ', model
 		k = 0
 		for p in pathExploring(P):
 			k = k + 1
@@ -311,53 +333,16 @@ if __name__ == '__main__':
 			# 	print e
 			# print '------'
 
-			start = time.clock()
-			e = Encoder.encode(p, 'gharachorloo', model)
-			# e = Encoder.encode(p, 'gharachorloo', 'TSO')
-			# e = Encoder.encode(p, 'gharachorloo', 'PSO')
-			# e = Encoder.encode(p, 'herding_cats', 'SC')
-			# e = Encoder.encode(p, 'herding_cats', 'TSO')
-			# e = Encoder.encode(p, 'herding_cats', 'ARM')
-			elapsed = (time.clock() - start)
-			print k,',encoding time, ', elapsed, ',s.',
-
-
-			# # SMT solver
-			s = Solver()
-			s.add(e)
-
-			start = time.clock()
-			result = s.check()
-			elapsed = (time.clock() - start)
-			print ',solving time, ', elapsed, ',s.', 
-			print result
-			# if result == sat:
-			# 	# print result
-			# 	for e in P:
-			# 		for i in e:
-			# 			print i
-			# 		print '------'
-			# 	break
-	for model in ['SC', 'TSO', 'ARM']:
-		print 'experiment for herdingCats with model ', model
-		k = 0
-		for p in pathExploring(P):
-			k = k + 1
-
-			# encode 
-			# for e in p:
-			# 	print e
-			# print '------'
-
-			start = time.clock()
+			# start = time.clock()
 			# e = Encoder.encode(p, 'gharachorloo', model)
-			# e = Encoder.encode(p, 'gharachorloo', 'TSO')
-			# e = Encoder.encode(p, 'gharachorloo', 'PSO')
-			e = Encoder.encode(p, 'herding_cats', model)
-			# e = Encoder.encode(p, 'herding_cats', 'TSO')
-			# e = Encoder.encode(p, 'herding_cats', 'ARM')
-			elapsed = (time.clock() - start)
-			print k,',encoding time, ', elapsed, ',s.',
+			# # e = Encoder.encode(p, 'gharachorloo', 'TSO')
+			# # e = Encoder.encode(p, 'gharachorloo', 'PSO')
+			# e = Encoder.encode(p, 'herding_cats', 'SC')
+
+			# # e = Encoder.encode(p, 'herding_cats', 'TSO')
+			e = Encoder.encode(p, 'herding_cats', 'ARM')
+			# elapsed = (time.clock() - start)
+			# print k,',encoding time, ', elapsed, ',s.',
 
 
 			# # SMT solver
@@ -369,12 +354,11 @@ if __name__ == '__main__':
 			elapsed = (time.clock() - start)
 			print ',solving time, ', elapsed, ',s.', 
 			print result
-			# if result == sat:
-			# 	# print result
-			# 	for e in P:
-			# 		for i in e:
-			# 			print i
-			# 		print '------'
-			# 	break
-
-	print k
+			if result == sat:
+				# print result
+				# for e in P:
+				# 	for i in e:
+				# 		print i
+					# print '------'
+				break
+	

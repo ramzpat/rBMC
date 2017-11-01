@@ -10,7 +10,7 @@ class Operation():
 		return 'nop'
 
 # <var> := <exp>
-# <var> ::= <reg> | <loc> | <symbolic var>
+# <var> ::= <reg> | <loc> | <symbolic var> | <aux var>
 class Assignment(Operation):
 	def __init__(self, var, exp):
 		self.var = var

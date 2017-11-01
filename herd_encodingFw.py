@@ -12,9 +12,11 @@ Val.declare('undifined')
 Val.declare('temp', ('id', IntSort()))
 Val.declare('int', ('val', IntSort()))
 Val.declare('reg', ('rid', IntSort()))
+Val.declare('aux', ('id', IntSort()))
 Val = Val.create()
 Reg = Val.reg
 Temp = Val.temp
+Aux = Val.aux 
 
 # addrLoc = Function('addrLoc', Loc, IntSort())
 
@@ -28,6 +30,8 @@ initLocVal = Function('initLocVal', Loc, IntSort())
 
 def is_reg(e):
 	return eq(e.decl(), Reg)
+def is_aux(e):
+	return eq(e.decl(), Aux)
 def is_intVal(e):
 	return eq(e.decl(), Val.int)
 
@@ -38,6 +42,8 @@ Event.declare('read',  		('eid', IntSort()), ('loc', Loc), ('dest', IntSort()), 
 Event.declare('write', 		('eid', IntSort()), ('loc', Loc), ('val', IntSort()), ('pid', Proc))
 Event.declare('read_reg', 	('eid', IntSort()), ('reg', Val), ('dest', IntSort()), ('pid', Proc) )
 Event.declare('write_reg', 	('eid', IntSort()), ('reg', Val), ('val', IntSort()), ('pid', Proc))
+Event.declare('read_aux', 	('eid', IntSort()), ('reg', Val), ('dest', IntSort()), ('pid', Proc) )
+Event.declare('write_aux', 	('eid', IntSort()), ('reg', Val), ('val', IntSort()), ('pid', Proc))
 Event.declare('branch', ('eid', IntSort()), ('pid', Proc))
 Event.declare('fence', 		('eid', IntSort()), ('ftype', IntSort()), ('pid', Proc))
 
@@ -49,10 +55,14 @@ Event.declare('fence', 		('eid', IntSort()), ('ftype', IntSort()), ('pid', Proc)
 
 Event = Event.create()
 ConstEvent = Event.event
-ReadOp = Event.read
-WriteOp = Event.write
-WriteReg = Event.write_reg
-ReadReg = Event.read_reg
+
+ReadOp 		= Event.read
+WriteOp 	= Event.write
+ReadReg 	= Event.read_reg
+WriteReg 	= Event.write_reg
+ReadAux 	= Event.read_aux
+WriteAux 	= Event.write_aux
+
 Branch = Event.branch
 Fence = Event.fence
 
@@ -1057,6 +1067,8 @@ class encoder(encodingFW):
 		v = exp
 		if is_reg(var):
 			write = WriteReg(eidCnt, var, v, pid ) #Const(name, WriteReg)	
+		elif is_aux(var):
+			write = WriteAux(eidCnt, var, v, pid)
 		else: 
 			write = WriteOp(eidCnt, var, v, pid) #Const(name, WriteOp)
 		write.eid = eidCnt
@@ -1070,6 +1082,8 @@ class encoder(encodingFW):
 		eidCnt = self.info['EventCnt']
 		if is_reg(exp):
 			read = ReadReg(eidCnt, exp, var, pid) #Const(name, ReadReg)
+		elif is_aux(exp):
+			read = ReadAux(eidCnt, exp, var, pid)
 		else:
 			read = ReadOp(eidCnt, exp, var, pid) #Const(name, ReadOp)
 		read.eid = eidCnt
@@ -1142,6 +1156,11 @@ class encoder(encodingFW):
 			return e
 		elif isinstance(e, TempReg):
 			return Int(str(e))
+		elif isinstance(e, AuxVar):
+			if not(e.name in self.info['Aux'].keys()):
+				self.info['Aux'][e.name] = Aux(self.info['AuxCnt'])
+				self.info['AuxCnt'] += 1
+			return self.info['Aux'][e.name]
 		elif isinstance(e, Register):
 			if not(str(e) in self.info['Reg'].keys()):
 				self.info['Reg'][str(e)] = Reg(self.info['RegCnt'])
