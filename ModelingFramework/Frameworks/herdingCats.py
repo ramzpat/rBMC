@@ -743,12 +743,16 @@ def arm_constraints(po, rf, fr, co, iico, rf_reg, poSet, iicoSet, rf_regSet, Ev,
 	afterDMB = [ (eid1, eid2) for (eid1,eid2) in poSet if isFence(EvID[eid1]) and EvID[eid1].ftype == FenceType.DMB ]
 	dmbSet = concat_relation(beforeDMB, afterDMB)
 
+	beforeDSB = [ (eid1, eid2) for (eid1,eid2) in poSet if isFence(EvID[eid2]) and EvID[eid2].ftype == FenceType.DSB ]
+	afterDSB = [ (eid1, eid2) for (eid1,eid2) in poSet if isFence(EvID[eid1]) and EvID[eid1].ftype == FenceType.DSB ]
+	dsbSet = concat_relation(beforeDSB, afterDSB)
+
 	# for (i,j) in dmbSet:
 	# 	print EvID[i], EvID[j]
 
 	# axiom.append(ForAll([e1, e2], Not(strong(e1, e2))))
 	# fence = Function('fence', Event, Event, BoolSort())
-	axiom += [ strong(e1, e2) if (e1.eid, e2.eid) in dmbSet else Not(strong(e1, e2)) for e1 in Ev for e2 in Ev]
+	axiom += [ strong(e1, e2) if (((e1.eid, e2.eid) in dmbSet ) or ((e1.eid, e2.eid) in dsbSet)) else Not(strong(e1, e2)) for e1 in Ev for e2 in Ev]
 
 	e1, e2, e3, e4 = Consts('e1 e2 e3 e4', Event)
 	# axiom.append(ForAll([e1, e2], Not(light(e1, e2))))
@@ -879,6 +883,86 @@ def TSO_model(po, rf, fr, co, iico, rf_reg, poSet, iicoSet, rf_regSet, Ev, RMW =
 	po_ghb = Function('po_ghb', Event, Event, BoolSort())
 	axiom += [ po_ghb(u,v) if (u.eid, v.eid) in poSet and isRW(u) and isRW(v) and ( isRead(u) or isWrite(v) ) else Not(po_ghb(u,v))  for u in Ev for v in Ev]
 	# print [ po_ghb(u,v)  for u in Ev for v in Ev if (u.eid, v.eid) in poSet and isRW(u) and isRW(v) and ( isRead(u) or isWrite(v) ) ]
+
+	# #mfence
+	# include "x86fences.cat"
+
+	# #implied barriers
+	# let poWR = WR(po)
+	# let i1 = MA(poWR)
+	# let i2 = AM(poWR)
+	# let implied = i1 | i2
+	# Ignore because we not sure about atomic event
+
+
+	EvID = [0 for i in range(0, len(Ev))]
+	for i in Ev:
+		EvID[i.eid] = i
+	# dmb = Function('dmb', Event, Event, BoolSort())
+
+	beforeFence = [ (eid1, eid2) for (eid1,eid2) in poSet if isFence(EvID[eid2]) and EvID[eid2].ftype == FenceType.mfence ]
+	afterFence = [ (eid1, eid2) for (eid1,eid2) in poSet if isFence(EvID[eid1]) and EvID[eid1].ftype == FenceType.mfence ]
+	fenceSet = concat_relation(beforeFence, afterFence)
+
+	mfence = Function('mfence', Event, Event, BoolSort())
+	axiom += [(mfence(u,v) if (u.eid, v.eid) in fenceSet else Not(mfence(u,v)) ) for u in Ev for v in Ev]
+
+	(tso, tso_axioms) = acyclic(mfence,po_ghb, rfe, fr, co)
+	axiom.append(tso_axioms)
+	# let ghb = mfence | implied | po_ghb | rfe | fr | co
+	# show implied
+	# acyclic ghb as tso
+	return And(axiom)
+
+def PSO_model_h(po, rf, fr, co, iico, rf_reg, poSet, iicoSet, rf_regSet, Ev, RMW = []):
+	axiom = []
+	po_loc = Function('po-loc', Event, Event, BoolSort())
+	po_locSet = [ (e1.eid, e2.eid) for e1 in Ev for e2 in Ev if (e1.eid, e2.eid) in poSet and (eq(e1.target, e2.target) if None != e1.target and None != e2.target and e1.target.sort() == e2.target.sort() else False) ]
+	axiom += [po_loc(e1, e2) == And(po(e1, e2), (e1.target == e2.target) if None != e1.target and None != e2.target and e1.target.sort() == e2.target.sort() else False )  for e1 in Ev for e2 in Ev]
+	
+	# "X86 TSO"
+	# include "x86fences.cat"
+	# include "filters.cat"
+	# include "cos.cat"
+
+	# (* Uniproc check *)
+	# let com = rf | fr | co
+	# acyclic po-loc | com
+	# com = Function('com', Event, Event, BoolSort())
+	(uniproc, axiom_uniproc) = acyclic(po_loc, rf, fr, co)
+	axiom.append(axiom_uniproc)
+
+	# (* Atomic *)
+	# empty rmw & (fre;coe)
+	rmw = Function('rmw', Event, Event, BoolSort())			
+	axiom += ([(rmw(e1, e2) if (e1, e2) in RMW else Not(rmw(e1,e2)) ) for e1 in Ev for e2 in Ev])
+
+	rfe = Function('rfe', Event, Event, BoolSort())
+	rfi = Function('rfi', Event, Event, BoolSort())
+	fre = Function('fre', Event, Event, BoolSort())
+	coe = Function('coe', Event, Event, BoolSort())
+
+	for e1 in Ev:
+		for e2 in Ev:
+			axiom.append(rfe(e1, e2) == And(rf(e1,e2), Not(e1.pid == e2.pid)))
+			axiom.append(rfi(e1, e2) == And(rf(e1,e2), (e1.pid == e2.pid)))
+			axiom.append(fre(e1, e2) == And(fr(e1,e2), Not(e1.pid == e2.pid)))
+			axiom.append(coe(e1, e2) == And(co(e1,e2), Not(e1.pid == e2.pid)))
+
+	
+	e1, e2, e3 = Consts('e1 e2 e3', Event)
+	frecoe = Function('fre;coe', Event, Event, BoolSort())
+	axiom.append( ForAll([e1, e2, e3], Implies( And(fre(e1, e3), coe(e3, e2)), frecoe(e1, e2) )) )
+	axiom.append( ForAll([e1, e2], Not( And( rmw(e1,e2), frecoe(e1, e2) ) )))
+
+	# (* GHB *)
+	# #ppo
+	# let po_ghb = WW(po) | RM(po)
+	po_ghb = Function('po_ghb', Event, Event, BoolSort())
+	# axiom += [ po_ghb(u,v) if (u.eid, v.eid) in poSet and isRW(u) and isRW(v) and ( isRead(u) or isWrite(v) ) else Not(po_ghb(u,v))  for u in Ev for v in Ev]
+	# axiom for PSO
+	# let po_ghb = RM(po)
+	axiom += [ po_ghb(u,v) if (u.eid, v.eid) in poSet and isRead(u) and isRW(v) else Not(po_ghb(u,v))  for u in Ev for v in Ev]
 
 	# #mfence
 	# include "x86fences.cat"
@@ -1227,6 +1311,15 @@ class encoder(encodingFW):
 			fence.target = None
 			self.info['EventCnt'] = self.info['EventCnt'] + 1
 			return fence
+		elif isinstance(i, DSB):
+			eidCnt = self.info['EventCnt']
+			fence = Fence(eidCnt, FenceType.DSB, pid)
+			fence.eid = eidCnt
+			fence.pid = pid
+			fence.ftype = FenceType.DSB
+			fence.target = None
+			self.info['EventCnt'] = self.info['EventCnt'] + 1
+			return fence
 		print i
 		assert(False)
 		return None 
@@ -1448,6 +1541,12 @@ class encoder(encodingFW):
 			return TSO_model(self.info['rel_po'], self.info['rel_rf'], self.info['rel_fr'], self.info['rel_co'], 
 									self.info['rel_iico'], self.info['rel_rf_reg'], self.info['poS'], self.info['iicoSet'], self.info['rf_regSet'], 
 									self.info['Ev'], self.info['RMW'])
+		if self.model == 'PSO':
+			
+			return PSO_model_h(self.info['rel_po'], self.info['rel_rf'], self.info['rel_fr'], self.info['rel_co'], 
+									self.info['rel_iico'], self.info['rel_rf_reg'], self.info['poS'], self.info['iicoSet'], self.info['rf_regSet'], 
+									self.info['Ev'], self.info['RMW'])
+
 		# elif self.model == 'PSO':
 		# 	return PSO_model(self.info)
 		assert(False)

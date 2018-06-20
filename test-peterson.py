@@ -30,58 +30,6 @@ def mp():
 	'''
 	return translate([P1,P2])
 
-def mp_check():
-	P1 = '''
-	mov r1, #1
-	mov r3, #2
-	str r1, [x]
-	ldr r2, [x]
-	assert(r2 = #1)
-	str r3, [y]
-	'''
-
-	P2 = '''
-	ldr r1, [y]
-	assume(r1 = #2)
-	str r1, [x]
-	'''
-	return translate([P1,P2])
-
-def mp_check2():
-	P1 = seqOpsNode(
-			# [x] := 1 
-			Location('x') << 1,
-			# v1 := [x]
-			TempReg('v1') << Location('x'),
-			# assert(v1 = 1)
-			Assertion(TempReg('v1') == 1),
-
-			InstrOps(	# STBar 
-				hFW.STBarFence(),
-				# gFW.STBarFence(),
-				hFW.DMB()
-				),
-
-			# [y] := 2
-			Location('y') << 2
-		)
-	P2 = seqOpsNode(
-			# v2 := [y]
-			TempReg('v2') << Location('y'),
-			# assume(v2 = 2)
-			Assume(TempReg('v2') == 2),
-
-			InstrOps(	# STBar 
-				hFW.STBarFence(),
-				# gFW.STBarFence(),
-				hFW.DMB()
-				),
-			
-			# [x] := v2
-			Location('x') << TempReg('v2')
-		)
-	return [P1, P2]
-
 def mp_fence():
 	P1 = seqOpsNode(
 			InstrOps(	# mov r1, #1
@@ -478,10 +426,8 @@ def aux_test_arm():
 
 if __name__ == '__main__':
 	# P = aux_test()
-	# P = aux_test_arm()
-	P = mp()
-	# P = mp_check()
-	# P = mp_check2()
+	P = aux_test_arm()
+	# P = mp()
 	# P = mp_fence()
 	# P = toppers()
 	# P = toppers2()
@@ -506,10 +452,9 @@ if __name__ == '__main__':
 	X = pathExploring(P)
 	print 'finish exploring'
 
-	# for model in ['TSO', 'SC', 'ARM']:
-	for model in ['SC', 'PSO', 'ARM']:
+	for model in ['TSO', 'SC', 'ARM']:
+	# for model in ['SC']:
 		print 'experiment with model ', model
-
 		k = 0
 		for p in pathExploring(P):
 			k = k + 1
