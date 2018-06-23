@@ -55,6 +55,13 @@ class havoc(AnnotatedStatement):
 			ret += ', ' + str(v)
 		return ret + ')'
 
+class havocW(AnnotatedStatement):
+	def __init__(self, loc):
+		self.loc = loc 
+	def clone(self):
+		return havocW(self.loc)
+	def __str__(self):
+		return str(self.loc) + ' := *'
 
 class DoWhile(AnnotatedStatement):
 	def __init__(self, body, inv, branchInstr, Q = True):

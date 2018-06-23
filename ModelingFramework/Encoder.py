@@ -29,7 +29,7 @@ def ssa_form(P):
 		# state['dynamic_cnt']
 
 		if(set_name in state['dynamic_vars']):
-			var_name = state['dynamic_nickname'][set_name]+'_'+str(state['dynamic_cnt'][set_name])
+			var_name = state['dynamic_nickname'][set_name]+'_'+str(state['pid'])+'_'+str(state['dynamic_cnt'][set_name])
 			state['dynamic_vars'][set_name].append(var_name)
 			state['dynamic_cnt'][set_name] = state['dynamic_cnt'][set_name] + 1
 			return (var_name, state)
@@ -43,9 +43,14 @@ def ssa_form(P):
 		# global dynamic_nickname
 		# global dynamic_vars
 		# global dynamic_cnt
+
+
 		if(set_name in state['dynamic_vars']):
-			var_name = state['dynamic_nickname'][set_name]+'_'+str(state['dynamic_cnt'][set_name]-1)
+			var_name = state['dynamic_nickname'][set_name]+'_'+str(state['pid'])+'_'+str(state['dynamic_cnt'][set_name]-1)
 			return var_name
+		elif (set_name in state['write_val']):
+			# print 'heyhey', state['write_val'][set_name.address]
+			return state['write_val'][set_name]
 		else:
 			return 'undefined'	
 			raise NameError('There are no variable name "' + set_name + '"')
@@ -53,21 +58,45 @@ def ssa_form(P):
 			return  name # wrong
 
 	def new_exp(exp, state):
-		if isVar(exp):
+		if isinstance(exp, Location):
+			return Exp(state['write_val'][exp.address])
+		elif isVar(exp):
 			# print exp, exp.__class__
 			clss = exp.__class__ 
-			return Exp( clss(get_last_var(str(exp), state)) )
+			# print str(exp), clss
+			name = get_last_var(str(exp), state)
+			if name == 'undefined':
+				return undefinedExp()
+			return Exp( clss(name) )
 		elif isinstance(exp, ifExp):
 			return ifExp( new_exp(exp.cond, state), 
 							 new_exp(exp.t_exp, state),
 							 new_exp(exp.f_exp, state) )
 		elif isinstance(exp, Exp):
-			if len(exp) > 2 and (exp[1] == EOpr['plus'] or exp[1] == EOpr['minus'] or exp[1] == EOpr['times'] or 
-				exp[1] == EOpr['divide'] or exp[1] == EOpr['eq'] or exp[1] == EOpr['lt'] or exp[1] == EOpr['gt'] or
-				exp[1] == EOpr['and'] or exp[1] == EOpr['or']  ):
-				return Exp( new_exp(exp[0], state),
-							exp[1],
-							new_exp(exp[2], state))
+			if len(exp) > 2:
+				ep1 = new_exp(exp[0], state)
+				ep2 = new_exp(exp[2], state)
+				if (isinstance(ep1, undefinedExp) or isinstance(ep2, undefinedExp)):
+					if (exp[1] == EOpr['plus'] or exp[1] == EOpr['minus'] or exp[1] == EOpr['times'] or 
+						exp[1] == EOpr['divide']):
+						return undefinedExp()
+					elif (exp[1] == EOpr['eq'] or exp[1] == EOpr['lt'] or exp[1] == EOpr['gt'] or 
+						  exp[1] == EOpr['or']):
+						return True
+					elif (exp[1] == EOpr['and'] and not isinstance(ep1, undefinedExp)):
+						return ep1 
+					elif (exp[1] == EOpr['and'] and not isinstance(ep2, undefinedExp)):
+						return ep2 
+					elif (exp[1] == EOpr['and'] and isinstance(ep1, undefinedExp) and isinstance(ep2, undefinedExp)):
+						return True
+				elif (exp[1] == EOpr['plus'] or exp[1] == EOpr['minus'] or exp[1] == EOpr['times'] or 
+					exp[1] == EOpr['divide'] or exp[1] == EOpr['eq'] or exp[1] == EOpr['lt'] or exp[1] == EOpr['gt'] or
+					exp[1] == EOpr['and'] or exp[1] == EOpr['or']  ):
+					return Exp( new_exp(exp[0], state),
+								exp[1],
+								new_exp(exp[2], state))
+				else:
+					assert(False)
 			elif len(exp) == 2 and exp[0] == EOpr['not'] :
 				return Exp(EOpr['not'],(new_exp(exp[1], state)))
 			# else:
@@ -91,6 +120,9 @@ def ssa_form(P):
 					(nVar, state) = (var_name, state)
 				else:
 					(nVar,state) = (var.address,state) if (isinstance(var, Location)) else new_var(var_name, state)
+				# save write value state 
+				if isinstance(var, Location):
+					state['write_val'][var.address] = nExp
 				e.var = var.__class__(nVar)
 				e.exp = nExp 
 			elif isinstance(e, fenceStm):
@@ -110,6 +142,10 @@ def ssa_form(P):
 				exp = e.exp 
 				nExp = new_exp(exp, state)
 				(nVar, state) = new_var(str(var), state)
+
+				# save write value state 
+				state['write_val'][e.loc.address] = nExp
+
 				e.var = var.__class__(nVar)
 				e.exp = nExp 
 			elif isinstance(e, Operation):
@@ -129,7 +165,8 @@ def ssa_form(P):
 	# [P] = self.additionalRead(P)
 	def getLocations(exp):
 		if isinstance(exp, Location):
-			return [exp]
+			return []
+			# return [exp]
 		elif isinstance(exp, TempReg):
 			return []
 		elif isinstance(exp, Register):
@@ -148,11 +185,12 @@ def ssa_form(P):
 
 	def updateCond(exp, dictLoc):
 		if isinstance(exp, Location):
-			return dictLoc[exp]
+			return exp
+			# return (dictLoc[exp.address] if (str(exp.address) in dictLoc.keys()) else exp)
 		elif isinstance(exp, TempReg):
 			return exp
 		elif isinstance(exp, Register):
-			return dictLoc[exp]
+			return (dictLoc[exp] if (str(exp) in dictLoc.keys()) else exp)
 		elif isVar(exp):
 			return exp
 		elif isinstance(exp, Exp):
@@ -167,6 +205,51 @@ def ssa_form(P):
 				return Exp(EOpr['not'],(updateCond(exp[1], dictLoc)))
 		return exp
 
+	def lastestWriteVal(p, dictLoc = {}):
+		if isinstance(p, Assertion):
+			print updateCond(p.cond, dictLoc)
+			return (SeqOps(Assertion(updateCond(p.cond, dictLoc))), dictLoc)
+		elif isinstance(p, Assume):
+			print updateCond(p.cond, dictLoc), dictLoc
+			return (SeqOps(Assume(updateCond(p.cond, dictLoc))), dictLoc)
+		elif isinstance(p, WriteAssn) and isinstance(p.var, Location):
+			print 'save ', p.var.address, p.exp
+			dictLoc[p.var.address] = p.exp
+			return (p, dictLoc)
+		elif isinstance(p, OprStoreCond):
+			print 'save ', p.loc.address, p.exp
+			dictLoc[p.loc.address] = p.exp
+			return (p, dictLoc)
+		elif isinstance(p, Operation):
+			return (p,dictLoc) 
+		elif isinstance(p, SeqOps):
+			new_elements = SeqOps()
+			for i in p.elements:
+				(nP, dictLoc) = lastestWriteVal(i, dictLoc)
+				new_elements.append(nP)
+			return (new_elements, dictLoc)
+
+		elif isinstance(p, ParOps):
+			new_elements = ParOps()
+			for i in p.elements:
+				(nP, dictLoc) = lastestWriteVal(i, dictLoc)
+				new_elements.append(nP)
+			return (new_elements, dictLoc)
+		elif isinstance(p, InstrOps):
+			new_elements = InstrOps()
+			for i in p.elements:
+				(nP, dictLoc) = lastestWriteVal(i, dictLoc)
+				new_elements.append(nP)
+			return (new_elements, dictLoc)
+		elif isinstance(p, AnnotatedStatement):
+			return (p,dictLoc)
+		elif isinstance(p, Ops):
+			return (p,dictLoc)
+		elif isinstance(p, fenceStm):
+			return (p,dictLoc)
+		print p.__class__
+		assert(False)
+
 	def additionalRead(p):
 		if isinstance(p, Assertion):
 			locVar = getLocations(p.cond)
@@ -174,17 +257,19 @@ def ssa_form(P):
 			dictLoc = {}
 
 			for v in locVar:
-				dictLoc[v] = TempReg('val_'+str(v.address if isinstance(v, Location) else v))
+				if not isinstance(v, Location):
+					dictLoc[v] = TempReg('val_'+str(v.address if isinstance(v, Location) else v))
 			# print self.updateCond(p, dictLoc)
-			return SeqOps( *([dictLoc[v] << v for v in locVar] + [Assertion(updateCond(p.cond, dictLoc))]) )
+			return SeqOps( *([dictLoc[v] << v for v in locVar if not isinstance(v,Location)] + [Assertion(updateCond(p.cond, dictLoc))]) )
 		elif isinstance(p, Assume):
 			locVar = getLocations(p.cond)
 			locVar = set(locVar)
 			dictLoc = {}
 			for v in locVar:
-				dictLoc[v] = TempReg('val_'+str(v.address if isinstance(v, Location) else v))
+				if not isinstance(v, Location):
+					dictLoc[v] = TempReg('val_'+str(v.address if isinstance(v, Location) else v))
 			# print self.updateCond(p, dictLoc)
-			return SeqOps( *([ dictLoc[v] << v for v in locVar] + [Assume(updateCond(p.cond, dictLoc))]))
+			return SeqOps( *([ dictLoc[v] << v for v in locVar if not isinstance(v,Location)] + [Assume(updateCond(p.cond, dictLoc))]))
 
 		elif isinstance(p, Assignment) and isinstance(p.exp, ifExp):
 			locVar = getLocations(p.exp.cond)
@@ -194,7 +279,8 @@ def ssa_form(P):
 			for v in locVar:
 				dictLoc[v] = TempReg('val_'+str(v.address if isinstance(v, Location) else v))
 
-			return SeqOps( *( [ dictLoc[v] << v for v in locVar] + [p.var << ifExp( updateCond(p.exp.cond, dictLoc), p.exp.t_exp, p.exp.f_exp )]) )
+			return SeqOps( *( [ dictLoc[v] << v for v in locVar if not isinstance(v,Location)] + [p.var << ifExp( updateCond(p.exp.cond, dictLoc), p.exp.t_exp, p.exp.f_exp )]) )
+
 		elif isinstance(p, Operation):
 			return p
 
@@ -227,6 +313,9 @@ def ssa_form(P):
 	def eliminateHavoc(p):
 		if isinstance(p, havoc):
 			return [ v << undefinedExp() for v in p.vars]
+		elif isinstance(p, havocW):
+			return [TempReg('val_'+str(p.loc.address)) << undefinedExp() , 
+			    	p.loc << TempReg('val_'+str(p.loc.address))] 
 		elif isinstance(p, ParOps):
 			newPar = []
 			for i in p.elements:
@@ -244,6 +333,7 @@ def ssa_form(P):
 			for i in p.elements:
 				newSeq += eliminateHavoc(i)
 			# print SeqSem(*newSeq)
+			# print p.__class__
 			return [p.__class__(*newSeq)]
 		else:
 			return [p]
@@ -256,7 +346,7 @@ def ssa_form(P):
 		
 
 		P = P.clone()
-
+		# (P, dictLoc) = lastestWriteVal(P)
 		P = additionalRead(P)
 		# print P 
 		for i in P.elements:
@@ -265,15 +355,28 @@ def ssa_form(P):
 		return (P, state)
 
 	state = {
+		'pid' : 0,
 		'dynamic_nickname' : {},
 		'dynamic_vars' : {},
-		'dynamic_cnt' : {}
+		'dynamic_cnt' : {},
+		'write_val' :{}
 	}
 	ssa = []
+	pid = 0
+	for p in P:	
+		state['pid'] = pid
+		# if 'lock' in state['write_val'].keys():
+		# 	print state['write_val']['lock']
 
-	for p in P:
+		state['dynamic_nickname'] = {}
+		state['dynamic_vars'] = {}
+		state['dynamic_cnt'] = {}
+
+		state['write_val'] = {}
+
 		(e, state) = ssa_seq(p, state)
 		ssa += [e]
+		pid += 1
 	return ssa 
 
 # return z3 formulas 
@@ -283,6 +386,7 @@ def encode(P, encoder, model = ''):
 
 	if isinstance(encoder, encodingFW):
 		P = ssa_form(P)
+		# return None
 		formulas = encoder.encode(P)
 		return formulas
 	assert(False)

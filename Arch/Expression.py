@@ -41,37 +41,70 @@ class Exp: # Value expression
 		return '(' + s + ')' 
 
 	def __add__(self, other):
+		if isinstance(other, undefinedExp):
+			return undefinedExp
 		return Exp(self, EOpr['plus'], other)
 	def __radd__(self, other):
+		if isinstance(other, undefinedExp):
+			return undefinedExp
 		return Exp(other, EOpr['plus'], self)
 	def __sub__(self, other):
+		if isinstance(other, undefinedExp):
+			return undefinedExp
 		return Exp(self, EOpr['minus'], other)
 	def __rsub__(self, other):
+		if isinstance(other, undefinedExp):
+			return undefinedExp
 		return Exp(other, EOpr['minus'], self)
 	def __mul__(self, other):
+		if isinstance(other, undefinedExp):
+			return undefinedExp
 		return Exp(self, EOpr['times'], other)
 	def __rmul__(self, other):
+		if isinstance(other, undefinedExp):
+			return undefinedExp
 		return Exp(other, Eopr['times'], self)
 	def __div__(self, other):
+		if isinstance(other, undefinedExp):
+			return undefinedExp
 		return Exp(self, EOpr['divide'], other)
 	def __rdiv__(self, other):
+		if isinstance(other, undefinedExp):
+			return undefinedExp
 		return Exp(other, EOpr['divide'], self)
 	def __eq__(self, other):
+		if isinstance(other, undefinedExp):
+			return True
 		return Exp(self, EOpr['eq'], other)
 	def __lt__(self, other):
+		if isinstance(other, undefinedExp):
+			return True
 		return Exp(self, EOpr['lt'], other)
 	def __gt__(self, other):
+		if isinstance(other, undefinedExp):
+			return True
 		return Exp(self, EOpr['gt'], other)
 	def __ne__(self, other):
+		if isinstance(other, undefinedExp):
+			return True
 		return Exp(EOpr['not'], Exp(self, EOpr['eq'], other))
 	def __and__(self, other):
+		if isinstance(other, undefinedExp):
+			return self
 		return Exp(self, EOpr['and'], other)
 	def __rand__(self, other):
+		if isinstance(other, undefinedExp):
+			return self
 		return Exp(other, EOpr['and'], self)
 	def __or__(self, other):
+		if isinstance(other, undefinedExp):
+			return True
 		return Exp(self, EOpr['or'], other)
 	def __ror__(self, other):
+		if isinstance(other, undefinedExp):
+			return True
 		return Exp(other, EOpr['or'], self)
+
 	def __not__(self):
 		return Exp(EOpr['not'], self)
 	def not_(self):
@@ -79,9 +112,13 @@ class Exp: # Value expression
 	def __invert__(self):
 		return Exp(EOpr['not'], self)
 	def __le__(self, other):
+		if isinstance(other, undefinedExp):
+			return True
 		# print (self == other) & (self < other)
 		return (self == other) | (self < other)
 	def __ge__(self, other):
+		if isinstance(other, undefinedExp):
+			return True
 		return (self == other) | (self > other)
 
 	def __lshift__(self, other):

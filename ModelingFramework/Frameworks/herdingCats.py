@@ -1516,7 +1516,6 @@ class encoder(encodingFW):
 		self.info['iicoSet'] = iicoSet 
 		self.info['rf_regSet'] = rf_regSet
 
-
 		# underlying axioms
 		model_axiom = self.model_axioms()
 		# print

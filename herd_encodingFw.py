@@ -1295,6 +1295,7 @@ class encoder(encodingFW):
 
 		# realize po
 
+
 		po = Function('po', Event, Event, BoolSort())
 		for x in self.info['Ev']:
 			for y in self.info['Ev']:
@@ -1325,7 +1326,7 @@ class encoder(encodingFW):
 		self.info['iicoSet'] = iicoSet 
 		self.info['rf_regSet'] = rf_regSet
 
-
+		print 'finish basis relation',
 		# underlying axioms
 		model_axiom = self.model_axioms()
 		# print

@@ -7,7 +7,9 @@ def dominate(inNode, u, v):
 def seqOpsNode(*seq):
 	seq = list(seq)
 	prev = []
+	# e = OpsNode(SeqOps())
 	for i in range(len(seq)-1, -1, -1):
+		# print seq[i]
 		e = OpsNode(seq[i], prev)
 		prev = [e]
 	return e
@@ -16,7 +18,9 @@ class OpsNode:
 	def __init__(self, ops, next = []):
 		# print ops.__class__
 		assert(isinstance(ops, SeqOps) or isinstance(ops, InstrOps) or isinstance(ops, AnnotatedStatement)
-			or isinstance(ops, WriteAssn) or isinstance(ops, ReadAssn) or isinstance(ops,Assignment) ) # for aux var
+			or isinstance(ops, WriteAssn) or isinstance(ops, ReadAssn) or isinstance(ops,Assignment)
+			or str(ops) == 'nil'or isinstance(ops, OprLoadLink) or isinstance(ops, OprStoreCond) 
+			or isinstance(ops, CondOps) or isinstance(ops, ParOps) or isinstance(ops, fenceStm)) # for aux var
 		self.ops = ops 
 		self.next = next 
 		self.isLoop = False

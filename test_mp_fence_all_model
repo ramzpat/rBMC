@@ -1,0 +1,21 @@
+{}
+{'[x]': 1, '[y]': 1}
+{'[x]': 1, '[y]': 1}
+{'[x]': 0, '[y]': 0}
+kWrite:  0
+experiment with model  SC
+1 ,encoding time,  2.748492 ,s. ,solving time,  0.143585 ,s. unsat
+2 ,encoding time,  6.676413 ,s. ,solving time,  0.344005 ,s. unsat
+3 ,encoding time,  4.503757 ,s. ,solving time,  0.193299 ,s. unsat
+experiment with model  TSO
+1 ,encoding time,  3.276707 ,s. ,solving time,  0.119881 ,s. unsat
+2 ,encoding time,  8.124123 ,s. ,solving time,  0.406931 ,s. unsat
+3 ,encoding time,  5.6653 ,s. ,solving time,  0.253248 ,s. unsat
+experiment with model  PSO
+1 ,encoding time,  3.048282 ,s. ,solving time,  0.127852 ,s. unsat
+2 ,encoding time,  8.623673 ,s. ,solving time,  0.60194 ,s. unsat
+3 ,encoding time,  6.482222 ,s. ,solving time,  0.370454 ,s. unsat
+experiment with model  ARM
+1 ,encoding time,  15.026083 ,s. ,solving time,  1.788738 ,s. unsat
+2 ,encoding time,  38.017749 ,s. ,solving time,  16.41612 ,s. unsat
+3 ,encoding time,  24.762642 ,s. ,solving time,  2.397382 ,s. unsat

@@ -60,6 +60,8 @@ class encodingFW:
 			raise NotImplementedError()
 			return self.encodeElement(exp)
 			# return herd.Const(str(exp), herd.Val)
+		elif isinstance(exp, undefinedExp):
+			return True
 		elif isinstance(exp, Exp):
 			if(len(exp) > 2):
 				op = exp[1]
@@ -184,7 +186,7 @@ class encodingFW:
 		# else:
 		# 	WriteInit = [self.new_write(v, FreshInt(), 0) for v in self.info['Loc'].values()]
 		# 	self.info['Ev'] += WriteInit
-		
+		# print 'finish generic encode',
 		return self.encodeSpecific()
 
 	def constructPO(self, p, prev = []):
