@@ -1,14 +1,45 @@
-from Arch.objects import *
-from Arch.translator import translate
 
+if __package__ is None:
+	import sys
+	from os import path
+	sys.path.append( path.dirname(( path.dirname( path.abspath(__file__) ) ) ))
 
-from PathExploring import * 
-from ModelingFramework import Encoder
+from Modules import *
+# print Translator
+from Translator import translate
+from PathExploring import newIndInv, GraphPreparation, pathExploring
+from Encoder import Encoder
+
+import Encoder.Framework.gharachorloo  as gFW
+import Encoder.Framework.herdingCats as hFW 
+
 from z3 import *
 
+# from Modules.Translator import translate
+# from Arch.Translator import translate
 
-import ModelingFramework.Frameworks.gharachorloo  as gFW
-import ModelingFramework.Frameworks.herdingCats as hFW 
+# from Modules.Arch.Translator import translate
+
+# from Modules.PathExploring import * 
+# from Modules.PathExploring import newIndInv
+
+# from Modules.Encoder import Encoder
+
+
+
+
+# else:
+# 	# from Arch.objects import *
+# 	# from Arch.translator import translate
+
+
+# 	# from PathExploring import * 
+# 	# from ModelingFramework import Encoder
+# 	# from z3 import *
+
+
+# 	import Modules.Encoder.Framework.gharachorloo  as gFW
+# 	import Modules.Encoder.Framework.herdingCats as hFW 
 
 import time
 
@@ -627,7 +658,7 @@ def testNewMethod():
 if __name__ == '__main__':
 	# P = aux_test()
 	# P = aux_test_arm()
-	# P = mp()
+	P = mp()
 	# P = mp_check()
 	# P = mp_check2()
 	# P = mp_fence()
@@ -638,14 +669,14 @@ if __name__ == '__main__':
 	# P = dekker()
 	# P = testNewMethod()
 
-	P = mp_fence_proc(3)
+	# P = mp_fence_proc(2)
 
 	
-	# print 'program to be checked'
-	# for p in P[1:]:
-	# 	for i in p:
-	# 		print i
-	# 	print '----------'
+	print 'program to be checked'
+	for p in P[1:]:
+		for i in p:
+			print i
+		print '----------'
 
 
 	P = newIndInv(P)
@@ -690,10 +721,10 @@ if __name__ == '__main__':
 			start = time.clock()
 			e = Encoder.encode(p, 'gharachorloo', model)
 			# # e = Encoder.encode(p, 'gharachorloo', 'TSO')
-			# # e = Encoder.encode(p, 'gharachorloo', 'PSO')
+			# e = Encoder.encode(p, 'gharachorloo', 'PSO')
 			# e = Encoder.encode(p, 'herding_cats', 'SC')
 
-			# # e = Encoder.encode(p, 'herding_cats', 'TSO')
+			# e = Encoder.encode(p, 'herding_cats', 'TSO')
 			# e = Encoder.encode(p, 'herding_cats', model)
 			elapsed = (time.clock() - start)
 			print k,',encoding time, ', elapsed, ',s.',
@@ -716,6 +747,6 @@ if __name__ == '__main__':
 				# 		print i
 					# print '------'
 				break
-		elapsedAll = (time.clock() - startALl)
+		elapsedAll = (time.clock() - startAll)
 		print k,',total time, ', elapsedAll, ',s.'
 	
